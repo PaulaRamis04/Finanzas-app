@@ -115,19 +115,30 @@ h2{font-size:15px; margin:0 0 12px}
   <main id="app"></main>
 </div>
 <script>
-const TABS = ["Movimientos","Deudas","Cuentas","Inversiones"];
+const TABS = ["Movimientos","Deudas","Cuentas","Inversiones","Categorías"];
 let tab = "Movimientos";
 let ready = false;
-let movimientos = [], deudas = [], cuentas = [], inversiones = [], aportaciones = [];
-let aportarInvId = null, editarValorInvId = null;
+let movimientos = [], deudas = [], cuentas = [], inversiones = [], aportaciones = [], categorias = [];
+let aportarInvId = null, editarValorInvId = null, editarCatId = null;
 let session = null, appStarted = false;
 
 // --- Configura aquí tu proyecto de Supabase ---
 const SUPABASE_URL = "https://qlgtgmgtijjzqwxkhwdg.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFsZ3RnbWd0aWpqenF3eGtod2RnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyNDU1OTcsImV4cCI6MjEwNTgyMTU5N30.HZx4Sh-gic5ZG7i80utcShW_Jxwa20dATo0kdvIwoIA";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const CAT_GASTO = ["Imprescindible","Prescindible","Comer fuera","Compras","Suscripciones","Gasolina","Otro"];
-const CAT_INGRESO = ["Nómina","Extra","Bizum","Otro"];
+const CATEGORIAS_DEFECTO = [
+  {tipo:"gasto", padre:"Imprescindible", nombre:"Gasolina"},
+  {tipo:"gasto", padre:"Imprescindible", nombre:"Academia"},
+  {tipo:"gasto", padre:"Prescindible", nombre:"Salidas"},
+  {tipo:"gasto", padre:"Prescindible", nombre:"Tomar algo"},
+  {tipo:"gasto", padre:"Prescindible", nombre:"Comer"},
+  {tipo:"gasto", padre:"Prescindible", nombre:"Compras"},
+  {tipo:"gasto", padre:"Prescindible", nombre:"Suscripciones"},
+  {tipo:"ingreso", padre:null, nombre:"Nómina"},
+  {tipo:"ingreso", padre:null, nombre:"Extra"},
+  {tipo:"ingreso", padre:null, nombre:"Bizum"},
+  {tipo:"ingreso", padre:null, nombre:"Otro"}
+];
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 let periodoMes = "todos"; // "todos" o "1".."12"
 let periodoAnio = new Date().getFullYear();
@@ -367,6 +378,54 @@ function renderInversiones(){
   </div>`;
 }
 
+function catItem(c){
+  return editarCatId===c.id ? `
+    <div class="item" style="flex-direction:column;align-items:stretch;gap:8px">
+      <input id="catNuevoNombre" value="${c.nombre}">
+      <div style="display:flex;gap:8px">
+        <button class="btn" data-confirmar-cat="${c.id}">Guardar</button>
+        <button class="btn ghost" data-cancelar-cat="1">Cancelar</button>
+      </div>
+    </div>` : `
+    <div class="item">
+      <div>${c.nombre}</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn ghost" data-editar-cat="${c.id}">Renombrar</button>
+        <button class="btn ghost" data-del-cat="${c.id}">Borrar</button>
+      </div>
+    </div>`;
+}
+
+function renderCategorias(){
+  const porPadre = {};
+  categorias.filter(c=>c.tipo==="gasto").forEach(c=>{ const p=c.padre||"Otros"; (porPadre[p]=porPadre[p]||[]).push(c); });
+  const ingresoList = categorias.filter(c=>c.tipo==="ingreso");
+  const padres = Object.keys(porPadre);
+  return `
+  <div class="card">
+    <h2>Nueva categoría</h2>
+    <form id="fCategoria">
+      <div class="row2">
+        <div><label>Tipo</label><select name="tipo" id="catTipo"><option value="gasto">Gasto</option><option value="ingreso">Ingreso</option></select></div>
+        <div id="catPadreWrap"><label>Grupo</label><input name="padre" id="catPadre" list="padresList" placeholder="ej. Imprescindible"><datalist id="padresList">${padres.map(p=>`<option value="${p}">`).join("")}</datalist></div>
+      </div>
+      <div><label>Nombre</label><input name="nombre" placeholder="ej. Gasolina" required></div>
+      <button class="btn" type="submit">Añadir</button>
+    </form>
+  </div>
+  <div class="section-title">Gastos</div>
+  <div class="list">
+    ${padres.length? padres.map(p=>`
+      <div class="meta" style="font-weight:700;margin-top:4px">${p}</div>
+      ${porPadre[p].map(catItem).join("")}
+    `).join("") : `<div class="empty">Sin categorías de gasto todavía.</div>`}
+  </div>
+  <div class="section-title">Ingresos</div>
+  <div class="list">
+    ${ingresoList.length? ingresoList.map(catItem).join("") : `<div class="empty">Sin categorías de ingreso todavía.</div>`}
+  </div>`;
+}
+
 function render(){
   renderTabs();
   renderBalance();
@@ -376,16 +435,28 @@ function render(){
   if(tab==="Movimientos") app.innerHTML = renderMovimientos();
   else if(tab==="Deudas") app.innerHTML = renderDeudas();
   else if(tab==="Cuentas") app.innerHTML = renderCuentas();
-  else app.innerHTML = renderInversiones();
+  else if(tab==="Inversiones") app.innerHTML = renderInversiones();
+  else app.innerHTML = renderCategorias();
   wireEvents();
 }
 
 function wireEvents(){
   const cat = document.getElementById("movCat");
-  const tipo = document.getElementById("movTipo");
+  const tipoSel = document.getElementById("movTipo");
   if(cat){
-    const fill = ()=> cat.innerHTML = (tipo.value==="gasto"?CAT_GASTO:CAT_INGRESO).map(c=>`<option>${c}</option>`).join("");
-    fill(); tipo.onchange = fill;
+    const fill = ()=>{
+      if(tipoSel.value==="gasto"){
+        const porPadre = {};
+        categorias.filter(c=>c.tipo==="gasto").forEach(c=>{ const p=c.padre||"Otros"; (porPadre[p]=porPadre[p]||[]).push(c); });
+        cat.innerHTML = Object.keys(porPadre).length
+          ? Object.entries(porPadre).map(([p,cats])=>`<optgroup label="${p}">${cats.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join("")}</optgroup>`).join("")
+          : `<option value="">Crea una categoría en la pestaña "Categorías"</option>`;
+      } else {
+        const list = categorias.filter(c=>c.tipo==="ingreso");
+        cat.innerHTML = list.length ? list.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join("") : `<option value="">Crea una categoría en la pestaña "Categorías"</option>`;
+      }
+    };
+    fill(); tipoSel.onchange = fill;
   }
   const fMov = document.getElementById("fMov");
   if(fMov) fMov.onsubmit = async (e)=>{
@@ -483,24 +554,62 @@ function wireEvents(){
     if(error){ showError("No se pudo guardar el nuevo valor: "+error.message); return; }
     hideError(); editarValorInvId = null; await fetchAll();
   });
+  const catTipo = document.getElementById("catTipo");
+  const catPadreWrap = document.getElementById("catPadreWrap");
+  if(catTipo && catPadreWrap){
+    const toggle = ()=> catPadreWrap.style.display = catTipo.value==="ingreso" ? "none" : "block";
+    toggle(); catTipo.onchange = toggle;
+  }
+  const fCategoria = document.getElementById("fCategoria");
+  if(fCategoria) fCategoria.onsubmit = async (e)=>{
+    e.preventDefault();
+    const f = new FormData(fCategoria);
+    const tipoVal = f.get("tipo");
+    const data = {tipo:tipoVal, padre: tipoVal==="gasto" ? (f.get("padre")||"Otros") : null, nombre:f.get("nombre")};
+    const {error} = await sb.from("categorias").insert(data);
+    if(error){ showError("No se pudo guardar la categoría: "+error.message); return; }
+    hideError(); fCategoria.reset(); await fetchAll();
+  };
+  document.querySelectorAll("[data-del-cat]").forEach(b=>b.onclick=async ()=>{
+    const {error} = await sb.from("categorias").delete().eq("id", b.dataset.delCat);
+    if(error){ showError("No se pudo borrar: "+error.message); return; }
+    hideError(); await fetchAll();
+  });
+  document.querySelectorAll("[data-editar-cat]").forEach(b=>b.onclick=()=>{ editarCatId=b.dataset.editarCat; render(); });
+  document.querySelectorAll("[data-cancelar-cat]").forEach(b=>b.onclick=()=>{ editarCatId=null; render(); });
+  document.querySelectorAll("[data-confirmar-cat]").forEach(b=>b.onclick=async ()=>{
+    const catId = b.dataset.confirmarCat;
+    const nuevo = document.getElementById("catNuevoNombre")?.value.trim();
+    if(!nuevo) return;
+    const {error} = await sb.from("categorias").update({nombre:nuevo}).eq("id", catId);
+    if(error){ showError("No se pudo renombrar: "+error.message); return; }
+    hideError(); editarCatId = null; await fetchAll();
+  });
 }
 
 async function fetchAll(){
   try{
-    const [{data:cta, error:e1}, {data:mov, error:e2}, {data:deu, error:e3}, {data:inv, error:e4}, {data:apo, error:e5}] = await Promise.all([
+    const [{data:cta, error:e1}, {data:mov, error:e2}, {data:deu, error:e3}, {data:inv, error:e4}, {data:apo, error:e5}, {data:cat, error:e6}] = await Promise.all([
       sb.from("cuentas").select("*").order("nombre"),
       sb.from("movimientos").select("*").order("fecha", {ascending:false}),
       sb.from("deudas").select("*"),
       sb.from("inversiones").select("*"),
-      sb.from("aportaciones_inversion").select("*")
+      sb.from("aportaciones_inversion").select("*"),
+      sb.from("categorias").select("*")
     ]);
-    const err = e1||e2||e3||e4||e5;
+    const err = e1||e2||e3||e4||e5||e6;
     if(err){ ready = true; render(); showError("No se pudieron cargar los datos: "+err.message); return; }
     cuentas = (cta||[]).map(c=>({id:c.id, nombre:c.nombre, saldoInicial:Number(c.saldo_inicial)}));
     movimientos = (mov||[]).map(m=>({id:m.id, tipo:m.tipo, categoria:m.categoria, importe:Number(m.importe), fecha:m.fecha, nota:m.nota, cuentaId:m.cuenta_id}));
     deudas = (deu||[]).map(d=>({id:d.id, persona:d.persona, importe:Number(d.importe), direccion:d.direccion, concepto:d.concepto, estado:d.estado, fecha:d.fecha}));
     inversiones = (inv||[]).map(i=>({id:i.id, nombre:i.nombre, tipo:i.tipo, valorActual:Number(i.valor_actual)}));
     aportaciones = (apo||[]).map(a=>({id:a.id, inversionId:a.inversion_id, importe:Number(a.importe), fecha:a.fecha, cuentaId:a.cuenta_id}));
+    if((cat||[]).length===0){
+      const {error:eSeed} = await sb.from("categorias").insert(CATEGORIAS_DEFECTO);
+      if(!eSeed){ const {data:cat2} = await sb.from("categorias").select("*"); categorias = (cat2||[]).map(c=>({id:c.id, tipo:c.tipo, padre:c.padre, nombre:c.nombre})); }
+    } else {
+      categorias = cat.map(c=>({id:c.id, tipo:c.tipo, padre:c.padre, nombre:c.nombre}));
+    }
     hideError(); ready = true; render();
   }catch(e){
     ready = true; render();
@@ -528,6 +637,7 @@ async function startApp(){
     .on("postgres_changes", {event:"*", schema:"public", table:"cuentas"}, fetchAll)
     .on("postgres_changes", {event:"*", schema:"public", table:"inversiones"}, fetchAll)
     .on("postgres_changes", {event:"*", schema:"public", table:"aportaciones_inversion"}, fetchAll)
+    .on("postgres_changes", {event:"*", schema:"public", table:"categorias"}, fetchAll)
     .subscribe();
 }
 
