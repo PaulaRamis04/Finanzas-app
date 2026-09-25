@@ -4,88 +4,95 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Cuentas</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%AA%99%3C/text%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 :root{
-  --ink:#12211d; --paper:#f6f4ee; --line:#d9d3c3;
-  --teal:#1f4d43; --teal-2:#2f6e5f; --gold:#c08a2e;
-  --red:#a3402f; --muted:#6b6558; --card:#ffffff;
+  --ink:#15161a; --paper:#ffffff; --line:#e7e7ec;
+  --accent:#6c4ee3; --accent-2:#5a3fd0; --accent-soft:#efe9fd;
+  --pos:#16a34a; --neg:#e11d48; --muted:#7c7c86; --card:#ffffff;
   padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
   box-sizing:border-box;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --ink:#eae6da; --paper:#141a17; --line:#2b352f;
-    --teal:#7fb8a6; --teal-2:#5c9683; --gold:#e0ac4e;
-    --red:#e08a77; --muted:#9b9284; --card:#1b2320;
+    --ink:#f1f1f5; --paper:#121214; --line:#2b2b30;
+    --accent:#a494f5; --accent-2:#b7abf7; --accent-soft:#26203f;
+    --pos:#4ade80; --neg:#fb7185; --muted:#9c9ca6; --card:#1b1b1f;
   }
 }
 :root[data-theme="dark"]{
-  --ink:#eae6da; --paper:#141a17; --line:#2b352f;
-  --teal:#7fb8a6; --teal-2:#5c9683; --gold:#e0ac4e;
-  --red:#e08a77; --muted:#9b9284; --card:#1b2320;
+  --ink:#f1f1f5; --paper:#121214; --line:#2b2b30;
+  --accent:#a494f5; --accent-2:#b7abf7; --accent-soft:#26203f;
+  --pos:#4ade80; --neg:#fb7185; --muted:#9c9ca6; --card:#1b1b1f;
 }
 *{box-sizing:border-box}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 body{
   margin:0; background:var(--paper); color:var(--ink);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-  min-height:100%;
+  min-height:100%; -webkit-font-smoothing:antialiased;
 }
 header{
-  padding:28px 20px 18px; border-bottom:1px solid var(--line);
+  padding:26px 20px 18px; border-bottom:1px solid var(--line);
   position:sticky; top:env(safe-area-inset-top,0px); background:var(--paper); z-index:5;
 }
-header h1{margin:0 0 4px; font-size:22px; font-weight:700; letter-spacing:-0.01em}
+header h1{margin:0 0 3px; font-size:24px; font-weight:800; letter-spacing:-0.02em}
 header p{margin:0; color:var(--muted); font-size:13px}
-.periodo{display:flex; gap:8px; margin-top:12px}
-.periodo select{width:auto; padding:6px 8px; font-size:13px}
-.balance{display:flex; gap:22px; margin-top:16px; flex-wrap:wrap}
-.balance div{min-width:100px}
-.balance .num{font-size:22px; font-weight:700; font-variant-numeric:tabular-nums}
-.balance .lbl{font-size:12px; color:var(--muted); margin-top:2px}
-.pos{color:var(--teal)} .neg{color:var(--red)}
-nav{display:flex; gap:4px; padding:10px 16px; overflow-x:auto; border-bottom:1px solid var(--line)}
+.periodo{display:flex; gap:8px; margin-top:14px}
+.periodo select{width:auto; padding:7px 12px; font-size:13px; border-radius:999px}
+.balance{display:flex; gap:24px; margin-top:18px; flex-wrap:wrap}
+.balance div{min-width:98px}
+.balance .num{font-size:22px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-0.01em}
+.balance .lbl{font-size:11.5px; color:var(--muted); margin-top:3px}
+.pos{color:var(--pos)} .neg{color:var(--neg)}
+nav{display:flex; gap:6px; padding:12px 16px; overflow-x:auto; border-bottom:1px solid var(--line)}
 nav button{
-  border:none; background:transparent; color:var(--muted); padding:8px 14px;
-  border-radius:20px; font-size:14px; cursor:pointer; white-space:nowrap; font-weight:600;
+  border:1px solid var(--line); background:transparent; color:var(--muted); padding:7px 15px;
+  border-radius:999px; font-size:13.5px; cursor:pointer; white-space:nowrap; font-weight:700;
+  transition:background .15s ease, color .15s ease, border-color .15s ease;
 }
-nav button.active{background:var(--teal); color:var(--paper)}
-main{padding:18px 16px 60px; max-width:640px; margin:0 auto}
-.card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:14px}
-form{display:grid; gap:10px}
+nav button.active{background:var(--accent); color:#fff; border-color:var(--accent)}
+main{padding:20px 16px 64px; max-width:640px; margin:0 auto}
+.card{
+  background:var(--card); border:1px solid var(--line); border-radius:22px; padding:18px;
+  margin-bottom:16px; box-shadow:0 2px 10px rgba(20,20,30,.04);
+}
+form{display:grid; gap:11px}
 .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
-label{font-size:12px; color:var(--muted); display:block; margin-bottom:4px}
+label{font-size:12px; color:var(--muted); display:block; margin-bottom:4px; font-weight:600}
 input,select{
-  width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:8px;
+  width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:12px;
   background:var(--paper); color:var(--ink); font-size:14px; font-family:inherit;
 }
-input:focus,select:focus{outline:2px solid var(--teal-2); outline-offset:1px}
+input:focus,select:focus{outline:2px solid var(--accent); outline-offset:1px}
 .btn{
-  background:var(--teal); color:var(--paper); border:none; padding:10px 14px;
-  border-radius:8px; font-size:14px; font-weight:600; cursor:pointer;
+  background:var(--accent); color:#fff; border:none; padding:11px 18px;
+  border-radius:999px; font-size:14px; font-weight:700; cursor:pointer; transition:background .15s ease;
 }
-.btn:hover{background:var(--teal-2)}
-.btn.ghost{background:transparent; color:var(--red); border:1px solid var(--line); padding:5px 10px; font-size:12px}
-.btn.gold{background:var(--gold); color:#26200f}
+.btn:hover{background:var(--accent-2)}
+.btn.ghost{background:transparent; color:var(--neg); border:1px solid var(--line); padding:6px 13px; font-size:12.5px; border-radius:999px}
+.btn.ghost:hover{background:var(--paper)}
+.btn.gold{background:var(--accent-soft); color:var(--accent)}
+.btn.gold:hover{filter:brightness(1.04)}
 .list{display:flex; flex-direction:column; gap:8px}
 .item{
   display:flex; justify-content:space-between; align-items:center; gap:10px;
-  padding:11px 12px; border:1px solid var(--line); border-radius:10px; background:var(--card);
+  padding:13px 14px; border:1px solid var(--line); border-radius:16px; background:var(--card);
 }
 .item .meta{font-size:12px; color:var(--muted); margin-top:2px}
-.item .amt{font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap}
-.tag{font-size:11px; padding:2px 8px; border-radius:20px; background:var(--paper); border:1px solid var(--line); color:var(--muted)}
-.empty{color:var(--muted); font-size:13px; text-align:center; padding:30px 10px}
-h2{font-size:15px; margin:0 0 12px}
-.section-title{font-size:13px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin:20px 0 8px}
+.item .amt{font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; font-size:15px}
+.tag{font-size:11px; padding:3px 10px; border-radius:999px; background:var(--accent-soft); border:none; color:var(--accent); font-weight:600}
+.empty{color:var(--muted); font-size:13px; text-align:center; padding:32px 10px}
+h2{font-size:16px; margin:0 0 12px; font-weight:800}
+.section-title{font-size:13px; font-weight:800; color:var(--accent); letter-spacing:.01em; margin:22px 0 9px}
 .status{font-size:12px; color:var(--muted); text-align:center; padding:6px}
 .errbar{
-  display:none; background:var(--red); color:#fff; padding:10px 16px; font-size:13px;
-  align-items:center; justify-content:space-between; gap:10px;
+  display:none; background:var(--neg); color:#fff; padding:10px 16px; font-size:13px;
+  align-items:center; justify-content:space-between; gap:10px; border-radius:0 0 14px 14px;
 }
 .errbar.show{display:flex}
-.errbar button{background:rgba(255,255,255,.2); color:#fff; border:none; padding:6px 10px; border-radius:6px; font-size:12px; cursor:pointer; white-space:nowrap}
+.errbar button{background:rgba(255,255,255,.22); color:#fff; border:none; padding:6px 12px; border-radius:999px; font-size:12px; cursor:pointer; white-space:nowrap}
 </style>
 </head>
 <body>
@@ -118,8 +125,8 @@ h2{font-size:15px; margin:0 0 12px}
 const TABS = ["Gastos","Resumen del mes","Movimientos","Deudas","Cuentas","Inversiones","Categorías"];
 let tab = "Gastos";
 let ready = false;
-let movimientos = [], deudas = [], cuentas = [], inversiones = [], aportaciones = [], categorias = [];
-let aportarInvId = null, editarValorInvId = null, editarCatId = null, verAportacionesId = null, ajustarSaldoId = null;
+let movimientos = [], deudas = [], cuentas = [], inversiones = [], aportaciones = [], categorias = [], retiros = [];
+let aportarInvId = null, editarValorInvId = null, editarCatId = null, verAportacionesId = null, ajustarSaldoId = null, rescatarInvId = null;
 let expandidaInvId = null, editarInfoInvId = null, resumenSel = null;
 const PALETTE = ["#1f4d43","#c08a2e","#a3402f","#5c9683","#7fb8a6","#e0ac4e","#8a6d3b","#3f6b52","#b5651d","#4a7c94"];
 let session = null, appStarted = false;
@@ -185,7 +192,9 @@ function renderTabs(){
 function renderBalance(){
   const enP = movimientos.filter(m=>enPeriodo(m.fecha) && m.categoria!=="Ajuste");
   const ingresos = enP.filter(m=>m.tipo==="ingreso").reduce((s,m)=>s+m.importe,0);
-  const gastos = enP.filter(m=>m.tipo==="gasto").reduce((s,m)=>s+m.importe,0);
+  const ahorro = enP.filter(m=>m.tipo==="gasto" && m.categoria==="Inversión").reduce((s,m)=>s+m.importe,0);
+  const gastado = enP.filter(m=>m.tipo==="gasto" && m.categoria!=="Inversión").reduce((s,m)=>s+m.importe,0);
+  const disponible = (ingresos - ahorro) - gastado;
   const meDeben = deudas.filter(d=>d.direccion==="me_deben" && d.estado==="pendiente").reduce((s,d)=>s+d.importe,0);
   const debo = deudas.filter(d=>d.direccion==="debo" && d.estado==="pendiente").reduce((s,d)=>s+d.importe,0);
   const totalCuentas = cuentas.reduce((s,c)=>s+saldoCuenta(c),0);
@@ -194,7 +203,7 @@ function renderBalance(){
   const lbl = periodoMes==="todos" ? `Año ${periodoAnio}` : `${MESES[Number(periodoMes)-1]} ${periodoAnio}`;
   document.getElementById("balanceBox").innerHTML = `
     <div><div class="num pos">${eur(ingresos)}</div><div class="lbl">Ingresos · ${lbl}</div></div>
-    <div><div class="num neg">${eur(gastos)}</div><div class="lbl">Gastos · ${lbl}</div></div>
+    <div><div class="num ${disponible>=0?'pos':'neg'}">${eur(disponible)}</div><div class="lbl">Disponible para gastar</div></div>
     <div><div class="num ${patrimonioNeto>=0?'pos':'neg'}">${eur(patrimonioNeto)}</div><div class="lbl">Patrimonio neto</div></div>
     <div><div class="num pos">${eur(meDeben)}</div><div class="lbl">Me deben (total)</div></div>
     <div><div class="num neg">${eur(debo)}</div><div class="lbl">Debo (total)</div></div>
@@ -203,6 +212,8 @@ function renderBalance(){
 
 function cuentaNombre(id){ const c = cuentas.find(c=>c.id===id); return c? c.nombre : "Sin cuenta"; }
 function aportadoInv(inv){ return (inv.valorInicial||0) + aportaciones.filter(a=>a.inversionId===inv.id).reduce((s,a)=>s+a.importe,0); }
+function retiradoInv(inv){ return retiros.filter(r=>r.inversionId===inv.id).reduce((s,r)=>s+r.importe,0); }
+function beneficioInv(inv){ return (inv.valorActual + retiradoInv(inv)) - aportadoInv(inv); }
 function saldoCuenta(c){
   const ing = movimientos.filter(m=>m.cuentaId===c.id && m.tipo==="ingreso").reduce((s,m)=>s+m.importe,0);
   const gas = movimientos.filter(m=>m.cuentaId===c.id && m.tipo==="gasto").reduce((s,m)=>s+m.importe,0);
@@ -452,24 +463,26 @@ function renderCuentas(){
 }
 
 function renderListaAportaciones(inv){
-  const lista = aportaciones.filter(a=>a.inversionId===inv.id).sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  const apo = aportaciones.filter(a=>a.inversionId===inv.id).map(a=>({...a, mov:"aportacion"}));
+  const ret = retiros.filter(r=>r.inversionId===inv.id).map(r=>({...r, mov:"retiro"}));
+  const lista = [...apo, ...ret].sort((a,b)=>b.fecha.localeCompare(a.fecha));
   return `
   <div style="padding:0 4px 10px">
-    ${lista.length? lista.map(a=>`
+    ${lista.length? lista.map(x=>`
       <div class="item" style="padding:8px 10px;margin-bottom:6px">
-        <div><span class="tag">${a.fecha}</span><div class="meta">${cuentaNombre(a.cuentaId)}</div></div>
+        <div><span class="tag">${x.fecha}</span><div class="meta">${x.mov==="aportacion"?"Aportación":"Rescate"} · ${cuentaNombre(x.cuentaId)}</div></div>
         <div style="display:flex;align-items:center;gap:8px">
-          <div class="amt">${eur(a.importe)}</div>
-          <button class="btn ghost" data-del-aportacion="${a.id}">Borrar</button>
+          <div class="amt ${x.mov==='aportacion'?'pos':'neg'}">${x.mov==="aportacion"?"+":"-"}${eur(x.importe)}</div>
+          <button class="btn ghost" data-del-${x.mov==="aportacion"?"aportacion":"retiro"}="${x.id}">Borrar</button>
         </div>
-      </div>`).join("") : `<div class="empty">Sin aportaciones registradas.</div>`}
+      </div>`).join("") : `<div class="empty">Sin movimientos registrados.</div>`}
   </div>`;
 }
 
 function invItem(inv){
   const esActiva = inv.estado === "activa";
   const aportado = aportadoInv(inv);
-  const beneficio = inv.valorActual - aportado;
+  const beneficio = beneficioInv(inv);
   const expandida = expandidaInvId === inv.id;
 
   const cabecera = `
@@ -492,6 +505,7 @@ function invItem(inv){
   </div>
   <div style="display:flex;gap:8px;padding:0 4px 8px;flex-wrap:wrap">
     ${aportarInvId!==inv.id?`<button class="btn gold" data-aportar-inv="${inv.id}">Aportar</button>`:""}
+    ${esActiva && inv.valorActual>0 && rescatarInvId!==inv.id?`<button class="btn ghost" data-rescatar-inv="${inv.id}">Rescatar</button>`:""}
     ${esActiva && editarValorInvId!==inv.id?`<button class="btn ghost" data-editar-valor="${inv.id}">Actualizar valor</button>`:""}
     ${aportado>0 || esActiva ? `<button class="btn ghost" data-ver-aportaciones="${inv.id}">${verAportacionesId===inv.id?"Ocultar aportaciones":"Ver aportaciones"}</button>` : ""}
     ${editarInfoInvId!==inv.id?`<button class="btn ghost" data-editar-info="${inv.id}">Editar información</button>`:""}
@@ -507,6 +521,17 @@ function invItem(inv){
     <div style="display:flex;gap:8px">
       <button class="btn" data-confirmar-aportar="${inv.id}" ${cuentas.length?"":"disabled"}>Confirmar</button>
       <button class="btn ghost" data-cancelar-aportar="1">Cancelar</button>
+    </div>
+  </div>` : ""}
+  ${rescatarInvId===inv.id? `
+  <div class="item" style="flex-direction:column;align-items:stretch;gap:8px">
+    <label>Importe a rescatar (€) — máximo ${eur(inv.valorActual)}</label>
+    <input type="number" step="0.01" min="0" max="${inv.valorActual}" id="rescatarImporte">
+    <label>Cuenta destino</label>
+    ${cuentas.length? `<select id="rescatarCuenta">${cuentas.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join("")}</select>` : `<div class="meta">Crea antes una cuenta en la pestaña "Cuentas".</div>`}
+    <div style="display:flex;gap:8px">
+      <button class="btn" data-confirmar-rescate="${inv.id}" ${cuentas.length?"":"disabled"}>Confirmar</button>
+      <button class="btn ghost" data-cancelar-rescate="1">Cancelar</button>
     </div>
   </div>` : ""}
   ${editarValorInvId===inv.id? `
@@ -533,8 +558,7 @@ function renderInversiones(){
   const activas = inversiones.filter(i=>i.estado==="activa").sort((a,b)=>a.nombre.localeCompare(b.nombre));
   const planificadas = inversiones.filter(i=>i.estado!=="activa").sort((a,b)=>a.nombre.localeCompare(b.nombre));
   const totalValor = activas.reduce((s,i)=>s+i.valorActual,0);
-  const totalAportado = activas.reduce((s,i)=>s+aportadoInv(i),0);
-  const totalBeneficio = totalValor - totalAportado;
+  const totalBeneficio = activas.reduce((s,i)=>s+beneficioInv(i),0);
   return `
   <div class="card">
     <h2>Nueva inversión</h2>
@@ -756,7 +780,7 @@ function wireEvents(){
   document.querySelectorAll("[data-expandir-inv]").forEach(b=>b.onclick=()=>{
     const id = b.dataset.expandirInv;
     expandidaInvId = expandidaInvId===id ? null : id;
-    aportarInvId=null; editarValorInvId=null; verAportacionesId=null; editarInfoInvId=null;
+    aportarInvId=null; editarValorInvId=null; verAportacionesId=null; editarInfoInvId=null; rescatarInvId=null;
     render();
   });
   document.querySelectorAll("[data-editar-info]").forEach(b=>b.onclick=()=>{ editarInfoInvId=b.dataset.editarInfo; render(); });
@@ -781,6 +805,24 @@ function wireEvents(){
     const {error} = await sb.rpc("aportar_inversion", {p_inversion_id: invId, p_importe: importe, p_cuenta_id: cuentaEl.value});
     if(error){ showError("No se pudo guardar la aportación: "+error.message); return; }
     hideError(); aportarInvId = null; await fetchAll();
+  });
+  document.querySelectorAll("[data-rescatar-inv]").forEach(b=>b.onclick=()=>{ rescatarInvId=b.dataset.rescatarInv; aportarInvId=null; editarValorInvId=null; render(); });
+  document.querySelectorAll("[data-cancelar-rescate]").forEach(b=>b.onclick=()=>{ rescatarInvId=null; render(); });
+  document.querySelectorAll("[data-confirmar-rescate]").forEach(b=>b.onclick=async ()=>{
+    const invId = b.dataset.confirmarRescate;
+    const importeEl = document.getElementById("rescatarImporte");
+    const cuentaEl = document.getElementById("rescatarCuenta");
+    const importe = parseFloat(importeEl?.value);
+    if(!cuentaEl?.value || !importe || importe<=0) return;
+    const {error} = await sb.rpc("rescatar_inversion", {p_inversion_id: invId, p_importe: importe, p_cuenta_id: cuentaEl.value});
+    if(error){ showError("No se pudo rescatar: "+error.message); return; }
+    hideError(); rescatarInvId = null; await fetchAll();
+  });
+  document.querySelectorAll("[data-del-retiro]").forEach(b=>b.onclick=async ()=>{
+    if(!confirm("¿Deshacer este rescate? Se borrará el ingreso asociado y volverá a la inversión.")) return;
+    const {error} = await sb.rpc("eliminar_retiro", {p_retiro_id: b.dataset.delRetiro});
+    if(error){ showError("No se pudo deshacer: "+error.message); return; }
+    hideError(); await fetchAll();
   });
   document.querySelectorAll("[data-ver-aportaciones]").forEach(b=>b.onclick=()=>{
     verAportacionesId = verAportacionesId===b.dataset.verAportaciones ? null : b.dataset.verAportaciones;
@@ -838,21 +880,23 @@ function wireEvents(){
 
 async function fetchAll(){
   try{
-    const [{data:cta, error:e1}, {data:mov, error:e2}, {data:deu, error:e3}, {data:inv, error:e4}, {data:apo, error:e5}, {data:cat, error:e6}] = await Promise.all([
+    const [{data:cta, error:e1}, {data:mov, error:e2}, {data:deu, error:e3}, {data:inv, error:e4}, {data:apo, error:e5}, {data:cat, error:e6}, {data:ret, error:e7}] = await Promise.all([
       sb.from("cuentas").select("*").order("nombre"),
       sb.from("movimientos").select("*").order("fecha", {ascending:false}),
       sb.from("deudas").select("*"),
       sb.from("inversiones").select("*"),
       sb.from("aportaciones_inversion").select("*"),
-      sb.from("categorias").select("*")
+      sb.from("categorias").select("*"),
+      sb.from("retiros_inversion").select("*")
     ]);
-    const err = e1||e2||e3||e4||e5||e6;
+    const err = e1||e2||e3||e4||e5||e6||e7;
     if(err){ ready = true; render(); showError("No se pudieron cargar los datos: "+err.message); return; }
     cuentas = (cta||[]).map(c=>({id:c.id, nombre:c.nombre, saldoInicial:Number(c.saldo_inicial)}));
     movimientos = (mov||[]).map(m=>({id:m.id, tipo:m.tipo, categoria:m.categoria, importe:Number(m.importe), fecha:m.fecha, nota:m.nota, cuentaId:m.cuenta_id}));
     deudas = (deu||[]).map(d=>({id:d.id, persona:d.persona, importe:Number(d.importe), direccion:d.direccion, concepto:d.concepto, estado:d.estado, fecha:d.fecha}));
     inversiones = (inv||[]).map(i=>({id:i.id, nombre:i.nombre, tipo:i.tipo, valorActual:Number(i.valor_actual), valorInicial:Number(i.valor_inicial), estado:i.estado||"activa", fechaPrevista:i.fecha_prevista, importePrevisto:i.importe_previsto!=null?Number(i.importe_previsto):null, cuentaPrevistaId:i.cuenta_prevista_id}));
     aportaciones = (apo||[]).map(a=>({id:a.id, inversionId:a.inversion_id, importe:Number(a.importe), fecha:a.fecha, cuentaId:a.cuenta_id, movimientoId:a.movimiento_id}));
+    retiros = (ret||[]).map(r=>({id:r.id, inversionId:r.inversion_id, importe:Number(r.importe), fecha:r.fecha, cuentaId:r.cuenta_id, movimientoId:r.movimiento_id}));
     if((cat||[]).length===0){
       const {error:eSeed} = await sb.from("categorias").insert(CATEGORIAS_DEFECTO);
       if(!eSeed){ const {data:cat2} = await sb.from("categorias").select("*"); categorias = (cat2||[]).map(c=>({id:c.id, tipo:c.tipo, padre:c.padre, nombre:c.nombre})); }
@@ -887,6 +931,7 @@ async function startApp(){
     .on("postgres_changes", {event:"*", schema:"public", table:"inversiones"}, fetchAll)
     .on("postgres_changes", {event:"*", schema:"public", table:"aportaciones_inversion"}, fetchAll)
     .on("postgres_changes", {event:"*", schema:"public", table:"categorias"}, fetchAll)
+    .on("postgres_changes", {event:"*", schema:"public", table:"retiros_inversion"}, fetchAll)
     .subscribe();
 }
 
