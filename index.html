@@ -127,7 +127,7 @@ let tab = "Gastos";
 let ready = false;
 let movimientos = [], deudas = [], cuentas = [], inversiones = [], aportaciones = [], categorias = [], retiros = [];
 let aportarInvId = null, editarValorInvId = null, editarCatId = null, verAportacionesId = null, ajustarSaldoId = null, rescatarInvId = null;
-let expandidaInvId = null, editarInfoInvId = null, resumenSel = null;
+let expandidaInvId = null, editarInfoInvId = null, resumenSel = null, resumenAhorroAbierto = false;
 const PALETTE = ["#1f4d43","#c08a2e","#a3402f","#5c9683","#7fb8a6","#e0ac4e","#8a6d3b","#3f6b52","#b5651d","#4a7c94"];
 let session = null, appStarted = false;
 
@@ -152,6 +152,21 @@ const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto"
 let periodoMes = "todos"; // "todos" o "1".."12"
 let periodoAnio = new Date().getFullYear();
 let saldarId = null; // deuda que se está saldando ahora mismo
+
+async function conCarga(btn, textoCarga, fn){
+  if(!btn || btn.disabled) return;
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = textoCarga;
+  try{
+    await fn();
+  } finally {
+    if(document.body.contains(btn)){
+      btn.disabled = false;
+      btn.textContent = original;
+    }
+  }
+}
 
 function showError(msg){
   const bar = document.getElementById("errBar");
@@ -258,9 +273,11 @@ function bloqueGraficaCategoria(titulo, desc, tipo){
 function renderResumen(){
   const enP = movimientos.filter(m=>enPeriodo(m.fecha) && m.categoria!=="Ajuste");
   const ingresosList = enP.filter(m=>m.tipo==="ingreso");
-  const gastosList = enP.filter(m=>m.tipo==="gasto");
+  const ahorroList = enP.filter(m=>m.tipo==="gasto" && m.categoria==="Inversión");
+  const gastosList = enP.filter(m=>m.tipo==="gasto" && m.categoria!=="Inversión");
   const descIngresos = desglosePorCategoria(ingresosList);
   const descGastos = desglosePorCategoria(gastosList);
+  const totalAhorro = ahorroList.reduce((s,m)=>s+m.importe,0);
   const lbl = periodoMes==="todos" ? `Año ${periodoAnio}` : `${MESES[Number(periodoMes)-1]} ${periodoAnio}`;
 
   let detalle = "";
@@ -286,10 +303,25 @@ function renderResumen(){
     }
   }
 
+  const bloqueAhorro = ahorroList.length ? `
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" data-toggle-ahorro="1">
+      <div><strong>Ahorro / Inversión</strong><div class="meta">${ahorroList.length} movimiento${ahorroList.length>1?"s":""} · no cuenta como consumo</div></div>
+      <div class="amt neg">${eur(totalAhorro)}</div>
+    </div>
+    ${resumenAhorroAbierto? `
+    <div class="list" style="margin-top:12px">
+      ${[...ahorroList].sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(m=>`
+        <div class="item"><div>${m.nota||"Aportación"}<div class="meta">${m.fecha}</div></div><div class="amt neg">${eur(m.importe)}</div></div>
+      `).join("")}
+    </div>` : ""}
+  </div>` : `<div class="card"><p class="meta" style="margin:0">Sin ahorro/inversión en este periodo.</p></div>`;
+
   return `
   <div class="section-title">Resumen · ${lbl}</div>
   ${bloqueGraficaCategoria("Ingresos por categoría", descIngresos, "ingreso")}
-  ${bloqueGraficaCategoria("Gastos por categoría", descGastos, "gasto")}
+  ${bloqueGraficaCategoria("Gastos reales por categoría", descGastos, "gasto")}
+  ${bloqueAhorro}
   ${detalle}`;
 }
 
@@ -673,31 +705,37 @@ function wireEvents(){
     fill(); tipoSel.onchange = fill;
   }
   const fMov = document.getElementById("fMov");
-  if(fMov) fMov.onsubmit = async (e)=>{
+  if(fMov) fMov.onsubmit = (e)=>{
     e.preventDefault();
-    const f = new FormData(fMov);
-    const data = {tipo:f.get("tipo"), categoria:f.get("categoria"), importe:parseFloat(f.get("importe")), fecha:f.get("fecha"), nota:f.get("nota")||"", cuenta_id:f.get("cuentaId")||null};
-    const {error} = await sb.from("movimientos").insert(data);
-    if(error){ showError("No se pudo guardar el movimiento: "+error.message); return; }
-    hideError(); fMov.reset(); await fetchAll();
+    conCarga(fMov.querySelector('button[type="submit"]'), "Guardando…", async ()=>{
+      const f = new FormData(fMov);
+      const data = {tipo:f.get("tipo"), categoria:f.get("categoria"), importe:parseFloat(f.get("importe")), fecha:f.get("fecha"), nota:f.get("nota")||"", cuenta_id:f.get("cuentaId")||null};
+      const {error} = await sb.from("movimientos").insert(data);
+      if(error){ showError("No se pudo guardar el movimiento: "+error.message); return; }
+      hideError(); fMov.reset(); await fetchAll();
+    });
   };
   const fDeuda = document.getElementById("fDeuda");
-  if(fDeuda) fDeuda.onsubmit = async (e)=>{
+  if(fDeuda) fDeuda.onsubmit = (e)=>{
     e.preventDefault();
-    const f = new FormData(fDeuda);
-    const data = {persona:f.get("persona"), importe:parseFloat(f.get("importe")), direccion:f.get("direccion"), fecha:f.get("fecha"), concepto:f.get("concepto")||"", estado:"pendiente"};
-    const {error} = await sb.from("deudas").insert(data);
-    if(error){ showError("No se pudo guardar la deuda: "+error.message); return; }
-    hideError(); fDeuda.reset(); await fetchAll();
+    conCarga(fDeuda.querySelector('button[type="submit"]'), "Guardando…", async ()=>{
+      const f = new FormData(fDeuda);
+      const data = {persona:f.get("persona"), importe:parseFloat(f.get("importe")), direccion:f.get("direccion"), fecha:f.get("fecha"), concepto:f.get("concepto")||"", estado:"pendiente"};
+      const {error} = await sb.from("deudas").insert(data);
+      if(error){ showError("No se pudo guardar la deuda: "+error.message); return; }
+      hideError(); fDeuda.reset(); await fetchAll();
+    });
   };
   const fCuenta = document.getElementById("fCuenta");
-  if(fCuenta) fCuenta.onsubmit = async (e)=>{
+  if(fCuenta) fCuenta.onsubmit = (e)=>{
     e.preventDefault();
-    const f = new FormData(fCuenta);
-    const data = {nombre:f.get("nombre"), saldo_inicial:parseFloat(f.get("saldoInicial"))};
-    const {error} = await sb.from("cuentas").insert(data);
-    if(error){ showError("No se pudo guardar la cuenta: "+error.message); return; }
-    hideError(); fCuenta.reset(); await fetchAll();
+    conCarga(fCuenta.querySelector('button[type="submit"]'), "Guardando…", async ()=>{
+      const f = new FormData(fCuenta);
+      const data = {nombre:f.get("nombre"), saldo_inicial:parseFloat(f.get("saldoInicial"))};
+      const {error} = await sb.from("cuentas").insert(data);
+      if(error){ showError("No se pudo guardar la cuenta: "+error.message); return; }
+      hideError(); fCuenta.reset(); await fetchAll();
+    });
   };
   document.querySelectorAll("[data-del-mov]").forEach(b=>b.onclick=async ()=>{
     if(!confirm("¿Borrar este movimiento?")) return;
@@ -717,6 +755,7 @@ function wireEvents(){
     if(error){ showError("No se pudo borrar: "+error.message); return; }
     hideError(); await fetchAll();
   });
+  document.querySelectorAll("[data-toggle-ahorro]").forEach(b=>b.onclick=()=>{ resumenAhorroAbierto = !resumenAhorroAbierto; render(); });
   document.querySelectorAll("[data-resumen-sel]").forEach(b=>b.onclick=()=>{
     const [t,cat] = b.dataset.resumenSel.split("|");
     resumenSel = (resumenSel && resumenSel.tipo===t && resumenSel.categoria===cat) ? null : {tipo:t, categoria:cat};
@@ -724,24 +763,24 @@ function wireEvents(){
   });
   document.querySelectorAll("[data-ajustar-saldo]").forEach(b=>b.onclick=()=>{ ajustarSaldoId = b.dataset.ajustarSaldo; render(); });
   document.querySelectorAll("[data-cancelar-ajuste]").forEach(b=>b.onclick=()=>{ ajustarSaldoId = null; render(); });
-  document.querySelectorAll("[data-confirmar-ajuste]").forEach(b=>b.onclick=async ()=>{
+  document.querySelectorAll("[data-confirmar-ajuste]").forEach(b=>b.onclick=()=>conCarga(b, "Guardando…", async ()=>{
     const cuentaId = b.dataset.confirmarAjuste;
     const nuevo = parseFloat(document.getElementById("saldoRealInput")?.value);
     if(isNaN(nuevo)) return;
     const {error} = await sb.rpc("ajustar_saldo_cuenta", {p_cuenta_id: cuentaId, p_saldo_real: nuevo});
     if(error){ showError("No se pudo ajustar el saldo: "+error.message); return; }
     hideError(); ajustarSaldoId = null; await fetchAll();
-  });
+  }));
   document.querySelectorAll("[data-saldar]").forEach(b=>b.onclick=()=>{ saldarId = b.dataset.saldar; render(); });
   document.querySelectorAll("[data-cancelar-saldar]").forEach(b=>b.onclick=()=>{ saldarId = null; render(); });
-  document.querySelectorAll("[data-confirmar-saldar]").forEach(b=>b.onclick=async ()=>{
+  document.querySelectorAll("[data-confirmar-saldar]").forEach(b=>b.onclick=()=>conCarga(b, "Guardando…", async ()=>{
     const deudaId = b.dataset.confirmarSaldar;
     const sel = document.getElementById("saldarCuenta");
     if(!sel || !sel.value) return;
     const {error} = await sb.rpc("saldar_deuda", {p_deuda_id: deudaId, p_cuenta_id: sel.value});
     if(error){ showError("No se pudo saldar la deuda: "+error.message); return; }
     hideError(); saldarId = null; await fetchAll();
-  });
+  }));
   const invEstado = document.getElementById("invEstado");
   const invValorWrap = document.getElementById("invValorWrap");
   const invValorInput = document.getElementById("invValorInput");
@@ -756,20 +795,22 @@ function wireEvents(){
     toggleInv(); invEstado.onchange = toggleInv;
   }
   const fInversion = document.getElementById("fInversion");
-  if(fInversion) fInversion.onsubmit = async (e)=>{
+  if(fInversion) fInversion.onsubmit = (e)=>{
     e.preventDefault();
-    const f = new FormData(fInversion);
-    const estado = f.get("estado")||"activa";
-    const valInicial = estado==="planificada" ? 0 : parseFloat(f.get("valorActual"));
-    const data = {nombre:f.get("nombre"), tipo:f.get("tipo")||"", valor_actual:valInicial, valor_inicial:valInicial, estado};
-    if(estado==="planificada"){
-      data.fecha_prevista = f.get("fechaPrevista") || null;
-      data.importe_previsto = f.get("importePrevisto") ? parseFloat(f.get("importePrevisto")) : null;
-      data.cuenta_prevista_id = f.get("cuentaPrevista") || null;
-    }
-    const {error} = await sb.from("inversiones").insert(data);
-    if(error){ showError("No se pudo guardar la inversión: "+error.message); return; }
-    hideError(); fInversion.reset(); await fetchAll();
+    conCarga(fInversion.querySelector('button[type="submit"]'), "Guardando…", async ()=>{
+      const f = new FormData(fInversion);
+      const estado = f.get("estado")||"activa";
+      const valInicial = estado==="planificada" ? 0 : parseFloat(f.get("valorActual"));
+      const data = {nombre:f.get("nombre"), tipo:f.get("tipo")||"", valor_actual:valInicial, valor_inicial:valInicial, estado};
+      if(estado==="planificada"){
+        data.fecha_prevista = f.get("fechaPrevista") || null;
+        data.importe_previsto = f.get("importePrevisto") ? parseFloat(f.get("importePrevisto")) : null;
+        data.cuenta_prevista_id = f.get("cuentaPrevista") || null;
+      }
+      const {error} = await sb.from("inversiones").insert(data);
+      if(error){ showError("No se pudo guardar la inversión: "+error.message); return; }
+      hideError(); fInversion.reset(); await fetchAll();
+    });
   };
   document.querySelectorAll("[data-del-inv]").forEach(b=>b.onclick=async ()=>{
     if(!confirm("¿Borrar esta inversión? También se borrarán sus aportaciones y los gastos que generó.")) return;
@@ -785,7 +826,7 @@ function wireEvents(){
   });
   document.querySelectorAll("[data-editar-info]").forEach(b=>b.onclick=()=>{ editarInfoInvId=b.dataset.editarInfo; render(); });
   document.querySelectorAll("[data-cancelar-info]").forEach(b=>b.onclick=()=>{ editarInfoInvId=null; render(); });
-  document.querySelectorAll("[data-confirmar-info]").forEach(b=>b.onclick=async ()=>{
+  document.querySelectorAll("[data-confirmar-info]").forEach(b=>b.onclick=()=>conCarga(b, "Guardando…", async ()=>{
     const invId = b.dataset.confirmarInfo;
     const nombre = document.getElementById("infoNombre")?.value.trim();
     const tipo = document.getElementById("infoTipo")?.value.trim();
@@ -793,10 +834,10 @@ function wireEvents(){
     const {error} = await sb.from("inversiones").update({nombre, tipo}).eq("id", invId);
     if(error){ showError("No se pudo guardar: "+error.message); return; }
     hideError(); editarInfoInvId = null; await fetchAll();
-  });
+  }));
   document.querySelectorAll("[data-aportar-inv]").forEach(b=>b.onclick=()=>{ aportarInvId=b.dataset.aportarInv; editarValorInvId=null; render(); });
   document.querySelectorAll("[data-cancelar-aportar]").forEach(b=>b.onclick=()=>{ aportarInvId=null; render(); });
-  document.querySelectorAll("[data-confirmar-aportar]").forEach(b=>b.onclick=async ()=>{
+  document.querySelectorAll("[data-confirmar-aportar]").forEach(b=>b.onclick=()=>conCarga(b, "Guardando…", async ()=>{
     const invId = b.dataset.confirmarAportar;
     const importeEl = document.getElementById("aportarImporte");
     const cuentaEl = document.getElementById("aportarCuenta");
@@ -805,10 +846,10 @@ function wireEvents(){
     const {error} = await sb.rpc("aportar_inversion", {p_inversion_id: invId, p_importe: importe, p_cuenta_id: cuentaEl.value});
     if(error){ showError("No se pudo guardar la aportación: "+error.message); return; }
     hideError(); aportarInvId = null; await fetchAll();
-  });
+  }));
   document.querySelectorAll("[data-rescatar-inv]").forEach(b=>b.onclick=()=>{ rescatarInvId=b.dataset.rescatarInv; aportarInvId=null; editarValorInvId=null; render(); });
   document.querySelectorAll("[data-cancelar-rescate]").forEach(b=>b.onclick=()=>{ rescatarInvId=null; render(); });
-  document.querySelectorAll("[data-confirmar-rescate]").forEach(b=>b.onclick=async ()=>{
+  document.querySelectorAll("[data-confirmar-rescate]").forEach(b=>b.onclick=()=>conCarga(b, "Guardando…", async ()=>{
     const invId = b.dataset.confirmarRescate;
     const importeEl = document.getElementById("rescatarImporte");
     const cuentaEl = document.getElementById("rescatarCuenta");
@@ -817,7 +858,7 @@ function wireEvents(){
     const {error} = await sb.rpc("rescatar_inversion", {p_inversion_id: invId, p_importe: importe, p_cuenta_id: cuentaEl.value});
     if(error){ showError("No se pudo rescatar: "+error.message); return; }
     hideError(); rescatarInvId = null; await fetchAll();
-  });
+  }));
   document.querySelectorAll("[data-del-retiro]").forEach(b=>b.onclick=async ()=>{
     if(!confirm("¿Deshacer este rescate? Se borrará el ingreso asociado y volverá a la inversión.")) return;
     const {error} = await sb.rpc("eliminar_retiro", {p_retiro_id: b.dataset.delRetiro});
@@ -836,14 +877,14 @@ function wireEvents(){
   });
   document.querySelectorAll("[data-editar-valor]").forEach(b=>b.onclick=()=>{ editarValorInvId=b.dataset.editarValor; aportarInvId=null; render(); });
   document.querySelectorAll("[data-cancelar-valor]").forEach(b=>b.onclick=()=>{ editarValorInvId=null; render(); });
-  document.querySelectorAll("[data-confirmar-valor]").forEach(b=>b.onclick=async ()=>{
+  document.querySelectorAll("[data-confirmar-valor]").forEach(b=>b.onclick=()=>conCarga(b, "Guardando…", async ()=>{
     const invId = b.dataset.confirmarValor;
     const nuevo = parseFloat(document.getElementById("valorNuevo")?.value);
     if(isNaN(nuevo)) return;
     const {error} = await sb.from("inversiones").update({valor_actual:nuevo}).eq("id", invId);
     if(error){ showError("No se pudo guardar el nuevo valor: "+error.message); return; }
     hideError(); editarValorInvId = null; await fetchAll();
-  });
+  }));
   const catTipo = document.getElementById("catTipo");
   const catPadreWrap = document.getElementById("catPadreWrap");
   if(catTipo && catPadreWrap){
@@ -851,14 +892,16 @@ function wireEvents(){
     toggle(); catTipo.onchange = toggle;
   }
   const fCategoria = document.getElementById("fCategoria");
-  if(fCategoria) fCategoria.onsubmit = async (e)=>{
+  if(fCategoria) fCategoria.onsubmit = (e)=>{
     e.preventDefault();
-    const f = new FormData(fCategoria);
-    const tipoVal = f.get("tipo");
-    const data = {tipo:tipoVal, padre: tipoVal==="gasto" ? (f.get("padre")||"Otros") : null, nombre:f.get("nombre")};
-    const {error} = await sb.from("categorias").insert(data);
-    if(error){ showError("No se pudo guardar la categoría: "+error.message); return; }
-    hideError(); fCategoria.reset(); await fetchAll();
+    conCarga(fCategoria.querySelector('button[type="submit"]'), "Guardando…", async ()=>{
+      const f = new FormData(fCategoria);
+      const tipoVal = f.get("tipo");
+      const data = {tipo:tipoVal, padre: tipoVal==="gasto" ? (f.get("padre")||"Otros") : null, nombre:f.get("nombre")};
+      const {error} = await sb.from("categorias").insert(data);
+      if(error){ showError("No se pudo guardar la categoría: "+error.message); return; }
+      hideError(); fCategoria.reset(); await fetchAll();
+    });
   };
   document.querySelectorAll("[data-del-cat]").forEach(b=>b.onclick=async ()=>{
     if(!confirm("¿Borrar esta categoría?")) return;
@@ -868,14 +911,14 @@ function wireEvents(){
   });
   document.querySelectorAll("[data-editar-cat]").forEach(b=>b.onclick=()=>{ editarCatId=b.dataset.editarCat; render(); });
   document.querySelectorAll("[data-cancelar-cat]").forEach(b=>b.onclick=()=>{ editarCatId=null; render(); });
-  document.querySelectorAll("[data-confirmar-cat]").forEach(b=>b.onclick=async ()=>{
+  document.querySelectorAll("[data-confirmar-cat]").forEach(b=>b.onclick=()=>conCarga(b, "Guardando…", async ()=>{
     const catId = b.dataset.confirmarCat;
     const nuevo = document.getElementById("catNuevoNombre")?.value.trim();
     if(!nuevo) return;
     const {error} = await sb.from("categorias").update({nombre:nuevo}).eq("id", catId);
     if(error){ showError("No se pudo renombrar: "+error.message); return; }
     hideError(); editarCatId = null; await fetchAll();
-  });
+  }));
 }
 
 async function fetchAll(){
