@@ -46,13 +46,27 @@ header p{margin:0; color:var(--muted); font-size:13px}
 .balance .num{font-size:22px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-0.01em}
 .balance .lbl{font-size:11.5px; color:var(--muted); margin-top:3px}
 .pos{color:var(--pos)} .neg{color:var(--neg)}
-nav{display:flex; gap:6px; padding:12px 16px; overflow-x:auto; border-bottom:1px solid var(--line)}
-nav button{
-  border:1px solid var(--line); background:transparent; color:var(--muted); padding:7px 15px;
-  border-radius:999px; font-size:13.5px; cursor:pointer; white-space:nowrap; font-weight:700;
-  transition:background .15s ease, color .15s ease, border-color .15s ease;
+.topbar{display:flex; align-items:center; gap:12px; padding:10px 16px; border-bottom:1px solid var(--line)}
+.menu-btn{background:none; border:none; cursor:pointer; padding:6px; display:flex; flex-direction:column; gap:4px}
+.menu-btn span{display:block; width:20px; height:2px; background:var(--ink); border-radius:2px}
+.tab-actual{font-weight:800; font-size:14px}
+.menu-overlay{
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:20;
 }
-nav button.active{background:var(--accent); color:#fff; border-color:var(--accent)}
+.menu-overlay.open{display:block}
+.menu-panel{
+  position:fixed; top:0; bottom:0; left:0; width:78%; max-width:300px; background:var(--card);
+  z-index:21; padding:22px 16px; overflow-y:auto; transform:translateX(-100%); transition:transform .2s ease;
+  padding-top:calc(22px + env(safe-area-inset-top,0px));
+}
+.menu-panel.open{transform:translateX(0)}
+.menu-group-title{font-size:12px; font-weight:800; color:var(--muted); margin:18px 0 8px}
+.menu-group-title:first-child{margin-top:0}
+.menu-item{
+  display:block; width:100%; text-align:left; background:none; border:none; padding:10px 8px;
+  border-radius:10px; font-size:15px; font-weight:600; color:var(--ink); cursor:pointer;
+}
+.menu-item.active{background:var(--accent-soft); color:var(--accent)}
 main{padding:20px 16px 64px; max-width:640px; margin:0 auto}
 .card{
   background:var(--card); border:1px solid var(--line); border-radius:22px; padding:18px;
@@ -118,14 +132,27 @@ h2{font-size:16px; margin:0 0 12px; font-weight:800}
     <div class="periodo" id="periodoBox"></div>
   </header>
   <div class="errbar" id="errBar"><span id="errMsg"></span><button id="errRetry">Reintentar</button></div>
-  <nav id="tabs"></nav>
+  <div class="topbar">
+    <button class="menu-btn" id="menuBtn" aria-label="Menú"><span></span><span></span><span></span></button>
+    <span class="tab-actual" id="tabActual"></span>
+  </div>
+  <div class="menu-overlay" id="menuOverlay"></div>
+  <div class="menu-panel" id="menuPanel"></div>
   <main id="app"></main>
 </div>
 <script>
-const TABS = ["Gastos","Resumen del mes","Movimientos","Deudas","Cuentas","Inversiones","Categorías"];
+const TABS = ["Gastos","Resumen del mes","Presupuestos","Movimientos","Cuentas","Deudas","Importar","Inversiones","Objetivos","Categorías"];
+const GRUPOS_MENU = [
+  {nombre:"Resumen", tabs:["Gastos","Resumen del mes","Presupuestos"]},
+  {nombre:"Movimientos", tabs:["Movimientos","Cuentas","Deudas","Importar"]},
+  {nombre:"Ahorro", tabs:["Inversiones","Objetivos"]},
+  {nombre:"Ajustes", tabs:["Categorías"]}
+];
 let tab = "Gastos";
 let ready = false;
-let movimientos = [], deudas = [], cuentas = [], inversiones = [], aportaciones = [], categorias = [], retiros = [];
+let movimientos = [], deudas = [], cuentas = [], inversiones = [], aportaciones = [], categorias = [], retiros = [], presupuestos = [], objetivos = [];
+let editarPresupuestoId = null;
+let csvHeaders = [], csvFilas = [], csvPreview = [];
 let aportarInvId = null, editarValorInvId = null, editarCatId = null, verAportacionesId = null, ajustarSaldoId = null, rescatarInvId = null;
 let expandidaInvId = null, editarInfoInvId = null, resumenSel = null, resumenAhorroAbierto = false;
 const PALETTE = ["#1f4d43","#c08a2e","#a3402f","#5c9683","#7fb8a6","#e0ac4e","#8a6d3b","#3f6b52","#b5651d","#4a7c94"];
@@ -198,10 +225,24 @@ function renderPeriodo(){
   document.getElementById("selAnio").onchange = e=>{periodoAnio=Number(e.target.value); render();};
 }
 
+function closeMenu(){
+  document.getElementById("menuPanel")?.classList.remove("open");
+  document.getElementById("menuOverlay")?.classList.remove("open");
+}
 function renderTabs(){
-  document.getElementById("tabs").innerHTML = TABS.map(t =>
-    `<button class="${t===tab?'active':''}" data-tab="${t}">${t}</button>`).join("");
-  document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{tab=b.dataset.tab; render();});
+  document.getElementById("tabActual").textContent = tab;
+  document.getElementById("menuPanel").innerHTML = GRUPOS_MENU.map(g=>`
+    <div class="menu-group-title">${g.nombre}</div>
+    ${g.tabs.map(t=>`<button class="menu-item ${t===tab?'active':''}" data-tab="${t}">${t}</button>`).join("")}
+  `).join("");
+  document.querySelectorAll(".menu-item").forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; closeMenu(); render(); });
+  const menuBtn = document.getElementById("menuBtn");
+  const overlay = document.getElementById("menuOverlay");
+  if(menuBtn) menuBtn.onclick = ()=>{
+    document.getElementById("menuPanel").classList.add("open");
+    overlay.classList.add("open");
+  };
+  if(overlay) overlay.onclick = closeMenu;
 }
 
 function renderBalance(){
@@ -323,6 +364,186 @@ function renderResumen(){
   ${bloqueGraficaCategoria("Gastos reales por categoría", descGastos, "gasto")}
   ${bloqueAhorro}
   ${detalle}`;
+}
+
+function parseCSV(texto){
+  const primeraLinea = texto.split(/\r?\n/)[0] || "";
+  const delim = (primeraLinea.includes(";") && !primeraLinea.includes(",")) ? ";" : ",";
+  const lineas = texto.split(/\r?\n/).filter(l=>l.trim().length);
+  const parseLinea = (linea)=>{
+    const out = []; let cur=""; let enComillas=false;
+    for(let i=0;i<linea.length;i++){
+      const ch = linea[i];
+      if(ch==='"'){ enComillas = !enComillas; }
+      else if(ch===delim && !enComillas){ out.push(cur); cur=""; }
+      else cur += ch;
+    }
+    out.push(cur);
+    return out.map(s=>s.trim().replace(/^"|"$/g,""));
+  };
+  const headers = parseLinea(lineas[0]);
+  const filas = lineas.slice(1).map(parseLinea);
+  return {headers, filas};
+}
+function parseImporteCSV(str){
+  if(str==null) return NaN;
+  let s = String(str).trim().replace(/[€\s]/g,"");
+  if(s.includes(",") && s.includes(".")) s = s.replace(/\./g,"").replace(",", ".");
+  else if(s.includes(",")) s = s.replace(",", ".");
+  return parseFloat(s);
+}
+function parseFechaCSV(str){
+  if(!str) return null;
+  const s = str.trim();
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if(m){ const [,d,mo,y] = m; return `${y}-${mo.padStart(2,"0")}-${d.padStart(2,"0")}`; }
+  return s;
+}
+function renderImportar(){
+  return `
+  <div class="card">
+    <h2>Importar movimientos desde CSV</h2>
+    <p class="meta" style="margin:0 0 10px">Exporta el CSV de movimientos de tu banco y súbelo aquí. Cada banco lo formatea distinto, así que después de subirlo eliges qué columna es cuál.</p>
+    <input type="file" id="csvFile" accept=".csv,text/csv">
+  </div>
+  ${csvHeaders.length? `
+  <div class="card">
+    <h2>Columnas del archivo</h2>
+    <div class="row2">
+      <div><label>Columna de fecha</label><select id="csvColFecha">${csvHeaders.map(h=>`<option value="${h}">${h}</option>`).join("")}</select></div>
+      <div><label>Columna de importe</label><select id="csvColImporte">${csvHeaders.map(h=>`<option value="${h}">${h}</option>`).join("")}</select></div>
+    </div>
+    <label>Columna de concepto (opcional)</label>
+    <select id="csvColNota"><option value="">— Ninguna —</option>${csvHeaders.map(h=>`<option value="${h}">${h}</option>`).join("")}</select>
+    <div class="row2" style="margin-top:10px">
+      <div><label>Cuenta destino</label>${cuentas.length?`<select id="csvCuenta">${cuentas.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join("")}</select>`:`<div class="meta">Crea antes una cuenta.</div>`}</div>
+      <div><label>Categoría por defecto</label>${categorias.length?`<select id="csvCategoria">${categorias.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join("")}</select>`:`<div class="meta">Crea antes una categoría.</div>`}</div>
+    </div>
+    <button class="btn" id="csvPrevisualizar" style="margin-top:10px" ${cuentas.length&&categorias.length?"":"disabled"}>Previsualizar</button>
+  </div>` : ""}
+  ${csvPreview.length? `
+  <div class="card">
+    <h2>Previsualización (${csvPreview.length} movimientos)</h2>
+    <p class="meta" style="margin:0 0 10px">Revisa que las fechas e importes se hayan interpretado bien. La categoría se puede cambiar luego en Movimientos.</p>
+    <div class="list">
+      ${csvPreview.slice(0,15).map(m=>`
+        <div class="item">
+          <div>${m.nota||"(sin concepto)"}<div class="meta">${m.fecha}</div></div>
+          <div class="amt ${m.tipo==='ingreso'?'pos':'neg'}">${m.tipo==='ingreso'?'+':'-'}${eur(m.importe)}</div>
+        </div>`).join("")}
+      ${csvPreview.length>15? `<div class="empty">... y ${csvPreview.length-15} más</div>` : ""}
+    </div>
+    <button class="btn" id="csvImportar" style="margin-top:12px">Importar los ${csvPreview.length} movimientos</button>
+  </div>` : ""}`;
+}
+
+function progresoObjetivo(o){
+  if(o.tipoVinculo==="cuenta"){ const c=cuentas.find(x=>x.id===o.vinculoId); return c? saldoCuenta(c) : 0; }
+  if(o.tipoVinculo==="inversion"){ const i=inversiones.find(x=>x.id===o.vinculoId); return i? i.valorActual : 0; }
+  return 0;
+}
+function nombreVinculo(o){
+  if(o.tipoVinculo==="cuenta") return cuentaNombre(o.vinculoId);
+  if(o.tipoVinculo==="inversion"){ const i=inversiones.find(x=>x.id===o.vinculoId); return i? i.nombre : "—"; }
+  return "";
+}
+function renderObjetivos(){
+  return `
+  <div class="card">
+    <h2>Nuevo objetivo</h2>
+    <form id="fObjetivo">
+      <div class="row2">
+        <div><label>Nombre</label><input name="nombre" placeholder="ej. Entrada de vivienda" required></div>
+        <div><label>Meta (€)</label><input name="meta" type="number" step="0.01" min="0" required></div>
+      </div>
+      <label>Vincular a</label>
+      <select name="tipoVinculo" id="objTipoVinculo">
+        <option value="ninguno">Sin vincular (solo la meta)</option>
+        <option value="cuenta">Una cuenta</option>
+        <option value="inversion">Una inversión</option>
+      </select>
+      <div id="objVinculoWrap" style="display:none">
+        <label>Elige cuál</label>
+        <select name="vinculoId" id="objVinculoSelect"></select>
+      </div>
+      <button class="btn" type="submit">Añadir</button>
+    </form>
+  </div>
+  <div class="section-title">Objetivos</div>
+  <div class="list">
+    ${objetivos.length? objetivos.map(o=>{
+      const actual = progresoObjetivo(o);
+      const pct = o.meta>0 ? Math.min(actual/o.meta*100,100) : 0;
+      return `
+      <div class="item">
+        <div style="flex:1">
+          <strong>${o.nombre}</strong>
+          ${o.tipoVinculo!=="ninguno"?`<span class="tag">${nombreVinculo(o)}</span>`:""}
+          <div class="meta">${eur(actual)} de ${eur(o.meta)} · ${pct.toFixed(0)}%</div>
+          <div style="height:6px;background:var(--line);border-radius:999px;margin-top:6px;overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:var(--pos)"></div>
+          </div>
+        </div>
+        <button class="btn ghost" data-del-objetivo="${o.id}">Borrar</button>
+      </div>`;
+    }).join("") : `<div class="empty">Sin objetivos todavía. Crea el primero arriba.</div>`}
+  </div>`;
+}
+
+function renderPresupuestos(){
+  const enP = movimientos.filter(m=>enPeriodo(m.fecha) && m.tipo==="gasto" && m.categoria!=="Ajuste" && m.categoria!=="Inversión");
+  const gastoPorCat = {};
+  enP.forEach(m=>{ gastoPorCat[m.categoria] = (gastoPorCat[m.categoria]||0) + m.importe; });
+  const catsGasto = categorias.filter(c=>c.tipo==="gasto").map(c=>c.nombre);
+  const catsSinPresupuesto = catsGasto.filter(c=>!presupuestos.some(p=>p.categoria===c));
+  const lbl = periodoMes==="todos" ? `Año ${periodoAnio}` : `${MESES[Number(periodoMes)-1]} ${periodoAnio}`;
+
+  return `
+  <div class="card">
+    <h2>Nuevo presupuesto</h2>
+    <form id="fPresupuesto">
+      <div class="row2">
+        <div><label>Categoría</label>
+          ${catsSinPresupuesto.length? `<select name="categoria">${catsSinPresupuesto.map(c=>`<option value="${c}">${c}</option>`).join("")}</select>` : `<div class="meta">Todas tus categorías de gasto ya tienen presupuesto.</div>`}
+        </div>
+        <div><label>Límite mensual (€)</label><input name="limite" type="number" step="0.01" min="0" required></div>
+      </div>
+      <button class="btn" type="submit" ${catsSinPresupuesto.length?"":"disabled"}>Añadir</button>
+    </form>
+  </div>
+  <div class="section-title">Presupuestos · ${lbl}</div>
+  <div class="list">
+    ${presupuestos.length? presupuestos.map(p=>{
+      const gastado = gastoPorCat[p.categoria] || 0;
+      const pct = p.limite>0 ? (gastado/p.limite*100) : 0;
+      const pasado = gastado > p.limite;
+      return `
+      <div class="item">
+        <div style="flex:1">
+          <strong>${p.categoria}</strong>
+          <div class="meta">${eur(gastado)} de ${eur(p.limite)} · ${pct.toFixed(0)}%</div>
+          <div style="height:6px;background:var(--line);border-radius:999px;margin-top:6px;overflow:hidden">
+            <div style="height:100%;width:${Math.min(pct,100)}%;background:${pasado?'var(--neg)':'var(--accent)'}"></div>
+          </div>
+          ${pasado? `<div class="meta" style="color:var(--neg);margin-top:4px">Has superado el límite en ${eur(gastado-p.limite)}</div>` : ""}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+          <button class="btn ghost" data-editar-presupuesto="${p.id}">Editar</button>
+          <button class="btn ghost" data-del-presupuesto="${p.id}">Borrar</button>
+        </div>
+      </div>
+      ${editarPresupuestoId===p.id? `
+      <div class="item" style="flex-direction:column;align-items:stretch;gap:8px">
+        <label>Nuevo límite mensual (€)</label>
+        <input type="number" step="0.01" min="0" id="presupuestoNuevoLimite" value="${p.limite}">
+        <div style="display:flex;gap:8px">
+          <button class="btn" data-confirmar-presupuesto="${p.id}">Guardar</button>
+          <button class="btn ghost" data-cancelar-presupuesto="1">Cancelar</button>
+        </div>
+      </div>` : ""}`;
+    }).join("") : `<div class="empty">Sin presupuestos todavía. Crea el primero arriba.</div>`}
+  </div>`;
 }
 
 function renderGastos(){
@@ -678,10 +899,13 @@ function render(){
   if(!ready){ app.innerHTML = `<div class="status">Cargando...</div>`; return; }
   if(tab==="Gastos") app.innerHTML = renderGastos();
   else if(tab==="Resumen del mes") app.innerHTML = renderResumen();
+  else if(tab==="Presupuestos") app.innerHTML = renderPresupuestos();
   else if(tab==="Movimientos") app.innerHTML = renderMovimientos();
   else if(tab==="Deudas") app.innerHTML = renderDeudas();
   else if(tab==="Cuentas") app.innerHTML = renderCuentas();
+  else if(tab==="Importar") app.innerHTML = renderImportar();
   else if(tab==="Inversiones") app.innerHTML = renderInversiones();
+  else if(tab==="Objetivos") app.innerHTML = renderObjetivos();
   else app.innerHTML = renderCategorias();
   wireEvents();
 }
@@ -919,20 +1143,128 @@ function wireEvents(){
     if(error){ showError("No se pudo renombrar: "+error.message); return; }
     hideError(); editarCatId = null; await fetchAll();
   }));
+
+  const fPresupuesto = document.getElementById("fPresupuesto");
+  if(fPresupuesto) fPresupuesto.onsubmit = (e)=>{
+    e.preventDefault();
+    conCarga(fPresupuesto.querySelector('button[type="submit"]'), "Guardando…", async ()=>{
+      const f = new FormData(fPresupuesto);
+      const data = {categoria:f.get("categoria"), limite:parseFloat(f.get("limite"))};
+      const {error} = await sb.from("presupuestos").insert(data);
+      if(error){ showError("No se pudo guardar el presupuesto: "+error.message); return; }
+      hideError(); fPresupuesto.reset(); await fetchAll();
+    });
+  };
+  document.querySelectorAll("[data-del-presupuesto]").forEach(b=>b.onclick=async ()=>{
+    if(!confirm("¿Borrar este presupuesto?")) return;
+    const {error} = await sb.from("presupuestos").delete().eq("id", b.dataset.delPresupuesto);
+    if(error){ showError("No se pudo borrar: "+error.message); return; }
+    hideError(); await fetchAll();
+  });
+  document.querySelectorAll("[data-editar-presupuesto]").forEach(b=>b.onclick=()=>{ editarPresupuestoId=b.dataset.editarPresupuesto; render(); });
+  document.querySelectorAll("[data-cancelar-presupuesto]").forEach(b=>b.onclick=()=>{ editarPresupuestoId=null; render(); });
+  document.querySelectorAll("[data-confirmar-presupuesto]").forEach(b=>b.onclick=()=>conCarga(b, "Guardando…", async ()=>{
+    const id = b.dataset.confirmarPresupuesto;
+    const nuevo = parseFloat(document.getElementById("presupuestoNuevoLimite")?.value);
+    if(isNaN(nuevo)) return;
+    const {error} = await sb.from("presupuestos").update({limite:nuevo}).eq("id", id);
+    if(error){ showError("No se pudo guardar: "+error.message); return; }
+    hideError(); editarPresupuestoId=null; await fetchAll();
+  }));
+
+  const objTipoVinculo = document.getElementById("objTipoVinculo");
+  const objVinculoWrap = document.getElementById("objVinculoWrap");
+  const objVinculoSelect = document.getElementById("objVinculoSelect");
+  if(objTipoVinculo && objVinculoWrap){
+    const toggleObj = ()=>{
+      const v = objTipoVinculo.value;
+      objVinculoWrap.style.display = v==="ninguno" ? "none" : "block";
+      if(objVinculoSelect){
+        if(v==="cuenta") objVinculoSelect.innerHTML = cuentas.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join("");
+        else if(v==="inversion") objVinculoSelect.innerHTML = inversiones.map(i=>`<option value="${i.id}">${i.nombre}</option>`).join("");
+      }
+    };
+    toggleObj(); objTipoVinculo.onchange = toggleObj;
+  }
+  const fObjetivo = document.getElementById("fObjetivo");
+  if(fObjetivo) fObjetivo.onsubmit = (e)=>{
+    e.preventDefault();
+    conCarga(fObjetivo.querySelector('button[type="submit"]'), "Guardando…", async ()=>{
+      const f = new FormData(fObjetivo);
+      const tipoVinculo = f.get("tipoVinculo")||"ninguno";
+      const data = {nombre:f.get("nombre"), meta:parseFloat(f.get("meta")), tipo_vinculo:tipoVinculo, vinculo_id: tipoVinculo==="ninguno"?null:(f.get("vinculoId")||null)};
+      const {error} = await sb.from("objetivos").insert(data);
+      if(error){ showError("No se pudo guardar el objetivo: "+error.message); return; }
+      hideError(); fObjetivo.reset(); await fetchAll();
+    });
+  };
+  document.querySelectorAll("[data-del-objetivo]").forEach(b=>b.onclick=async ()=>{
+    if(!confirm("¿Borrar este objetivo?")) return;
+    const {error} = await sb.from("objetivos").delete().eq("id", b.dataset.delObjetivo);
+    if(error){ showError("No se pudo borrar: "+error.message); return; }
+    hideError(); await fetchAll();
+  });
+
+  const csvFile = document.getElementById("csvFile");
+  if(csvFile) csvFile.onchange = ()=>{
+    const file = csvFile.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      const {headers, filas} = parseCSV(reader.result);
+      csvHeaders = headers; csvFilas = filas; csvPreview = [];
+      render();
+    };
+    reader.readAsText(file, "UTF-8");
+  };
+  const csvPrevisualizar = document.getElementById("csvPrevisualizar");
+  if(csvPrevisualizar) csvPrevisualizar.onclick = ()=>{
+    const colFecha = document.getElementById("csvColFecha").value;
+    const colImporte = document.getElementById("csvColImporte").value;
+    const colNota = document.getElementById("csvColNota").value;
+    const iFecha = csvHeaders.indexOf(colFecha);
+    const iImporte = csvHeaders.indexOf(colImporte);
+    const iNota = colNota ? csvHeaders.indexOf(colNota) : -1;
+    csvPreview = csvFilas.map(fila=>{
+      const importeRaw = parseImporteCSV(fila[iImporte]);
+      if(isNaN(importeRaw)) return null;
+      return {
+        fecha: parseFechaCSV(fila[iFecha]) || today(),
+        importe: Math.abs(importeRaw),
+        tipo: importeRaw<0 ? "gasto" : "ingreso",
+        nota: iNota>=0 ? fila[iNota] : ""
+      };
+    }).filter(Boolean);
+    render();
+  };
+  const csvImportar = document.getElementById("csvImportar");
+  if(csvImportar) csvImportar.onclick = ()=>conCarga(csvImportar, "Importando…", async ()=>{
+    const cuentaId = document.getElementById("csvCuenta")?.value;
+    const categoriaNombre = document.getElementById("csvCategoria")?.value;
+    if(!cuentaId || !categoriaNombre) return;
+    const filas = csvPreview.map(m=>({
+      tipo:m.tipo, categoria:categoriaNombre, importe:m.importe, fecha:m.fecha, nota:m.nota||"", cuenta_id:cuentaId
+    }));
+    const {error} = await sb.from("movimientos").insert(filas);
+    if(error){ showError("No se pudo importar: "+error.message); return; }
+    hideError(); csvHeaders=[]; csvFilas=[]; csvPreview=[]; await fetchAll();
+  });
 }
 
 async function fetchAll(){
   try{
-    const [{data:cta, error:e1}, {data:mov, error:e2}, {data:deu, error:e3}, {data:inv, error:e4}, {data:apo, error:e5}, {data:cat, error:e6}, {data:ret, error:e7}] = await Promise.all([
+    const [{data:cta, error:e1}, {data:mov, error:e2}, {data:deu, error:e3}, {data:inv, error:e4}, {data:apo, error:e5}, {data:cat, error:e6}, {data:ret, error:e7}, {data:pre, error:e8}, {data:obj, error:e9}] = await Promise.all([
       sb.from("cuentas").select("*").order("nombre"),
       sb.from("movimientos").select("*").order("fecha", {ascending:false}),
       sb.from("deudas").select("*"),
       sb.from("inversiones").select("*"),
       sb.from("aportaciones_inversion").select("*"),
       sb.from("categorias").select("*"),
-      sb.from("retiros_inversion").select("*")
+      sb.from("retiros_inversion").select("*"),
+      sb.from("presupuestos").select("*"),
+      sb.from("objetivos").select("*")
     ]);
-    const err = e1||e2||e3||e4||e5||e6||e7;
+    const err = e1||e2||e3||e4||e5||e6||e7||e8||e9;
     if(err){ ready = true; render(); showError("No se pudieron cargar los datos: "+err.message); return; }
     cuentas = (cta||[]).map(c=>({id:c.id, nombre:c.nombre, saldoInicial:Number(c.saldo_inicial)}));
     movimientos = (mov||[]).map(m=>({id:m.id, tipo:m.tipo, categoria:m.categoria, importe:Number(m.importe), fecha:m.fecha, nota:m.nota, cuentaId:m.cuenta_id}));
@@ -940,6 +1272,8 @@ async function fetchAll(){
     inversiones = (inv||[]).map(i=>({id:i.id, nombre:i.nombre, tipo:i.tipo, valorActual:Number(i.valor_actual), valorInicial:Number(i.valor_inicial), estado:i.estado||"activa", fechaPrevista:i.fecha_prevista, importePrevisto:i.importe_previsto!=null?Number(i.importe_previsto):null, cuentaPrevistaId:i.cuenta_prevista_id}));
     aportaciones = (apo||[]).map(a=>({id:a.id, inversionId:a.inversion_id, importe:Number(a.importe), fecha:a.fecha, cuentaId:a.cuenta_id, movimientoId:a.movimiento_id}));
     retiros = (ret||[]).map(r=>({id:r.id, inversionId:r.inversion_id, importe:Number(r.importe), fecha:r.fecha, cuentaId:r.cuenta_id, movimientoId:r.movimiento_id}));
+    presupuestos = (pre||[]).map(p=>({id:p.id, categoria:p.categoria, limite:Number(p.limite)}));
+    objetivos = (obj||[]).map(o=>({id:o.id, nombre:o.nombre, meta:Number(o.meta), tipoVinculo:o.tipo_vinculo, vinculoId:o.vinculo_id}));
     if((cat||[]).length===0){
       const {error:eSeed} = await sb.from("categorias").insert(CATEGORIAS_DEFECTO);
       if(!eSeed){ const {data:cat2} = await sb.from("categorias").select("*"); categorias = (cat2||[]).map(c=>({id:c.id, tipo:c.tipo, padre:c.padre, nombre:c.nombre})); }
@@ -975,6 +1309,8 @@ async function startApp(){
     .on("postgres_changes", {event:"*", schema:"public", table:"aportaciones_inversion"}, fetchAll)
     .on("postgres_changes", {event:"*", schema:"public", table:"categorias"}, fetchAll)
     .on("postgres_changes", {event:"*", schema:"public", table:"retiros_inversion"}, fetchAll)
+    .on("postgres_changes", {event:"*", schema:"public", table:"presupuestos"}, fetchAll)
+    .on("postgres_changes", {event:"*", schema:"public", table:"objetivos"}, fetchAll)
     .subscribe();
 }
 
