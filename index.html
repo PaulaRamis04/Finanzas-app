@@ -115,8 +115,8 @@ h2{font-size:15px; margin:0 0 12px}
   <main id="app"></main>
 </div>
 <script>
-const TABS = ["Movimientos","Deudas","Cuentas","Inversiones","Categorías"];
-let tab = "Movimientos";
+const TABS = ["Gastos","Movimientos","Deudas","Cuentas","Inversiones","Categorías"];
+let tab = "Gastos";
 let ready = false;
 let movimientos = [], deudas = [], cuentas = [], inversiones = [], aportaciones = [], categorias = [];
 let aportarInvId = null, editarValorInvId = null, editarCatId = null;
@@ -197,16 +197,61 @@ function renderBalance(){
 }
 
 function cuentaNombre(id){ const c = cuentas.find(c=>c.id===id); return c? c.nombre : "Sin cuenta"; }
-function aportadoInv(id){ return aportaciones.filter(a=>a.inversionId===id).reduce((s,a)=>s+a.importe,0); }
+function aportadoInv(inv){ return (inv.valorInicial||0) + aportaciones.filter(a=>a.inversionId===inv.id).reduce((s,a)=>s+a.importe,0); }
 function saldoCuenta(c){
   const ing = movimientos.filter(m=>m.cuentaId===c.id && m.tipo==="ingreso").reduce((s,m)=>s+m.importe,0);
   const gas = movimientos.filter(m=>m.cuentaId===c.id && m.tipo==="gasto").reduce((s,m)=>s+m.importe,0);
   return (c.saldoInicial||0) + ing - gas;
 }
 
+function renderGastos(){
+  const enP = movimientos.filter(m=>enPeriodo(m.fecha));
+  const ingresos = enP.filter(m=>m.tipo==="ingreso").reduce((s,m)=>s+m.importe,0);
+  const ahorro = enP.filter(m=>m.tipo==="gasto" && m.categoria==="Inversión").reduce((s,m)=>s+m.importe,0);
+  const disponible = ingresos - ahorro;
+  const gastosReales = enP.filter(m=>m.tipo==="gasto" && m.categoria!=="Inversión");
+  const gastado = gastosReales.reduce((s,m)=>s+m.importe,0);
+  const restante = disponible - gastado;
+  const porCategoria = {};
+  gastosReales.forEach(m=>{ porCategoria[m.categoria] = (porCategoria[m.categoria]||0) + m.importe; });
+  const lbl = periodoMes==="todos" ? `Año ${periodoAnio}` : `${MESES[Number(periodoMes)-1]} ${periodoAnio}`;
+  return `
+  <div class="card">
+    <h2>Disponible para gastar · ${lbl}</h2>
+    <p class="meta" style="margin:4px 0 0">Ingresos menos lo que aportas a inversiones (tu ahorro del mes)</p>
+    <div class="balance" style="margin-top:14px">
+      <div><div class="num pos">${eur(ingresos)}</div><div class="lbl">Ingresos</div></div>
+      <div><div class="num neg">${eur(ahorro)}</div><div class="lbl">Ahorro (inversiones)</div></div>
+      <div><div class="num">${eur(disponible)}</div><div class="lbl">Disponible</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="balance">
+      <div><div class="num neg">${eur(gastado)}</div><div class="lbl">Gastado</div></div>
+      <div><div class="num ${restante>=0?'pos':'neg'}">${eur(restante)}</div><div class="lbl">Te queda</div></div>
+    </div>
+  </div>
+  <div class="section-title">Por categoría</div>
+  <div class="list">
+    ${Object.keys(porCategoria).length? Object.entries(porCategoria).sort((a,b)=>b[1]-a[1]).map(([cat,total])=>`
+      <div class="item"><div>${cat}</div><div class="amt neg">${eur(total)}</div></div>
+    `).join("") : `<div class="empty">Sin gastos en este periodo.</div>`}
+  </div>
+  <div class="section-title">Movimientos de gasto (${gastosReales.length})</div>
+  <div class="list">
+    ${gastosReales.length? [...gastosReales].sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(m=>`
+      <div class="item">
+        <div><span class="tag">${m.categoria}</span>${m.nota?`<div class="meta">${m.nota}</div>`:""}<div class="meta">${m.fecha}</div></div>
+        <div class="amt neg">-${eur(m.importe)}</div>
+      </div>`).join("") : `<div class="empty">Sin movimientos de gasto en este periodo.</div>`}
+  </div>`;
+}
+
 function renderMovimientos(){
   const items = movimientos.filter(m=>enPeriodo(m.fecha)).sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  const soloVista = periodoMes === "todos";
   return `
+  ${soloVista ? `<div class="card"><p class="meta" style="margin:0">Estás viendo el total del año — elige un mes concreto arriba para poder añadir movimientos.</p></div>` : `
   <div class="card">
     <h2>Añadir movimiento</h2>
     <form id="fMov">
@@ -222,7 +267,7 @@ function renderMovimientos(){
       <div><label>Nota (opcional)</label><input name="nota" placeholder="ej. cena viernes"></div>
       <button class="btn" type="submit" ${cuentas.length?"":"disabled"}>Añadir</button>
     </form>
-  </div>
+  </div>`}
   <div class="section-title">Historial (${items.length})</div>
   <div class="list">
     ${items.length? items.map(m=>`
@@ -318,7 +363,7 @@ function renderCuentas(){
 function renderInversiones(){
   const items = [...inversiones].sort((a,b)=>a.nombre.localeCompare(b.nombre));
   const totalValor = items.reduce((s,i)=>s+i.valorActual,0);
-  const totalAportado = items.reduce((s,i)=>s+aportadoInv(i.id),0);
+  const totalAportado = items.reduce((s,i)=>s+aportadoInv(i),0);
   const totalBeneficio = totalValor - totalAportado;
   return `
   <div class="card">
@@ -335,7 +380,7 @@ function renderInversiones(){
   <div class="section-title">Inversiones · Valor ${eur(totalValor)} · Beneficio ${eur(totalBeneficio)}</div>
   <div class="list">
     ${items.length? items.map(inv=>{
-      const aportado = aportadoInv(inv.id);
+      const aportado = aportadoInv(inv);
       const beneficio = inv.valorActual - aportado;
       return `
       <div class="item">
@@ -432,7 +477,8 @@ function render(){
   renderPeriodo();
   const app = document.getElementById("app");
   if(!ready){ app.innerHTML = `<div class="status">Cargando...</div>`; return; }
-  if(tab==="Movimientos") app.innerHTML = renderMovimientos();
+  if(tab==="Gastos") app.innerHTML = renderGastos();
+  else if(tab==="Movimientos") app.innerHTML = renderMovimientos();
   else if(tab==="Deudas") app.innerHTML = renderDeudas();
   else if(tab==="Cuentas") app.innerHTML = renderCuentas();
   else if(tab==="Inversiones") app.innerHTML = renderInversiones();
@@ -519,7 +565,8 @@ function wireEvents(){
   if(fInversion) fInversion.onsubmit = async (e)=>{
     e.preventDefault();
     const f = new FormData(fInversion);
-    const data = {nombre:f.get("nombre"), tipo:f.get("tipo")||"", valor_actual:parseFloat(f.get("valorActual"))};
+    const valInicial = parseFloat(f.get("valorActual"));
+    const data = {nombre:f.get("nombre"), tipo:f.get("tipo")||"", valor_actual:valInicial, valor_inicial:valInicial};
     const {error} = await sb.from("inversiones").insert(data);
     if(error){ showError("No se pudo guardar la inversión: "+error.message); return; }
     hideError(); fInversion.reset(); await fetchAll();
@@ -542,6 +589,8 @@ function wireEvents(){
     if(e1){ showError("No se pudo guardar la aportación: "+e1.message); return; }
     const {error:e2} = await sb.from("movimientos").insert({tipo:"gasto", categoria:"Inversión", importe, fecha:today(), nota:`Aportación: ${inv.nombre}`, cuenta_id:cuentaEl.value});
     if(e2){ showError("Se guardó la aportación pero no el gasto en la cuenta: "+e2.message); return; }
+    const {error:e3} = await sb.from("inversiones").update({valor_actual: inv.valorActual + importe}).eq("id", invId);
+    if(e3){ showError("Se guardó la aportación pero no se actualizó el valor total: "+e3.message); return; }
     hideError(); aportarInvId = null; await fetchAll();
   });
   document.querySelectorAll("[data-editar-valor]").forEach(b=>b.onclick=()=>{ editarValorInvId=b.dataset.editarValor; aportarInvId=null; render(); });
@@ -602,7 +651,7 @@ async function fetchAll(){
     cuentas = (cta||[]).map(c=>({id:c.id, nombre:c.nombre, saldoInicial:Number(c.saldo_inicial)}));
     movimientos = (mov||[]).map(m=>({id:m.id, tipo:m.tipo, categoria:m.categoria, importe:Number(m.importe), fecha:m.fecha, nota:m.nota, cuentaId:m.cuenta_id}));
     deudas = (deu||[]).map(d=>({id:d.id, persona:d.persona, importe:Number(d.importe), direccion:d.direccion, concepto:d.concepto, estado:d.estado, fecha:d.fecha}));
-    inversiones = (inv||[]).map(i=>({id:i.id, nombre:i.nombre, tipo:i.tipo, valorActual:Number(i.valor_actual)}));
+    inversiones = (inv||[]).map(i=>({id:i.id, nombre:i.nombre, tipo:i.tipo, valorActual:Number(i.valor_actual), valorInicial:Number(i.valor_inicial)}));
     aportaciones = (apo||[]).map(a=>({id:a.id, inversionId:a.inversion_id, importe:Number(a.importe), fecha:a.fecha, cuentaId:a.cuenta_id}));
     if((cat||[]).length===0){
       const {error:eSeed} = await sb.from("categorias").insert(CATEGORIAS_DEFECTO);
