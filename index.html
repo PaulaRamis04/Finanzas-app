@@ -145,17 +145,19 @@ h2{font-size:16px; margin:0 0 12px; font-weight:800}
   <main id="app"></main>
 </div>
 <script>
-const TABS = ["Gastos","Resumen del mes","Presupuestos","Movimientos","Cuentas","Deudas","Importar","Inversiones","Objetivos","Categorías"];
+const TABS = ["Gastos","Resumen del mes","Presupuestos","Movimientos","Cuentas","Deudas","Importar","Inversiones","Objetivos","Categorías","Preferencias"];
 const GRUPOS_MENU = [
   {nombre:"Resumen", tabs:["Gastos","Resumen del mes","Presupuestos"]},
   {nombre:"Movimientos", tabs:["Movimientos","Cuentas","Deudas","Importar"]},
   {nombre:"Ahorro", tabs:["Inversiones","Objetivos"]},
-  {nombre:"Ajustes", tabs:["Categorías"]}
+  {nombre:"Ajustes", tabs:["Categorías","Preferencias"]}
 ];
 let tab = "Gastos";
 let ready = false;
 let movimientos = [], deudas = [], cuentas = [], inversiones = [], aportaciones = [], categorias = [], retiros = [], presupuestos = [], objetivos = [];
 let editarPresupuestoId = null, editarPresDeudaId = null, meDebenMovId = null;
+let cuentaDefecto = "";
+try{ cuentaDefecto = localStorage.getItem("cuentaDefecto") || ""; }catch(e){}
 let csvHeaders = [], csvFilas = [], csvPreview = [], csvSel = {}, csvPreviewCuentaId = "";
 let pendientes = [], pendCats = {};
 let aportarInvId = null, editarValorInvId = null, editarCatId = null, verAportacionesId = null, ajustarSaldoId = null, rescatarInvId = null;
@@ -281,8 +283,10 @@ function renderBalance(){
 }
 
 function cuentaNombre(id){ const c = cuentas.find(c=>c.id===id); return c? esc(c.nombre) : "Sin cuenta"; }
-function opcionesCuentas(selectedId){
-  return cuentas.map(c=>`<option value="${c.id}"${c.id===selectedId?" selected":""}>${esc(c.nombre)}</option>`).join("");
+function cuentaPorDefecto(){ return cuentas.some(c=>c.id===cuentaDefecto) ? cuentaDefecto : ""; }
+function opcionesCuentas(selectedId, sinDefecto){
+  const sel = selectedId || (sinDefecto ? "" : cuentaPorDefecto());
+  return cuentas.map(c=>`<option value="${c.id}"${c.id===sel?" selected":""}>${esc(c.nombre)}</option>`).join("");
 }
 function aportadoInv(inv){ return (inv.valorInicial||0) + aportaciones.filter(a=>a.inversionId===inv.id).reduce((s,a)=>s+a.importe,0); }
 function retiradoInv(inv){ return retiros.filter(r=>r.inversionId===inv.id).reduce((s,r)=>s+r.importe,0); }
@@ -561,6 +565,28 @@ function nombreVinculo(o){
   if(o.tipoVinculo==="inversion"){ const i=inversiones.find(x=>x.id===o.vinculoId); return i? esc(i.nombre) : "—"; }
   return "";
 }
+async function guardarCuentaDefecto(id){
+  cuentaDefecto = id || "";
+  try{ if(id) localStorage.setItem("cuentaDefecto", id); else localStorage.removeItem("cuentaDefecto"); }catch(e){}
+  const {error} = await sb.from("preferencias").upsert({user_id: session.user.id, cuenta_defecto: id || null});
+  if(error){
+    showError("Se ha guardado solo en este dispositivo. Para guardarlo en tu cuenta, ejecuta schema_preferencias.sql en Supabase. ("+error.message+")");
+    return false;
+  }
+  hideError();
+  return true;
+}
+function renderPreferencias(){
+  const def = cuentaPorDefecto();
+  return `
+  <div class="card">
+    <h2>Cuenta por defecto</h2>
+    <p class="meta" style="margin:0 0 10px">Es la cuenta que aparece ya seleccionada cuando añades un movimiento, aportas o rescatas de una inversión, saldas una deuda o importas un extracto. Siempre puedes elegir otra en cada caso.</p>
+    ${cuentas.length? `<select id="prefCuenta"><option value="">Ninguna (la primera de la lista)</option>${cuentas.map(c=>`<option value="${c.id}"${c.id===def?" selected":""}>${esc(c.nombre)}</option>`).join("")}</select>` : `<div class="meta">Crea antes una cuenta en la pestaña "Cuentas".</div>`}
+    <div class="meta" id="prefEstado" style="margin-top:8px"></div>
+  </div>`;
+}
+
 function renderObjetivos(){
   const conseguidos = objetivos.filter(o=>o.meta>0 && progresoObjetivo(o)>=o.meta).length;
   const resumen = objetivos.length ? `
@@ -1203,7 +1229,7 @@ function renderInversiones(){
           <div><label>Importe previsto (€)</label><input name="importePrevisto" type="number" step="0.01" min="0"></div>
         </div>
         <label>Cuenta prevista</label>
-        ${cuentas.length? `<select name="cuentaPrevista"><option value="">Sin elegir todavía</option>${opcionesCuentas()}</select>` : `<div class="meta">Crea una cuenta cuando quieras usarla.</div>`}
+        ${cuentas.length? `<select name="cuentaPrevista"><option value="">Sin elegir todavía</option>${opcionesCuentas(null, true)}</select>` : `<div class="meta">Crea una cuenta cuando quieras usarla.</div>`}
       </div>
       <button class="btn" type="submit">Añadir</button>
     </form>
@@ -1292,6 +1318,7 @@ function render(){
   else if(tab==="Importar") app.innerHTML = renderImportar();
   else if(tab==="Inversiones") app.innerHTML = renderInversiones();
   else if(tab==="Objetivos") app.innerHTML = renderObjetivos();
+  else if(tab==="Preferencias") app.innerHTML = renderPreferencias();
   else app.innerHTML = renderCategorias();
   wireEvents();
   if(pendienteEnfoque){
@@ -1628,6 +1655,13 @@ function wireEvents(){
   document.querySelectorAll("[data-toggle-orden-objetivos]").forEach(b=>b.onclick=()=>{ modoOrdenObjetivos = !modoOrdenObjetivos; render(); });
   document.querySelectorAll("[data-mover-cuenta]").forEach(b=>b.onclick=()=>conCarga(b, "…", ()=>moverEnLista(cuentas, "ordenar_cuentas", b.dataset.moverCuenta)));
   document.querySelectorAll("[data-mover-objetivo]").forEach(b=>b.onclick=()=>conCarga(b, "…", ()=>moverEnLista(objetivos, "ordenar_objetivos", b.dataset.moverObjetivo)));
+  const prefCuenta = document.getElementById("prefCuenta");
+  if(prefCuenta) prefCuenta.onchange = async ()=>{
+    const estado = document.getElementById("prefEstado");
+    if(estado) estado.textContent = "Guardando…";
+    const ok = await guardarCuentaDefecto(prefCuenta.value);
+    if(estado) estado.textContent = ok ? "Guardado" : "";
+  };
   const fGrupo = document.getElementById("fGrupo");
   if(fGrupo) fGrupo.onsubmit = (e)=>{
     e.preventDefault();
@@ -1727,7 +1761,7 @@ function wireEvents(){
         importe: guessAny([/importe/,/amount/,/cantidad/]) || headers[1] || headers[0] || "",
         nota: guessAny([/concepto/,/descripcion/,/detalle/,/movimiento/,/description/]),
         saldo: guessAny([/saldo/,/balance/]),
-        cuenta: cuentas[0] ? cuentas[0].id : ""
+        cuenta: cuentaPorDefecto() || (cuentas[0] ? cuentas[0].id : "")
       };
       render();
     };
@@ -1792,7 +1826,7 @@ function wireEvents(){
 
 async function fetchAll(){
   try{
-    const [{data:cta, error:e1}, {data:mov, error:e2}, {data:deu, error:e3}, {data:inv, error:e4}, {data:apo, error:e5}, {data:cat, error:e6}, {data:ret, error:e7}, {data:pre, error:e8}, {data:obj, error:e9}, {data:pen, error:e10}] = await Promise.all([
+    const [{data:cta, error:e1}, {data:mov, error:e2}, {data:deu, error:e3}, {data:inv, error:e4}, {data:apo, error:e5}, {data:cat, error:e6}, {data:ret, error:e7}, {data:pre, error:e8}, {data:obj, error:e9}, {data:pen, error:e10}, {data:pref}] = await Promise.all([
       sb.from("cuentas").select("*").order("nombre"),
       sb.from("movimientos").select("*").order("fecha", {ascending:false}),
       sb.from("deudas").select("*"),
@@ -1802,7 +1836,8 @@ async function fetchAll(){
       sb.from("retiros_inversion").select("*"),
       sb.from("presupuestos").select("*"),
       sb.from("objetivos").select("*"),
-      sb.from("movimientos_pendientes").select("*")
+      sb.from("movimientos_pendientes").select("*"),
+      sb.from("preferencias").select("*")
     ]);
     const err = e1||e2||e3||e4||e5||e6||e7||e8||e9||e10;
     if(err){ ready = true; render(); showError("No se pudieron cargar los datos: "+err.message); return; }
@@ -1814,6 +1849,10 @@ async function fetchAll(){
     retiros = (ret||[]).map(r=>({id:r.id, inversionId:r.inversion_id, importe:Number(r.importe), fecha:r.fecha, cuentaId:r.cuenta_id, movimientoId:r.movimiento_id}));
     presupuestos = (pre||[]).map(p=>({id:p.id, categoria:p.categoria, limite:Number(p.limite)}));
     objetivos = (obj||[]).map(o=>({id:o.id, nombre:o.nombre, meta:Number(o.meta), tipoVinculo:o.tipo_vinculo, vinculoId:o.vinculo_id, orden:o.orden||0})).sort(porOrden);
+    if(pref && pref[0]){
+      cuentaDefecto = pref[0].cuenta_defecto || "";
+      try{ if(cuentaDefecto) localStorage.setItem("cuentaDefecto", cuentaDefecto); else localStorage.removeItem("cuentaDefecto"); }catch(e){}
+    }
     pendientes = (pen||[]).map(x=>({id:x.id, cuentaId:x.cuenta_id, tipo:x.tipo, importe:Number(x.importe), fecha:x.fecha, descripcion:x.descripcion||"", saldo:x.saldo!=null?Number(x.saldo):null, posicion:x.posicion||0}));
     if((cat||[]).length===0){
       const {error:eSeed} = await sb.from("categorias").insert(CATEGORIAS_DEFECTO);
