@@ -155,10 +155,10 @@ h2{font-size:16px; margin:0 0 12px; font-weight:800}
   <main id="app"></main>
 </div>
 <script>
-const TABS = ["Gastos","Resumen del mes","Presupuestos","Movimientos","Cuentas","Deudas","Importar","Inversiones","Objetivos","Proyección","Categorías","Preferencias"];
+const TABS = ["Gastos","Resumen del mes","Presupuestos","Movimientos","Cuentas","Deudas","Importar","Inversiones","Objetivos","Proyección","Recurrentes","Categorías","Preferencias"];
 const GRUPOS_MENU = [
   {nombre:"Resumen", tabs:["Gastos","Resumen del mes","Presupuestos"]},
-  {nombre:"Movimientos", tabs:["Movimientos","Cuentas","Deudas","Importar"]},
+  {nombre:"Movimientos", tabs:["Movimientos","Cuentas","Deudas","Importar","Recurrentes"]},
   {nombre:"Ahorro", tabs:["Inversiones","Objetivos","Proyección"]},
   {nombre:"Ajustes", tabs:["Categorías","Preferencias"]}
 ];
@@ -171,6 +171,7 @@ try{ formsPorDefecto = localStorage.getItem("formsPorDefecto")==="cerrados" ? "c
 let catsContraidas = {};
 try{ catsContraidas = JSON.parse(localStorage.getItem("catsContraidas") || "{}") || {}; }catch(e){ catsContraidas = {}; }
 let deudaLado = "me_deben", saldadasAbiertas = {};
+let recurrentes = [];
 let proy = {inicial:null, aporte:0, anios:10, tasa:5, detalle:false};
 let proyResultado = null;
 let cuentaDefecto = "";
@@ -986,6 +987,64 @@ function movimientosEfectivos(){
   });
   return out;
 }
+function proximaFechaRecurrente(r){
+  let y, m;
+  if(r.ultimaGenerada){ const [yy,mm] = r.ultimaGenerada.split("-").map(Number); y = yy; m = mm+1; if(m>12){ m=1; y++; } }
+  else { const [yy,mm] = r.fechaInicio.split("-").map(Number); y = yy; m = mm; }
+  const diasEnMes = new Date(y, m, 0).getDate();
+  const dia = Math.min(r.diaMes, diasEnMes);
+  return `${y}-${String(m).padStart(2,"0")}-${String(dia).padStart(2,"0")}`;
+}
+function recurrenteItem(r){
+  return `
+  <div class="item">
+    <div style="min-width:0">
+      <strong>${esc(r.categoria)}</strong>
+      <span class="tag">${r.tipo==="ingreso"?"Ingreso":"Gasto"}</span>
+      ${!r.activo?'<span class="tag">Pausado</span>':''}
+      ${r.nota?`<div class="meta">${esc(r.nota)}</div>`:""}
+      <div class="meta">${cuentaNombre(r.cuentaId)} · día ${r.diaMes} de cada mes</div>
+      <div class="meta">${r.activo? "Próxima: "+proximaFechaRecurrente(r) : "En pausa, no genera movimientos"}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+      <div class="amt ${r.tipo==='ingreso'?'pos':'neg'}">${eur(r.importe)}</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn ghost" data-toggle-recurrente="${r.id}">${r.activo?"Pausar":"Reanudar"}</button>
+        <button class="btn ghost" data-del-recurrente="${r.id}">Borrar</button>
+      </div>
+    </div>
+  </div>`;
+}
+function renderRecurrentes(){
+  const items = [...recurrentes].sort((a,b)=> (a.activo===b.activo?0:(a.activo?-1:1)) || a.categoria.localeCompare(b.categoria));
+  return `
+  <div class="card">
+    <h2>Nuevo recurrente</h2>
+    <p class="meta" style="margin:0 0 10px">Para suscripciones, nóminas u otros pagos o ingresos que se repiten cada mes. Se generan solos en la fecha que digas, sin que tengas que apuntarlos.</p>
+    <form id="fRecurrente">
+      <div class="row2">
+        <div><label>Tipo</label><select name="tipo" id="recTipo"><option value="gasto">Gasto</option><option value="ingreso">Ingreso</option></select></div>
+        <div><label>Importe (€)</label><input name="importe" type="number" step="0.01" min="0" required></div>
+      </div>
+      <div class="row2">
+        <div><label>Categoría</label><select name="categoria" id="recCategoria" required></select></div>
+        <div><label>Día del mes</label><input name="diaMes" type="number" min="1" max="28" value="1" required></div>
+      </div>
+      <div><label>Nota (opcional)</label><input name="nota" placeholder="ej. Netflix"></div>
+      <div class="row2">
+        <div><label>Cuenta</label>${cuentas.length? `<select name="cuentaId">${opcionesCuentas()}</select>` : `<div class="meta">Crea antes una cuenta.</div>`}</div>
+        <div><label>Empieza el</label><input name="fechaInicio" type="date" value="${today()}" required></div>
+      </div>
+      <p class="meta" style="margin:0">El día máximo es 28 para que funcione igual en todos los meses, incluido febrero.</p>
+      <button class="btn" type="submit" ${cuentas.length?"":"disabled"}>Añadir</button>
+    </form>
+  </div>
+  <div class="section-title">Recurrentes (${items.length})</div>
+  <div class="list">
+    ${items.length? items.map(recurrenteItem).join("") : `<div class="empty">Sin gastos o ingresos recurrentes todavía.</div>`}
+  </div>`;
+}
+
 function renderPresupuestos(){
   const enP = movimientosEfectivos().filter(m=>m.tipo==="gasto" && m.categoria!=="Inversión");
   const cubiertoCat = {};
@@ -1140,6 +1199,7 @@ function renderMovimientos(){
           <span class="tag">${cuentaNombre(m.cuentaId)}</span>
           ${m.nota?`<div class="meta">${esc(m.nota)}</div>`:""}
           ${m.saldoBanco!=null?`<div class="meta">Saldo banco: ${eur(m.saldoBanco)}</div>`:""}
+          ${m.recurrenteId? `<div class="meta">Generado automáticamente (recurrente)</div>` : ""}
           ${m.reembolsoDe? `<div class="meta">Reembolso de un gasto: no cuenta como ingreso</div>` : ""}
           ${pendMov[m.id]? `<div class="meta">Te deben ${eur(pendMov[m.id])} (pendiente: hasta que lo cobres, cuenta entero)</div>` : ""}
           ${cubMov[m.id]? `<div class="meta">Ya cobrado: ${eur(cubMov[m.id])} · cuenta ${eur(Math.max(0,m.importe-cubMov[m.id]))} como gasto tuyo</div>` : ""}
@@ -1644,6 +1704,7 @@ function render(){
   else if(tab==="Inversiones") app.innerHTML = renderInversiones();
   else if(tab==="Objetivos") app.innerHTML = renderObjetivos();
   else if(tab==="Proyección") app.innerHTML = renderProyeccion();
+  else if(tab==="Recurrentes") app.innerHTML = renderRecurrentes();
   else if(tab==="Preferencias") app.innerHTML = renderPreferencias();
   else app.innerHTML = renderCategorias();
   wireEvents();
@@ -1983,6 +2044,42 @@ function wireEvents(){
     render();
   };
   document.querySelectorAll("#proyToggleDetalle").forEach(b=>b.onclick=()=>{ proy.detalle = !proy.detalle; render(); });
+  const recTipo = document.getElementById("recTipo");
+  const recCategoria = document.getElementById("recCategoria");
+  if(recTipo && recCategoria){
+    const fill = ()=>{ recCategoria.innerHTML = opcionesCategoriaPend(recTipo.value, null); };
+    fill(); recTipo.onchange = fill;
+  }
+  const fRecurrente = document.getElementById("fRecurrente");
+  if(fRecurrente) fRecurrente.onsubmit = (e)=>{
+    e.preventDefault();
+    conCarga(fRecurrente.querySelector('button[type="submit"]'), "Guardando…", async ()=>{
+      const f = new FormData(fRecurrente);
+      const data = {
+        tipo: f.get("tipo"), categoria: f.get("categoria"), importe: parseFloat(f.get("importe")),
+        nota: f.get("nota")||"", cuenta_id: f.get("cuentaId")||null,
+        dia_mes: Math.min(Math.max(parseInt(f.get("diaMes"),10)||1,1),28), fecha_inicio: f.get("fechaInicio")
+      };
+      const {error} = await sb.from("recurrentes").insert(data);
+      if(error){ showError("No se pudo guardar: "+error.message); return; }
+      hideError(); fRecurrente.reset(); await fetchAll();
+    });
+  };
+  document.querySelectorAll("[data-toggle-recurrente]").forEach(b=>b.onclick=()=>conCarga(b, "…", async ()=>{
+    const r = recurrentes.find(x=>x.id===b.dataset.toggleRecurrente);
+    if(!r) return;
+    const {error} = await sb.from("recurrentes").update({activo: !r.activo}).eq("id", r.id);
+    if(error){ showError("No se pudo actualizar: "+error.message); return; }
+    hideError(); await fetchAll();
+  }));
+  document.querySelectorAll("[data-del-recurrente]").forEach(b=>b.onclick=()=>{
+    if(!confirm("¿Borrar este recurrente? Los movimientos que ya generó no se borran.")) return;
+    conCarga(b, "Borrando…", async ()=>{
+      const {error} = await sb.from("recurrentes").delete().eq("id", b.dataset.delRecurrente);
+      if(error){ showError("No se pudo borrar: "+error.message); return; }
+      hideError(); await fetchAll();
+    });
+  });
   const prefForms = document.getElementById("prefForms");
   if(prefForms) prefForms.onchange = ()=>{
     formsPorDefecto = prefForms.value === "cerrados" ? "cerrados" : "abiertos";
@@ -2173,6 +2270,7 @@ function wireEvents(){
 
 async function fetchAll(){
   try{
+    try{ await sb.rpc("procesar_recurrentes"); }catch(e){}
     const [{data:cta, error:e1}, {data:mov, error:e2}, {data:deu, error:e3}, {data:inv, error:e4}, {data:apo, error:e5}, {data:cat, error:e6}, {data:ret, error:e7}, {data:pre, error:e8}, {data:obj, error:e9}, {data:pen, error:e10}, {data:pref}] = await Promise.all([
       sb.from("cuentas").select("*").order("nombre"),
       sb.from("movimientos").select("*").order("fecha", {ascending:false}),
@@ -2189,12 +2287,14 @@ async function fetchAll(){
     const err = e1||e2||e3||e4||e5||e6||e7||e8||e9||e10;
     if(err){ ready = true; render(); showError("No se pudieron cargar los datos: "+err.message); return; }
     cuentas = (cta||[]).map(c=>({id:c.id, nombre:c.nombre, saldoInicial:Number(c.saldo_inicial), orden:c.orden||0})).sort(porOrden);
-    movimientos = (mov||[]).map(m=>({id:m.id, tipo:m.tipo, categoria:m.categoria, importe:Number(m.importe), fecha:m.fecha, nota:m.nota, cuentaId:m.cuenta_id, saldoBanco:m.saldo_banco!=null?Number(m.saldo_banco):null, presupuesto:m.presupuesto||null, presupuestoFecha:m.presupuesto_fecha||null, reembolsoDe:m.reembolso_de||null}));
+    movimientos = (mov||[]).map(m=>({id:m.id, tipo:m.tipo, categoria:m.categoria, importe:Number(m.importe), fecha:m.fecha, nota:m.nota, cuentaId:m.cuenta_id, saldoBanco:m.saldo_banco!=null?Number(m.saldo_banco):null, presupuesto:m.presupuesto||null, presupuestoFecha:m.presupuesto_fecha||null, reembolsoDe:m.reembolso_de||null, recurrenteId:m.recurrente_id||null}));
     deudas = (deu||[]).map(d=>({id:d.id, persona:d.persona, importe:Number(d.importe), direccion:d.direccion, concepto:d.concepto, estado:d.estado, fecha:d.fecha, presupuesto:d.presupuesto||null, movimientoId:d.movimiento_id||null}));
     inversiones = (inv||[]).map(i=>({id:i.id, nombre:i.nombre, tipo:i.tipo, valorActual:Number(i.valor_actual), valorInicial:Number(i.valor_inicial), estado:i.estado||"activa", fechaPrevista:i.fecha_prevista, importePrevisto:i.importe_previsto!=null?Number(i.importe_previsto):null, cuentaPrevistaId:i.cuenta_prevista_id, padreId:i.padre_id||null, esGrupo:!!i.es_grupo, orden:i.orden||0, rentas:Number(i.rentas||0)}));
     aportaciones = (apo||[]).map(a=>({id:a.id, inversionId:a.inversion_id, importe:Number(a.importe), fecha:a.fecha, cuentaId:a.cuenta_id, movimientoId:a.movimiento_id}));
     retiros = (ret||[]).map(r=>({id:r.id, inversionId:r.inversion_id, importe:Number(r.importe), fecha:r.fecha, cuentaId:r.cuenta_id, movimientoId:r.movimiento_id}));
     presupuestos = (pre||[]).map(p=>({id:p.id, categoria:p.categoria, limite:Number(p.limite)}));
+    const {data:rec} = await sb.from("recurrentes").select("*");
+    recurrentes = (rec||[]).map(r=>({id:r.id, tipo:r.tipo, categoria:r.categoria, importe:Number(r.importe), nota:r.nota||"", cuentaId:r.cuenta_id, diaMes:r.dia_mes, activo:r.activo, fechaInicio:r.fecha_inicio, ultimaGenerada:r.ultima_generada}));
     objetivos = (obj||[]).map(o=>({id:o.id, nombre:o.nombre, meta:Number(o.meta), tipoVinculo:o.tipo_vinculo, vinculoId:o.vinculo_id, orden:o.orden||0})).sort(porOrden);
     if(pref && pref[0]){
       cuentaDefecto = pref[0].cuenta_defecto || "";
@@ -2248,6 +2348,7 @@ async function startApp(){
     .on("postgres_changes", {event:"*", schema:"public", table:"presupuestos"}, refrescar)
     .on("postgres_changes", {event:"*", schema:"public", table:"objetivos"}, refrescar)
     .on("postgres_changes", {event:"*", schema:"public", table:"movimientos_pendientes"}, refrescar)
+    .on("postgres_changes", {event:"*", schema:"public", table:"recurrentes"}, refrescar)
     .subscribe((status)=>{
       if(status==="SUBSCRIBED"){ if(primeraSub) primeraSub = false; else refrescar(); }
     });
