@@ -156,6 +156,8 @@ let tab = "Gastos";
 let ready = false;
 let movimientos = [], deudas = [], cuentas = [], inversiones = [], aportaciones = [], categorias = [], retiros = [], presupuestos = [], objetivos = [];
 let editarPresupuestoId = null, editarPresDeudaId = null, meDebenMovId = null;
+let catsContraidas = {};
+try{ catsContraidas = JSON.parse(localStorage.getItem("catsContraidas") || "{}") || {}; }catch(e){ catsContraidas = {}; }
 let cuentaDefecto = "";
 try{ cuentaDefecto = localStorage.getItem("cuentaDefecto") || ""; }catch(e){}
 let csvHeaders = [], csvFilas = [], csvPreview = [], csvSel = {}, csvPreviewCuentaId = "";
@@ -1278,6 +1280,8 @@ function renderCategorias(){
   categorias.filter(c=>c.tipo==="gasto").forEach(c=>{ const p=c.padre||"Otros"; (porPadre[p]=porPadre[p]||[]).push(c); });
   const ingresoList = categorias.filter(c=>c.tipo==="ingreso");
   const padres = Object.keys(porPadre);
+  const claves = [...padres, ...(ingresoList.length ? ["__ingresos__"] : [])];
+  const todasContraidas = claves.length>0 && claves.every(k=>catsContraidas[k]);
   return `
   <div class="card">
     <h2>Nueva categoría</h2>
@@ -1290,16 +1294,29 @@ function renderCategorias(){
       <button class="btn" type="submit">Añadir</button>
     </form>
   </div>
-  <div class="section-title">Gastos</div>
+  <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
+    <span>Gastos</span>
+    ${padres.length + (ingresoList.length?1:0) > 1? `<button class="btn ghost" data-toggle-todas-cats="${todasContraidas?'expandir':'contraer'}" style="color:var(--accent)">${todasContraidas?"Expandir todas":"Contraer todas"}</button>` : ""}
+  </div>
   <div class="list">
-    ${padres.length? padres.map(p=>`
-      <div class="meta" style="font-weight:700;margin-top:4px">${esc(p)}</div>
-      ${porPadre[p].map(catItem).join("")}
-    `).join("") : `<div class="empty">Sin categorías de gasto todavía.</div>`}
+    ${padres.length? padres.map(p=>{
+      const cerrado = !!catsContraidas[p];
+      return `
+      <div data-toggle-cat="${esc(p)}" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:8px 4px;margin-top:4px;font-weight:700;font-size:14px">
+        <span>${cerrado?"▸":"▾"} ${esc(p)}</span>
+        <span class="meta" style="font-weight:400">${porPadre[p].length} categoría${porPadre[p].length===1?"":"s"}</span>
+      </div>
+      ${cerrado? "" : porPadre[p].map(catItem).join("")}`;
+    }).join("") : `<div class="empty">Sin categorías de gasto todavía.</div>`}
   </div>
   <div class="section-title">Ingresos</div>
   <div class="list">
-    ${ingresoList.length? ingresoList.map(catItem).join("") : `<div class="empty">Sin categorías de ingreso todavía.</div>`}
+    ${ingresoList.length? `
+      <div data-toggle-cat="__ingresos__" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:8px 4px;font-weight:700;font-size:14px">
+        <span>${catsContraidas["__ingresos__"]?"▸":"▾"} Ingresos</span>
+        <span class="meta" style="font-weight:400">${ingresoList.length} categoría${ingresoList.length===1?"":"s"}</span>
+      </div>
+      ${catsContraidas["__ingresos__"]? "" : ingresoList.map(catItem).join("")}` : `<div class="empty">Sin categorías de ingreso todavía.</div>`}
   </div>`;
 }
 
@@ -1662,6 +1679,19 @@ function wireEvents(){
     const ok = await guardarCuentaDefecto(prefCuenta.value);
     if(estado) estado.textContent = ok ? "Guardado" : "";
   };
+  const guardarContraidas = ()=>{ try{ localStorage.setItem("catsContraidas", JSON.stringify(catsContraidas)); }catch(e){} };
+  document.querySelectorAll("[data-toggle-cat]").forEach(b=>b.onclick=()=>{
+    const k = b.dataset.toggleCat;
+    if(catsContraidas[k]) delete catsContraidas[k]; else catsContraidas[k] = true;
+    guardarContraidas(); render();
+  });
+  document.querySelectorAll("[data-toggle-todas-cats]").forEach(b=>b.onclick=()=>{
+    if(b.dataset.toggleTodasCats==="contraer"){
+      categorias.filter(c=>c.tipo==="gasto").forEach(c=>{ catsContraidas[c.padre||"Otros"] = true; });
+      if(categorias.some(c=>c.tipo==="ingreso")) catsContraidas["__ingresos__"] = true;
+    } else catsContraidas = {};
+    guardarContraidas(); render();
+  });
   const fGrupo = document.getElementById("fGrupo");
   if(fGrupo) fGrupo.onsubmit = (e)=>{
     e.preventDefault();
