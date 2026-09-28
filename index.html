@@ -179,7 +179,7 @@ const CATEGORIAS_DEFECTO = [
   {tipo:"ingreso", padre:null, nombre:"Otro"}
 ];
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-let periodoMes = "todos"; // "todos" o "1".."12"
+let periodoMes = String(new Date().getMonth()+1); // "todos" o "1".."12"; por defecto el mes actual
 let periodoAnio = new Date().getFullYear();
 let saldarId = null; // deuda que se está saldando ahora mismo
 
@@ -211,7 +211,7 @@ function esc(s){
   if(s==null) return "";
   return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
-function today(){ return new Date().toISOString().slice(0,10); }
+function today(){ const d = new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 function enPeriodo(fecha){
   if(!fecha) return false;
   const [y,m] = fecha.split("-");
