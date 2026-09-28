@@ -160,7 +160,7 @@ let csvHeaders = [], csvFilas = [], csvPreview = [], csvSel = {}, csvPreviewCuen
 let pendientes = [], pendCats = {};
 let aportarInvId = null, editarValorInvId = null, editarCatId = null, verAportacionesId = null, ajustarSaldoId = null, rescatarInvId = null;
 let expandidaInvId = null, editarInfoInvId = null, resumenSel = null, resumenAhorroAbierto = false;
-let gruposAbiertos = {}, modoOrdenInv = false, rentasInvId = null;
+let gruposAbiertos = {}, modoOrdenInv = false, rentasInvId = null, modoOrdenCuentas = false, modoOrdenObjetivos = false;
 const PALETTE = ["#1f4d43","#c08a2e","#a3402f","#5c9683","#7fb8a6","#e0ac4e","#8a6d3b","#3f6b52","#b5651d","#4a7c94"];
 let session = null, appStarted = false;
 
@@ -572,7 +572,8 @@ function renderObjetivos(){
       <div><div class="num">${eur(objetivos.reduce((s,o)=>s+o.meta,0))}</div><div class="lbl">Meta total</div></div>
     </div>
   </div>` : "";
-  const tarjetas = objetivos.map(o=>{
+  const objetivosOrdenados = [...objetivos].sort(porOrden);
+  const tarjetas = objetivosOrdenados.map((o,k)=>{
     const actual = progresoObjetivo(o);
     const pct = o.meta>0 ? Math.min(actual/o.meta*100,100) : 0;
     const hecho = o.meta>0 && actual>=o.meta;
@@ -594,10 +595,12 @@ function renderObjetivos(){
         </div>
       </div>
       <div style="margin-top:12px"><button class="btn ghost" data-del-objetivo="${o.id}">Borrar</button></div>
+      ${modoOrdenObjetivos? flechasLista("objetivo", o.id, k, objetivosOrdenados.length) : ""}
     </div>`;
   }).join("");
   return `
   ${resumen}
+  ${botonOrdenar("objetivos", modoOrdenObjetivos, objetivosOrdenados.length)}
   ${tarjetas || `<div class="card"><div class="empty" style="padding:20px 10px">Sin objetivos todavía. Crea el primero abajo.</div></div>`}
   <div class="card">
     <h2>Nuevo objetivo</h2>
@@ -902,7 +905,7 @@ function renderDeudas(){
 }
 
 function renderCuentas(){
-  const items = [...cuentas].sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  const items = [...cuentas].sort(porOrden);
   const total = items.reduce((s,c)=>s+saldoCuenta(c),0);
   const positivas = items.map((c,k)=>({c,k,saldo:saldoCuenta(c)})).filter(x=>x.saldo>0);
   const totalPos = positivas.reduce((s,x)=>s+x.saldo,0);
@@ -935,6 +938,7 @@ function renderCuentas(){
         ${ajustarSaldoId!==c.id?`<button class="btn gold" data-ajustar-saldo="${c.id}">Ajustar saldo</button>`:""}
         <button class="btn ghost" data-del-cuenta="${c.id}">Borrar</button>
       </div>
+      ${modoOrdenCuentas? flechasLista("cuenta", c.id, k, items.length) : ""}
       ${ajustarSaldoId===c.id? `
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
         <label>Saldo real actual (€)</label>
@@ -949,6 +953,7 @@ function renderCuentas(){
   }).join("");
   return `
   ${resumen}
+  ${botonOrdenar("cuentas", modoOrdenCuentas, items.length)}
   ${tarjetas || `<div class="card"><div class="empty" style="padding:20px 10px">Sin cuentas todavía. Crea la primera abajo.</div></div>`}
   <div class="card">
     <h2>Añadir cuenta</h2>
@@ -979,6 +984,27 @@ function renderListaAportaciones(inv){
   </div>`;
 }
 
+function siguienteOrdenLista(l){ return Math.max(0, ...l.map(x=>x.orden||0)) + 1; }
+function flechasLista(tipo, id, k, n){
+  if(n<2) return "";
+  return `<div style="display:flex;gap:6px;margin-top:12px">${k>0?`<button class="btn ghost" data-mover-${tipo}="${id}|up">▲ Subir</button>`:""}${k<n-1?`<button class="btn ghost" data-mover-${tipo}="${id}|down">▼ Bajar</button>`:""}</div>`;
+}
+function botonOrdenar(tipo, activo, n){
+  if(n<2) return "";
+  return `<div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn ghost" data-toggle-orden-${tipo}="1" style="color:var(--accent)">${activo?"Listo":"Ordenar"}</button></div>`;
+}
+async function moverEnLista(lista, rpcNombre, valor){
+  const [id,dir] = valor.split("|");
+  const l = [...lista].sort(porOrden);
+  const idx = l.findIndex(x=>x.id===id);
+  const j = idx + (dir==="up" ? -1 : 1);
+  if(idx<0 || j<0 || j>=l.length) return;
+  const ids = l.map(x=>x.id);
+  [ids[idx], ids[j]] = [ids[j], ids[idx]];
+  const {error} = await sb.rpc(rpcNombre, {p_ids: ids});
+  if(error){ showError("No se pudo cambiar el orden: "+error.message); return; }
+  hideError(); await fetchAll();
+}
 function porOrden(a,b){ return ((a.orden||0)-(b.orden||0)) || a.nombre.localeCompare(b.nombre); }
 function grupos(){ return inversiones.filter(i=>i.esGrupo).sort(porOrden); }
 function hijosDe(g){ return inversiones.filter(i=>i.padreId===g.id && !i.esGrupo).sort(porOrden); }
@@ -1326,7 +1352,7 @@ function wireEvents(){
     e.preventDefault();
     conCarga(fCuenta.querySelector('button[type="submit"]'), "Guardando…", async ()=>{
       const f = new FormData(fCuenta);
-      const data = {nombre:f.get("nombre"), saldo_inicial:parseFloat(f.get("saldoInicial"))};
+      const data = {nombre:f.get("nombre"), saldo_inicial:parseFloat(f.get("saldoInicial")), orden:siguienteOrdenLista(cuentas)};
       const {error} = await sb.from("cuentas").insert(data);
       if(error){ showError("No se pudo guardar la cuenta: "+error.message); return; }
       hideError(); fCuenta.reset(); await fetchAll();
@@ -1598,6 +1624,10 @@ function wireEvents(){
   });
   document.querySelectorAll("[data-sumar-rentas]").forEach(b=>b.onclick=()=>guardarRentas(b,"sumar"));
   document.querySelectorAll("[data-fijar-rentas]").forEach(b=>b.onclick=()=>guardarRentas(b,"fijar"));
+  document.querySelectorAll("[data-toggle-orden-cuentas]").forEach(b=>b.onclick=()=>{ modoOrdenCuentas = !modoOrdenCuentas; render(); });
+  document.querySelectorAll("[data-toggle-orden-objetivos]").forEach(b=>b.onclick=()=>{ modoOrdenObjetivos = !modoOrdenObjetivos; render(); });
+  document.querySelectorAll("[data-mover-cuenta]").forEach(b=>b.onclick=()=>conCarga(b, "…", ()=>moverEnLista(cuentas, "ordenar_cuentas", b.dataset.moverCuenta)));
+  document.querySelectorAll("[data-mover-objetivo]").forEach(b=>b.onclick=()=>conCarga(b, "…", ()=>moverEnLista(objetivos, "ordenar_objetivos", b.dataset.moverObjetivo)));
   const fGrupo = document.getElementById("fGrupo");
   if(fGrupo) fGrupo.onsubmit = (e)=>{
     e.preventDefault();
@@ -1660,7 +1690,7 @@ function wireEvents(){
     conCarga(fObjetivo.querySelector('button[type="submit"]'), "Guardando…", async ()=>{
       const f = new FormData(fObjetivo);
       const tipoVinculo = f.get("tipoVinculo")||"ninguno";
-      const data = {nombre:f.get("nombre"), meta:parseFloat(f.get("meta")), tipo_vinculo:tipoVinculo, vinculo_id: tipoVinculo==="ninguno"?null:(f.get("vinculoId")||null)};
+      const data = {nombre:f.get("nombre"), meta:parseFloat(f.get("meta")), tipo_vinculo:tipoVinculo, vinculo_id: tipoVinculo==="ninguno"?null:(f.get("vinculoId")||null), orden:siguienteOrdenLista(objetivos)};
       const {error} = await sb.from("objetivos").insert(data);
       if(error){ showError("No se pudo guardar el objetivo: "+error.message); return; }
       hideError(); fObjetivo.reset(); await fetchAll();
@@ -1776,14 +1806,14 @@ async function fetchAll(){
     ]);
     const err = e1||e2||e3||e4||e5||e6||e7||e8||e9||e10;
     if(err){ ready = true; render(); showError("No se pudieron cargar los datos: "+err.message); return; }
-    cuentas = (cta||[]).map(c=>({id:c.id, nombre:c.nombre, saldoInicial:Number(c.saldo_inicial)}));
+    cuentas = (cta||[]).map(c=>({id:c.id, nombre:c.nombre, saldoInicial:Number(c.saldo_inicial), orden:c.orden||0})).sort(porOrden);
     movimientos = (mov||[]).map(m=>({id:m.id, tipo:m.tipo, categoria:m.categoria, importe:Number(m.importe), fecha:m.fecha, nota:m.nota, cuentaId:m.cuenta_id, saldoBanco:m.saldo_banco!=null?Number(m.saldo_banco):null, presupuesto:m.presupuesto||null, presupuestoFecha:m.presupuesto_fecha||null, reembolsoDe:m.reembolso_de||null}));
     deudas = (deu||[]).map(d=>({id:d.id, persona:d.persona, importe:Number(d.importe), direccion:d.direccion, concepto:d.concepto, estado:d.estado, fecha:d.fecha, presupuesto:d.presupuesto||null, movimientoId:d.movimiento_id||null}));
     inversiones = (inv||[]).map(i=>({id:i.id, nombre:i.nombre, tipo:i.tipo, valorActual:Number(i.valor_actual), valorInicial:Number(i.valor_inicial), estado:i.estado||"activa", fechaPrevista:i.fecha_prevista, importePrevisto:i.importe_previsto!=null?Number(i.importe_previsto):null, cuentaPrevistaId:i.cuenta_prevista_id, padreId:i.padre_id||null, esGrupo:!!i.es_grupo, orden:i.orden||0, rentas:Number(i.rentas||0)}));
     aportaciones = (apo||[]).map(a=>({id:a.id, inversionId:a.inversion_id, importe:Number(a.importe), fecha:a.fecha, cuentaId:a.cuenta_id, movimientoId:a.movimiento_id}));
     retiros = (ret||[]).map(r=>({id:r.id, inversionId:r.inversion_id, importe:Number(r.importe), fecha:r.fecha, cuentaId:r.cuenta_id, movimientoId:r.movimiento_id}));
     presupuestos = (pre||[]).map(p=>({id:p.id, categoria:p.categoria, limite:Number(p.limite)}));
-    objetivos = (obj||[]).map(o=>({id:o.id, nombre:o.nombre, meta:Number(o.meta), tipoVinculo:o.tipo_vinculo, vinculoId:o.vinculo_id}));
+    objetivos = (obj||[]).map(o=>({id:o.id, nombre:o.nombre, meta:Number(o.meta), tipoVinculo:o.tipo_vinculo, vinculoId:o.vinculo_id, orden:o.orden||0})).sort(porOrden);
     pendientes = (pen||[]).map(x=>({id:x.id, cuentaId:x.cuenta_id, tipo:x.tipo, importe:Number(x.importe), fecha:x.fecha, descripcion:x.descripcion||"", saldo:x.saldo!=null?Number(x.saldo):null, posicion:x.posicion||0}));
     if((cat||[]).length===0){
       const {error:eSeed} = await sb.from("categorias").insert(CATEGORIAS_DEFECTO);
