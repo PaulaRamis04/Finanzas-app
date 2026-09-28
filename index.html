@@ -156,6 +156,8 @@ let tab = "Gastos";
 let ready = false;
 let movimientos = [], deudas = [], cuentas = [], inversiones = [], aportaciones = [], categorias = [], retiros = [], presupuestos = [], objetivos = [];
 let editarPresupuestoId = null, editarPresDeudaId = null, meDebenMovId = null;
+let formsPorDefecto = "abiertos", formsEstado = {};
+try{ formsPorDefecto = localStorage.getItem("formsPorDefecto")==="cerrados" ? "cerrados" : "abiertos"; }catch(e){}
 let catsContraidas = {};
 try{ catsContraidas = JSON.parse(localStorage.getItem("catsContraidas") || "{}") || {}; }catch(e){ catsContraidas = {}; }
 let cuentaDefecto = "";
@@ -206,6 +208,36 @@ async function conCarga(btn, textoCarga, fn){
 }
 
 let pendienteEnfoque = null;
+function formAbierto(clave){ return clave in formsEstado ? formsEstado[clave] : (formsPorDefecto==="abiertos"); }
+// Convierte las tarjetas de "añadir algo" en plegables (se toca el título para abrir o cerrar)
+function aplicarPlegables(){
+  const defs = [["fMov","mov"],["fDeuda","deuda"],["fCuenta","cuenta"],["fInversion","inversion"],["fGrupo","grupo"],["fCategoria","categoria"],["fPresupuesto","presupuesto"],["fObjetivo","objetivo"]];
+  defs.forEach(([id,clave])=>{
+    const form = document.getElementById(id);
+    const card = form ? form.closest(".card") : null;
+    const h2 = card ? card.querySelector("h2") : null;
+    if(!h2) return;
+    const cuerpo = document.createElement("div");
+    cuerpo.style.marginTop = "12px";
+    [...card.children].filter(ch=>ch!==h2).forEach(ch=>cuerpo.appendChild(ch));
+    const cab = document.createElement("div");
+    cab.style.cssText = "display:flex;justify-content:space-between;align-items:center;cursor:pointer;gap:10px";
+    h2.style.margin = "0";
+    const etiqueta = document.createElement("span");
+    etiqueta.style.cssText = "color:var(--accent);font-weight:800;font-size:13px;white-space:nowrap";
+    card.insertBefore(cab, card.firstChild);
+    cab.appendChild(h2); cab.appendChild(etiqueta);
+    card.appendChild(cuerpo);
+    const pintar = ()=>{
+      const ab = formAbierto(clave);
+      cuerpo.style.display = ab ? "block" : "none";
+      etiqueta.textContent = ab ? "Ocultar" : "+ Añadir";
+    };
+    pintar();
+    cab.onclick = ()=>{ formsEstado[clave] = !formAbierto(clave); pintar(); };
+  });
+}
+
 function showError(msg){
   const bar = document.getElementById("errBar");
   document.getElementById("errMsg").textContent = msg;
@@ -586,6 +618,14 @@ function renderPreferencias(){
     <p class="meta" style="margin:0 0 10px">Es la cuenta que aparece ya seleccionada cuando añades un movimiento, aportas o rescatas de una inversión, saldas una deuda o importas un extracto. Siempre puedes elegir otra en cada caso.</p>
     ${cuentas.length? `<select id="prefCuenta"><option value="">Ninguna (la primera de la lista)</option>${cuentas.map(c=>`<option value="${c.id}"${c.id===def?" selected":""}>${esc(c.nombre)}</option>`).join("")}</select>` : `<div class="meta">Crea antes una cuenta en la pestaña "Cuentas".</div>`}
     <div class="meta" id="prefEstado" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
+    <h2>Formularios para añadir</h2>
+    <p class="meta" style="margin:0 0 10px">Los huecos para añadir un movimiento, una deuda, una cuenta, una inversión, etc. pueden salir desplegados o contraídos al entrar. Se abren y cierran tocando su título. Esta preferencia se guarda en este dispositivo.</p>
+    <select id="prefForms">
+      <option value="abiertos"${formsPorDefecto==="abiertos"?" selected":""}>Desplegados por defecto</option>
+      <option value="cerrados"${formsPorDefecto==="cerrados"?" selected":""}>Contraídos por defecto</option>
+    </select>
   </div>`;
 }
 
@@ -1338,6 +1378,7 @@ function render(){
   else if(tab==="Preferencias") app.innerHTML = renderPreferencias();
   else app.innerHTML = renderCategorias();
   wireEvents();
+  aplicarPlegables();
   if(pendienteEnfoque){
     const el = document.getElementById(pendienteEnfoque);
     pendienteEnfoque = null;
@@ -1672,6 +1713,12 @@ function wireEvents(){
   document.querySelectorAll("[data-toggle-orden-objetivos]").forEach(b=>b.onclick=()=>{ modoOrdenObjetivos = !modoOrdenObjetivos; render(); });
   document.querySelectorAll("[data-mover-cuenta]").forEach(b=>b.onclick=()=>conCarga(b, "…", ()=>moverEnLista(cuentas, "ordenar_cuentas", b.dataset.moverCuenta)));
   document.querySelectorAll("[data-mover-objetivo]").forEach(b=>b.onclick=()=>conCarga(b, "…", ()=>moverEnLista(objetivos, "ordenar_objetivos", b.dataset.moverObjetivo)));
+  const prefForms = document.getElementById("prefForms");
+  if(prefForms) prefForms.onchange = ()=>{
+    formsPorDefecto = prefForms.value === "cerrados" ? "cerrados" : "abiertos";
+    formsEstado = {};
+    try{ localStorage.setItem("formsPorDefecto", formsPorDefecto); }catch(e){}
+  };
   const prefCuenta = document.getElementById("prefCuenta");
   if(prefCuenta) prefCuenta.onchange = async ()=>{
     const estado = document.getElementById("prefEstado");
