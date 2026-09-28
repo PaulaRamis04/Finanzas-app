@@ -96,6 +96,12 @@ input:focus,select:focus{outline:2px solid var(--accent); outline-offset:1px}
 }
 .item .meta{font-size:12px; color:var(--muted); margin-top:2px}
 .meta{font-size:12px; color:var(--muted)}
+.grip{display:inline-flex; flex-direction:column; justify-content:center; gap:3px; padding:10px 8px; margin:-10px 0 -10px -8px; cursor:grab; touch-action:none; flex-shrink:0; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none}
+.grip i{display:block; width:16px; height:2px; border-radius:2px; background:var(--muted)}
+.grip:active{cursor:grabbing}
+.sort-item{display:flex; flex-direction:column; gap:8px}
+.sort-arrastrando{opacity:.35}
+.sort-ghost{position:fixed; z-index:70; pointer-events:none; margin:0; box-shadow:0 14px 34px rgba(0,0,0,.3); border-radius:18px; background:var(--card); opacity:.97}
 .item .amt{font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; font-size:15px}
 .tag{font-size:11px; padding:3px 10px; border-radius:999px; background:var(--accent-soft); border:none; color:var(--accent); font-weight:600}
 .empty{color:var(--muted); font-size:13px; text-align:center; padding:32px 10px}
@@ -236,6 +242,87 @@ function aplicarPlegables(){
     pintar();
     cab.onclick = ()=>{ formsEstado[clave] = !formAbierto(clave); pintar(); };
   });
+}
+
+let arrastrando = false;
+function activarOrdenar(){
+  document.querySelectorAll(".grip").forEach(g=>{
+    g.onclick = e=>e.stopPropagation();
+    g.onpointerdown = e=>{
+      if(e.pointerType==="mouse" && e.button!==0) return;
+      const item = g.closest(".sort-item");
+      const cont = item ? item.parentElement : null;
+      if(!cont || !cont.dataset.sortable || arrastrando) return;
+      e.preventDefault(); e.stopPropagation();
+      iniciarArrastre(e, g, item, cont);
+    };
+  });
+}
+function iniciarArrastre(e, handle, item, cont){
+  arrastrando = true;
+  const rpcNombre = cont.dataset.sortable;
+  const els = [...cont.children].filter(x=>x.dataset && x.dataset.sortId);
+  const i0 = els.indexOf(item);
+  const scroll0 = window.scrollY;
+  const tops = els.map(el=>{ const r = el.getBoundingClientRect(); return {top:r.top+scroll0, h:r.height}; });
+  const hDrag = tops[i0].h;
+  const hueco = els.length>1 ? Math.max(0, i0+1<els.length ? tops[i0+1].top-(tops[i0].top+tops[i0].h) : tops[i0].top-(tops[i0-1].top+tops[i0-1].h)) : 0;
+  const rect = item.getBoundingClientRect();
+  const ghost = item.cloneNode(true);
+  ghost.querySelectorAll("[id]").forEach(n=>n.removeAttribute("id"));
+  ghost.classList.add("sort-ghost");
+  ghost.style.width = rect.width+"px"; ghost.style.left = rect.left+"px"; ghost.style.top = rect.top+"px";
+  document.body.appendChild(ghost);
+  document.body.style.userSelect = "none";
+  item.classList.add("sort-arrastrando");
+  els.forEach(el=>{ if(el!==item) el.style.transition = "transform .15s ease"; });
+  const offsetY = e.clientY - rect.top;
+  let y = e.clientY, activo = true, raf = 0, destino = i0;
+  try{ handle.setPointerCapture(e.pointerId); }catch(_){}
+  const actualizar = ()=>{
+    if(!activo) return;
+    ghost.style.top = (y - offsetY) + "px";
+    const yPag = y + window.scrollY;
+    let t = 0;
+    els.forEach((el,j)=>{ if(j!==i0 && (tops[j].top + tops[j].h/2) < yPag) t++; });
+    destino = t;
+    els.forEach((el,j)=>{
+      if(j===i0) return;
+      let dy = 0;
+      if(destino>i0 && j>i0 && j<=destino) dy = -(hDrag+hueco);
+      else if(destino<i0 && j>=destino && j<i0) dy = (hDrag+hueco);
+      el.style.transform = dy ? `translateY(${dy}px)` : "";
+    });
+    const cab = document.querySelector("header");
+    const limite = (cab ? cab.getBoundingClientRect().bottom : 0) + 70;
+    if(y < limite) window.scrollBy(0, -14);
+    else if(y > window.innerHeight - 80) window.scrollBy(0, 14);
+    raf = requestAnimationFrame(actualizar);
+  };
+  const onMove = ev=>{ if(ev.pointerId===e.pointerId) y = ev.clientY; };
+  const fin = async ev=>{
+    if(!activo || (ev && ev.pointerId!==e.pointerId)) return;
+    activo = false; cancelAnimationFrame(raf);
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", fin);
+    window.removeEventListener("pointercancel", fin);
+    ghost.remove(); document.body.style.userSelect = "";
+    item.classList.remove("sort-arrastrando");
+    els.forEach(el=>{ el.style.transform = ""; el.style.transition = ""; });
+    if((ev && ev.type==="pointercancel") || destino===i0){ arrastrando = false; return; }
+    const ids = els.map(x=>x.dataset.sortId);
+    const [movido] = ids.splice(i0, 1);
+    ids.splice(destino, 0, movido);
+    ids.forEach(id=>{ const el = els.find(x=>x.dataset.sortId===id); if(el) cont.appendChild(el); });
+    arrastrando = false;
+    const {error} = await sb.rpc(rpcNombre, {p_ids: ids});
+    if(error) showError("No se pudo cambiar el orden: "+error.message); else hideError();
+    await fetchAll();
+  };
+  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", fin);
+  window.addEventListener("pointercancel", fin);
+  raf = requestAnimationFrame(actualizar);
 }
 
 function showError(msg){
@@ -706,10 +793,10 @@ function renderObjetivos(){
     const hecho = o.meta>0 && actual>=o.meta;
     const col = hecho ? "var(--pos)" : "var(--accent)";
     return `
-    <div class="card"${hecho?' style="border-color:var(--pos)"':''}>
+    <div class="sort-item" data-sort-id="${o.id}"><div class="card"${hecho?' style="border-color:var(--pos)"':''}>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:14px">
         <div style="flex:1;min-width:0">
-          <h2 style="margin:0 0 4px">${esc(o.nombre)}</h2>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">${n>1? gripHtml() : ""}<h2 style="margin:0">${esc(o.nombre)}</h2></div>
           ${o.tipoVinculo!=="ninguno"?`<span class="tag">${nombreVinculo(o)}</span>`:`<span class="meta">Sin vincular: el progreso no se actualiza solo</span>`}
           <div style="font-size:14px;margin-top:8px"><strong>${eur(actual)}</strong> <span class="meta">de ${eur(o.meta)}</span></div>
           <div style="height:8px;background:var(--line);border-radius:999px;margin-top:8px;overflow:hidden">
@@ -722,8 +809,7 @@ function renderObjetivos(){
         </div>
       </div>
       <div style="margin-top:12px"><button class="btn ghost" data-del-objetivo="${o.id}">Borrar</button></div>
-      ${modoOrdenObjetivos? flechasLista("objetivo", o.id, k, n) : ""}
-    </div>`;
+    </div></div>`;
   };
   return `
   <div class="card">
@@ -747,10 +833,9 @@ function renderObjetivos(){
     </form>
   </div>
   ${resumen}
-  ${botonOrdenar("objetivos", modoOrdenObjetivos, objetivos.length)}
   ${completados.length && enCurso.length ? `<div class="section-title">En curso (${enCurso.length})</div>` : ""}
-  ${enCurso.map((o,k)=>tarjeta(o,k,enCurso.length)).join("")}
-  ${completados.length ? `<div class="section-title">Completados (${completados.length})</div>${completados.map((o,k)=>tarjeta(o,k,completados.length)).join("")}` : ""}
+  ${enCurso.length ? `<div data-sortable="ordenar_objetivos">${enCurso.map((o,k)=>tarjeta(o,k,enCurso.length)).join("")}</div>` : ""}
+  ${completados.length ? `<div class="section-title">Completados (${completados.length})</div><div data-sortable="ordenar_objetivos">${completados.map((o,k)=>tarjeta(o,k,completados.length)).join("")}</div>` : ""}
   ${objetivos.length ? "" : `<div class="card"><div class="empty" style="padding:20px 10px">Sin objetivos todavía. Crea el primero abajo.</div></div>`}
 `;
 }
@@ -1064,9 +1149,10 @@ function renderCuentas(){
     const col = PALETTE[k%PALETTE.length];
     const nMov = movimientos.filter(m=>m.cuentaId===c.id).length;
     return `
-    <div class="card">
+    <div class="sort-item" data-sort-id="${c.id}"><div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
         <div style="display:flex;align-items:center;gap:12px;min-width:0">
+          ${items.length>1? gripHtml() : ""}
           <div style="width:42px;height:42px;border-radius:14px;background:${col};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">${esc((c.nombre||"?").trim().charAt(0).toUpperCase())}</div>
           <div style="min-width:0"><strong>${esc(c.nombre)}</strong><div class="meta">Inicial ${eur(c.saldoInicial||0)} · ${nMov} movimiento${nMov===1?"":"s"}</div></div>
         </div>
@@ -1076,7 +1162,6 @@ function renderCuentas(){
         ${ajustarSaldoId!==c.id?`<button class="btn gold" data-ajustar-saldo="${c.id}">Ajustar saldo</button>`:""}
         <button class="btn ghost" data-del-cuenta="${c.id}">Borrar</button>
       </div>
-      ${modoOrdenCuentas? flechasLista("cuenta", c.id, k, items.length) : ""}
       ${ajustarSaldoId===c.id? `
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
         <label>Saldo real actual (€)</label>
@@ -1087,12 +1172,11 @@ function renderCuentas(){
           <button class="btn ghost" data-cancelar-ajuste="1">Cancelar</button>
         </div>
       </div>` : ""}
-    </div>`;
+    </div></div>`;
   }).join("");
   return `
   ${resumen}
-  ${botonOrdenar("cuentas", modoOrdenCuentas, items.length)}
-  ${tarjetas || `<div class="card"><div class="empty" style="padding:20px 10px">Sin cuentas todavía. Crea la primera abajo.</div></div>`}
+  ${tarjetas ? `<div data-sortable="ordenar_cuentas">${tarjetas}</div>` : `<div class="card"><div class="empty" style="padding:20px 10px">Sin cuentas todavía. Crea la primera abajo.</div></div>`}
   <div class="card">
     <h2>Añadir cuenta</h2>
     <form id="fCuenta">
@@ -1123,26 +1207,6 @@ function renderListaAportaciones(inv){
 }
 
 function siguienteOrdenLista(l){ return Math.max(0, ...l.map(x=>x.orden||0)) + 1; }
-function flechasLista(tipo, id, k, n){
-  if(n<2) return "";
-  return `<div style="display:flex;gap:6px;margin-top:12px">${k>0?`<button class="btn ghost" data-mover-${tipo}="${id}|up">▲ Subir</button>`:""}${k<n-1?`<button class="btn ghost" data-mover-${tipo}="${id}|down">▼ Bajar</button>`:""}</div>`;
-}
-function botonOrdenar(tipo, activo, n){
-  if(n<2) return "";
-  return `<div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn ghost" data-toggle-orden-${tipo}="1" style="color:var(--accent)">${activo?"Listo":"Ordenar"}</button></div>`;
-}
-async function moverEnLista(lista, rpcNombre, valor){
-  const [id,dir] = valor.split("|");
-  const l = [...lista].sort(porOrden);
-  const idx = l.findIndex(x=>x.id===id);
-  const j = idx + (dir==="up" ? -1 : 1);
-  if(idx<0 || j<0 || j>=l.length) return;
-  const ids = l.map(x=>x.id);
-  [ids[idx], ids[j]] = [ids[j], ids[idx]];
-  const {error} = await sb.rpc(rpcNombre, {p_ids: ids});
-  if(error){ showError("No se pudo cambiar el orden: "+error.message); return; }
-  hideError(); await fetchAll();
-}
 function porOrden(a,b){ return ((a.orden||0)-(b.orden||0)) || a.nombre.localeCompare(b.nombre); }
 function grupos(){ return inversiones.filter(i=>i.esGrupo).sort(porOrden); }
 function hijosDe(g){ return inversiones.filter(i=>i.padreId===g.id && !i.esGrupo).sort(porOrden); }
@@ -1153,15 +1217,8 @@ function siguienteOrden(){ return Math.max(0, ...inversiones.map(i=>i.orden||0))
 function opcionesGrupos(selectedId){
   return grupos().map(g=>`<option value="${g.id}"${g.id===selectedId?" selected":""}>${esc(g.nombre)}</option>`).join("");
 }
-function listaHermanos(x){
-  if(x.padreId){ const p=inversiones.find(i=>i.id===x.padreId); return p? hijosDe(p) : []; }
-  if(x.esGrupo || x.estado==="activa") return inversiones.filter(i=>!i.padreId && (i.esGrupo||i.estado==="activa")).sort(porOrden);
-  return inversiones.filter(i=>!i.padreId && !i.esGrupo && i.estado!=="activa").sort(porOrden);
-}
-function flechasHtml(x){
-  if(!modoOrdenInv) return "";
-  return `<div style="display:flex;gap:6px;justify-content:flex-end;padding:0 4px 6px"><button class="btn ghost" data-mover="${x.id}|up">▲ Subir</button><button class="btn ghost" data-mover="${x.id}|down">▼ Bajar</button></div>`;
-}
+function gripHtml(){ return `<span class="grip" title="Mantén pulsado y arrastra para ordenar" aria-label="Arrastrar para ordenar"><i></i><i></i><i></i></span>`; }
+function sortItem(id, html){ return `<div class="sort-item" data-sort-id="${id}">${html}</div>`; }
 function sliceInversiones(){
   const items = [];
   inversiones.filter(i=>!i.padreId && i.esGrupo).forEach(g=>{
@@ -1172,7 +1229,7 @@ function sliceInversiones(){
   const totalGlobal = items.reduce((s,x)=>s+x.total,0);
   return items.sort((a,b)=>b.total-a.total).map((x,k)=>({...x, color:PALETTE[k%PALETTE.length], pct: totalGlobal? x.total/totalGlobal*100 : 0, totalGlobal}));
 }
-function grupoItem(g){
+function grupoItem(g, conGrip){
   const abierto = !!gruposAbiertos[g.id];
   const hs = hijosDe(g);
   const val = valorGrupo(g);
@@ -1180,17 +1237,20 @@ function grupoItem(g){
   const rG = rentasGrupo(g);
   const cab = `
   <div class="item" data-toggle-grupo="${g.id}" style="cursor:pointer;background:var(--accent-soft);border-color:transparent">
-    <div>
-      <strong>${abierto?"▾":"▸"} ${esc(g.nombre)}</strong>
-      <span class="tag" style="background:var(--card)">${hs.length} inversion${hs.length===1?"":"es"}</span>
-      <div class="meta">Beneficio: <span class="${ben>=0?'pos':'neg'}">${eur(ben)}</span>${rG>0?` · Rentas: <span class="pos">${eur(rG)}</span>`:""}</div>
+    <div style="display:flex;align-items:center;gap:10px;min-width:0">
+      ${conGrip? gripHtml() : ""}
+      <div>
+        <strong>${abierto?"▾":"▸"} ${esc(g.nombre)}</strong>
+        <span class="tag" style="background:var(--card)">${hs.length} inversion${hs.length===1?"":"es"}</span>
+        <div class="meta">Beneficio: <span class="${ben>=0?'pos':'neg'}">${eur(ben)}</span>${rG>0?` · Rentas: <span class="pos">${eur(rG)}</span>`:""}</div>
+      </div>
     </div>
     <div class="amt">${eur(val)}</div>
-  </div>${flechasHtml(g)}`;
+  </div>`;
   if(!abierto) return cab;
   return cab + `
   <div style="margin:2px 0 6px 12px;padding-left:10px;border-left:2px solid var(--accent-soft);display:flex;flex-direction:column;gap:8px">
-    ${hs.length? hs.map(invItem).join("") : `<div class="empty" style="padding:14px">Grupo vacío. Asigna inversiones desde "Editar información".</div>`}
+    ${hs.length? `<div data-sortable="ordenar_inversiones" style="display:flex;flex-direction:column;gap:8px">${hs.map(h=>sortItem(h.id, invItem(h, hs.length>1))).join("")}</div>` : `<div class="empty" style="padding:14px">Grupo vacío. Asigna inversiones desde "Editar información".</div>`}
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       ${editarInfoInvId!==g.id?`<button class="btn ghost" data-editar-info="${g.id}">Renombrar grupo</button>`:""}
       <button class="btn ghost" data-del-inv="${g.id}">Borrar grupo</button>
@@ -1199,8 +1259,8 @@ function grupoItem(g){
   </div>`;
 }
 
-function invItem(inv){
-  if(inv.esGrupo) return grupoItem(inv);
+function invItem(inv, conGrip){
+  if(inv.esGrupo) return grupoItem(inv, conGrip);
   const esActiva = inv.estado === "activa";
   const aportado = aportadoInv(inv);
   const beneficio = beneficioInv(inv);
@@ -1208,13 +1268,16 @@ function invItem(inv){
 
   const cabecera = `
   <div class="item" data-expandir-inv="${inv.id}" style="cursor:pointer">
-    <div>
-      <strong>${esc(inv.nombre)}</strong>
-      ${inv.tipo?`<span class="tag">${esc(inv.tipo)}</span>`:""}
-      ${!esActiva?`<span class="tag">Planificada</span>`:""}
+    <div style="display:flex;align-items:center;gap:10px;min-width:0">
+      ${conGrip? gripHtml() : ""}
+      <div>
+        <strong>${esc(inv.nombre)}</strong>
+        ${inv.tipo?`<span class="tag">${esc(inv.tipo)}</span>`:""}
+        ${!esActiva?`<span class="tag">Planificada</span>`:""}
+      </div>
     </div>
     <div class="amt">${esActiva? eur(inv.valorActual) : "—"}</div>
-  </div>${flechasHtml(inv)}`;
+  </div>`;
 
   if(!expandida) return cabecera;
 
@@ -1356,14 +1419,13 @@ function renderInversiones(){
   </div>
   <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
     <span>Activas · Valor ${eur(totalValor)} · Beneficio ${eur(totalBeneficio)}${totalRentas>0?` · Rentas ${eur(totalRentas)}`:""}</span>
-    <button class="btn ghost" data-toggle-orden="1" style="color:var(--accent)">${modoOrdenInv?"Listo":"Ordenar"}</button>
   </div>
-  <div class="list">
-    ${topActivos.length? topActivos.map(invItem).join("") : `<div class="empty">Sin inversiones activas todavía.</div>`}
+  <div class="list" data-sortable="ordenar_inversiones">
+    ${topActivos.length? topActivos.map(x=>sortItem(x.id, invItem(x, topActivos.length>1))).join("") : `<div class="empty">Sin inversiones activas todavía.</div>`}
   </div>
   <div class="section-title">Planificadas · no cuentan en tu patrimonio</div>
-  <div class="list">
-    ${topPlan.length? topPlan.map(invItem).join("") : `<div class="empty">Sin inversiones planificadas.</div>`}
+  <div class="list" data-sortable="ordenar_inversiones">
+    ${topPlan.length? topPlan.map(x=>sortItem(x.id, invItem(x, topPlan.length>1))).join("") : `<div class="empty">Sin inversiones planificadas.</div>`}
   </div>`;
 }
 
@@ -1449,6 +1511,7 @@ function render(){
   else app.innerHTML = renderCategorias();
   wireEvents();
   aplicarPlegables();
+  activarOrdenar();
   if(pendienteEnfoque){
     const el = document.getElementById(pendienteEnfoque);
     pendienteEnfoque = null;
@@ -1748,21 +1811,6 @@ function wireEvents(){
   }));
 
   document.querySelectorAll("[data-toggle-grupo]").forEach(b=>b.onclick=()=>{ const id=b.dataset.toggleGrupo; gruposAbiertos[id]=!gruposAbiertos[id]; render(); });
-  document.querySelectorAll("[data-toggle-orden]").forEach(b=>b.onclick=()=>{ modoOrdenInv=!modoOrdenInv; render(); });
-  document.querySelectorAll("[data-mover]").forEach(b=>b.onclick=()=>conCarga(b, "…", async ()=>{
-    const [id,dir] = b.dataset.mover.split("|");
-    const x = inversiones.find(i=>i.id===id);
-    if(!x) return;
-    const lista = listaHermanos(x);
-    const idx = lista.findIndex(i=>i.id===id);
-    const j = idx + (dir==="up" ? -1 : 1);
-    if(idx<0 || j<0 || j>=lista.length) return;
-    const ids = lista.map(i=>i.id);
-    [ids[idx], ids[j]] = [ids[j], ids[idx]];
-    const {error} = await sb.rpc("ordenar_inversiones", {p_ids: ids});
-    if(error){ showError("No se pudo cambiar el orden: "+error.message); return; }
-    hideError(); await fetchAll();
-  }));
   document.querySelectorAll("[data-rentas-inv]").forEach(b=>b.onclick=()=>{ rentasInvId=b.dataset.rentasInv; aportarInvId=null; editarValorInvId=null; rescatarInvId=null; pendienteEnfoque = "rentasImporte"; render(); });
   document.querySelectorAll("[data-cancelar-rentas]").forEach(b=>b.onclick=()=>{ rentasInvId=null; render(); });
   const guardarRentas = (b, modo)=>conCarga(b, "Guardando…", async ()=>{
@@ -1779,15 +1827,6 @@ function wireEvents(){
   });
   document.querySelectorAll("[data-sumar-rentas]").forEach(b=>b.onclick=()=>guardarRentas(b,"sumar"));
   document.querySelectorAll("[data-fijar-rentas]").forEach(b=>b.onclick=()=>guardarRentas(b,"fijar"));
-  document.querySelectorAll("[data-toggle-orden-cuentas]").forEach(b=>b.onclick=()=>{ modoOrdenCuentas = !modoOrdenCuentas; render(); });
-  document.querySelectorAll("[data-toggle-orden-objetivos]").forEach(b=>b.onclick=()=>{ modoOrdenObjetivos = !modoOrdenObjetivos; render(); });
-  document.querySelectorAll("[data-mover-cuenta]").forEach(b=>b.onclick=()=>conCarga(b, "…", ()=>moverEnLista(cuentas, "ordenar_cuentas", b.dataset.moverCuenta)));
-  document.querySelectorAll("[data-mover-objetivo]").forEach(b=>b.onclick=()=>conCarga(b, "…", ()=>{
-    const id = b.dataset.moverObjetivo.split("|")[0];
-    const o = objetivos.find(x=>x.id===id);
-    const grupo = o ? objetivos.filter(x=>objetivoCompletado(x)===objetivoCompletado(o)) : objetivos;
-    return moverEnLista(grupo, "ordenar_objetivos", b.dataset.moverObjetivo);
-  }));
   const prefForms = document.getElementById("prefForms");
   if(prefForms) prefForms.onchange = ()=>{
     formsPorDefecto = prefForms.value === "cerrados" ? "cerrados" : "abiertos";
@@ -2015,7 +2054,7 @@ async function fetchAll(){
     detectarObjetivosCompletados();
     hideError(); ready = true;
     const ae = document.activeElement;
-    const escribiendo = refrescoSilencioso && ae && ["INPUT","SELECT","TEXTAREA"].includes(ae.tagName) && document.getElementById("app").contains(ae);
+    const escribiendo = refrescoSilencioso && (arrastrando || (ae && ["INPUT","SELECT","TEXTAREA"].includes(ae.tagName) && document.getElementById("app").contains(ae)));
     refrescoSilencioso = false;
     if(escribiendo) renderBalance(); else render();
   }catch(e){
