@@ -589,6 +589,54 @@ function renderImportar(){
   </div>` : ""}`;
 }
 
+function objetivoCompletado(o){ return o.meta>0 && progresoObjetivo(o)>=o.meta; }
+function lanzarConfeti(mensajeHtml){
+  const aviso = document.createElement("div");
+  aviso.style.cssText = "position:fixed;left:50%;top:22%;transform:translateX(-50%);z-index:61;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:18px;padding:14px 22px;box-shadow:0 10px 40px rgba(0,0,0,.25);text-align:center;max-width:82%;pointer-events:none;transition:opacity .5s";
+  aviso.innerHTML = `<div style="font-size:12px;color:var(--pos);font-weight:800">¡Objetivo conseguido!</div><div style="font-size:17px;font-weight:800;margin-top:3px">${mensajeHtml}</div>`;
+  document.body.appendChild(aviso);
+  setTimeout(()=>{ aviso.style.opacity = "0"; setTimeout(()=>aviso.remove(), 600); }, 3300);
+  if(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const canvas = document.createElement("canvas");
+  canvas.style.cssText = "position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:60";
+  const dpr = window.devicePixelRatio || 1;
+  const W = window.innerWidth, H = window.innerHeight;
+  canvas.width = W*dpr; canvas.height = H*dpr;
+  document.body.appendChild(canvas);
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+  const colores = [...PALETTE, "#6c4ee3", "#ffc233", "#ff6b81"];
+  const piezas = Array.from({length:170}, (_,i)=>({
+    x: W*(0.2 + Math.random()*0.6), y: H*0.28,
+    vx: (Math.random()-0.5)*10, vy: -(Math.random()*12+5), g: 0.3 + Math.random()*0.12,
+    w: 6 + Math.random()*6, h: 8 + Math.random()*8, r: Math.random()*6.28, vr: (Math.random()-0.5)*0.4,
+    c: colores[i % colores.length]
+  }));
+  const inicio = performance.now();
+  (function frame(t){
+    const el = t - inicio;
+    ctx.clearRect(0, 0, W, H);
+    piezas.forEach(q=>{
+      q.vy += q.g; q.x += q.vx; q.y += q.vy; q.vx *= 0.99; q.r += q.vr;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, 1 - Math.max(0, el-2300)/1400);
+      ctx.translate(q.x, q.y); ctx.rotate(q.r);
+      ctx.fillStyle = q.c; ctx.fillRect(-q.w/2, -q.h/2, q.w, q.h);
+      ctx.restore();
+    });
+    if(el < 3800) requestAnimationFrame(frame); else canvas.remove();
+  })(inicio);
+}
+// Lanza el confeti solo cuando un objetivo pasa a estar completado (una vez por dispositivo)
+function detectarObjetivosCompletados(){
+  let previos = null;
+  try{ const raw = localStorage.getItem("objCompletados"); if(raw!==null) previos = JSON.parse(raw); }catch(e){ previos = null; }
+  const actuales = objetivos.filter(objetivoCompletado).map(o=>o.id);
+  try{ localStorage.setItem("objCompletados", JSON.stringify(actuales)); }catch(e){}
+  if(!Array.isArray(previos)) return;
+  const nuevos = objetivos.filter(o=>objetivoCompletado(o) && !previos.includes(o.id));
+  if(nuevos.length) lanzarConfeti(nuevos.map(o=>esc(o.nombre)).join(", "));
+}
 function progresoObjetivo(o){
   if(o.tipoVinculo==="cuenta"){ const c=cuentas.find(x=>x.id===o.vinculoId); return c? saldoCuenta(c) : 0; }
   if(o.tipoVinculo==="inversion"){ const i=inversiones.find(x=>x.id===o.vinculoId); return i? (i.esGrupo? valorGrupo(i) : i.valorActual) : 0; }
@@ -630,7 +678,7 @@ function renderPreferencias(){
 }
 
 function renderObjetivos(){
-  const conseguidos = objetivos.filter(o=>o.meta>0 && progresoObjetivo(o)>=o.meta).length;
+  const conseguidos = objetivos.filter(objetivoCompletado).length;
   const resumen = objetivos.length ? `
   <div class="card">
     <h2>Tus objetivos</h2>
@@ -640,14 +688,15 @@ function renderObjetivos(){
       <div><div class="num">${eur(objetivos.reduce((s,o)=>s+o.meta,0))}</div><div class="lbl">Meta total</div></div>
     </div>
   </div>` : "";
-  const objetivosOrdenados = [...objetivos].sort(porOrden);
-  const tarjetas = objetivosOrdenados.map((o,k)=>{
+  const enCurso = objetivos.filter(o=>!objetivoCompletado(o)).sort(porOrden);
+  const completados = objetivos.filter(objetivoCompletado).sort(porOrden);
+  const tarjeta = (o,k,n)=>{
     const actual = progresoObjetivo(o);
     const pct = o.meta>0 ? Math.min(actual/o.meta*100,100) : 0;
     const hecho = o.meta>0 && actual>=o.meta;
     const col = hecho ? "var(--pos)" : "var(--accent)";
     return `
-    <div class="card">
+    <div class="card"${hecho?' style="border-color:var(--pos)"':''}>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:14px">
         <div style="flex:1;min-width:0">
           <h2 style="margin:0 0 4px">${esc(o.nombre)}</h2>
@@ -663,13 +712,16 @@ function renderObjetivos(){
         </div>
       </div>
       <div style="margin-top:12px"><button class="btn ghost" data-del-objetivo="${o.id}">Borrar</button></div>
-      ${modoOrdenObjetivos? flechasLista("objetivo", o.id, k, objetivosOrdenados.length) : ""}
+      ${modoOrdenObjetivos? flechasLista("objetivo", o.id, k, n) : ""}
     </div>`;
-  }).join("");
+  };
   return `
   ${resumen}
-  ${botonOrdenar("objetivos", modoOrdenObjetivos, objetivosOrdenados.length)}
-  ${tarjetas || `<div class="card"><div class="empty" style="padding:20px 10px">Sin objetivos todavía. Crea el primero abajo.</div></div>`}
+  ${botonOrdenar("objetivos", modoOrdenObjetivos, objetivos.length)}
+  ${completados.length && enCurso.length ? `<div class="section-title">En curso (${enCurso.length})</div>` : ""}
+  ${enCurso.map((o,k)=>tarjeta(o,k,enCurso.length)).join("")}
+  ${completados.length ? `<div class="section-title">Completados (${completados.length})</div>${completados.map((o,k)=>tarjeta(o,k,completados.length)).join("")}` : ""}
+  ${objetivos.length ? "" : `<div class="card"><div class="empty" style="padding:20px 10px">Sin objetivos todavía. Crea el primero abajo.</div></div>`}
   <div class="card">
     <h2>Nuevo objetivo</h2>
     <form id="fObjetivo">
@@ -1719,7 +1771,12 @@ function wireEvents(){
   document.querySelectorAll("[data-toggle-orden-cuentas]").forEach(b=>b.onclick=()=>{ modoOrdenCuentas = !modoOrdenCuentas; render(); });
   document.querySelectorAll("[data-toggle-orden-objetivos]").forEach(b=>b.onclick=()=>{ modoOrdenObjetivos = !modoOrdenObjetivos; render(); });
   document.querySelectorAll("[data-mover-cuenta]").forEach(b=>b.onclick=()=>conCarga(b, "…", ()=>moverEnLista(cuentas, "ordenar_cuentas", b.dataset.moverCuenta)));
-  document.querySelectorAll("[data-mover-objetivo]").forEach(b=>b.onclick=()=>conCarga(b, "…", ()=>moverEnLista(objetivos, "ordenar_objetivos", b.dataset.moverObjetivo)));
+  document.querySelectorAll("[data-mover-objetivo]").forEach(b=>b.onclick=()=>conCarga(b, "…", ()=>{
+    const id = b.dataset.moverObjetivo.split("|")[0];
+    const o = objetivos.find(x=>x.id===id);
+    const grupo = o ? objetivos.filter(x=>objetivoCompletado(x)===objetivoCompletado(o)) : objetivos;
+    return moverEnLista(grupo, "ordenar_objetivos", b.dataset.moverObjetivo);
+  }));
   const prefForms = document.getElementById("prefForms");
   if(prefForms) prefForms.onchange = ()=>{
     formsPorDefecto = prefForms.value === "cerrados" ? "cerrados" : "abiertos";
@@ -1944,6 +2001,7 @@ async function fetchAll(){
     } else {
       categorias = cat.map(c=>({id:c.id, tipo:c.tipo, padre:c.padre, nombre:c.nombre}));
     }
+    detectarObjetivosCompletados();
     hideError(); ready = true;
     const ae = document.activeElement;
     const escribiendo = refrescoSilencioso && ae && ["INPUT","SELECT","TEXTAREA"].includes(ae.tagName) && document.getElementById("app").contains(ae);
