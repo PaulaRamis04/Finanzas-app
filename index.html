@@ -678,15 +678,25 @@ function renderPreferencias(){
 }
 
 function renderObjetivos(){
-  const conseguidos = objetivos.filter(objetivoCompletado).length;
+  const pendientes = objetivos.filter(o=>!objetivoCompletado(o));
+  const conseguidos = objetivos.length - pendientes.length;
+  const metaPend = pendientes.reduce((s,o)=>s+o.meta,0);
+  const ahorradoPend = pendientes.reduce((s,o)=>s+Math.min(Math.max(progresoObjetivo(o),0), o.meta),0);
+  const pctPend = metaPend>0 ? ahorradoPend/metaPend*100 : 0;
   const resumen = objetivos.length ? `
   <div class="card">
     <h2>Tus objetivos</h2>
     <div class="balance" style="margin-top:6px">
-      <div><div class="num">${objetivos.length}</div><div class="lbl">Objetivos</div></div>
+      <div><div class="num">${pendientes.length}</div><div class="lbl">En curso</div></div>
       <div><div class="num pos">${conseguidos}</div><div class="lbl">Conseguidos</div></div>
-      <div><div class="num">${eur(objetivos.reduce((s,o)=>s+o.meta,0))}</div><div class="lbl">Meta total</div></div>
+      <div><div class="num">${eur(metaPend)}</div><div class="lbl">Meta total (en curso)</div></div>
     </div>
+    ${pendientes.length? `
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-top:14px">
+      <span class="meta">${eur(ahorradoPend)} de ${eur(metaPend)}</span>
+      <strong style="font-size:15px">${pctPend.toFixed(0)}% de la meta</strong>
+    </div>
+    <div style="height:8px;background:var(--line);border-radius:999px;margin-top:6px;overflow:hidden"><div style="height:100%;width:${pctPend}%;background:var(--accent);border-radius:999px"></div></div>` : `<div class="meta" style="margin-top:12px">Todos tus objetivos están conseguidos.</div>`}
   </div>` : "";
   const enCurso = objetivos.filter(o=>!objetivoCompletado(o)).sort(porOrden);
   const completados = objetivos.filter(objetivoCompletado).sort(porOrden);
@@ -716,12 +726,6 @@ function renderObjetivos(){
     </div>`;
   };
   return `
-  ${resumen}
-  ${botonOrdenar("objetivos", modoOrdenObjetivos, objetivos.length)}
-  ${completados.length && enCurso.length ? `<div class="section-title">En curso (${enCurso.length})</div>` : ""}
-  ${enCurso.map((o,k)=>tarjeta(o,k,enCurso.length)).join("")}
-  ${completados.length ? `<div class="section-title">Completados (${completados.length})</div>${completados.map((o,k)=>tarjeta(o,k,completados.length)).join("")}` : ""}
-  ${objetivos.length ? "" : `<div class="card"><div class="empty" style="padding:20px 10px">Sin objetivos todavía. Crea el primero abajo.</div></div>`}
   <div class="card">
     <h2>Nuevo objetivo</h2>
     <form id="fObjetivo">
@@ -741,7 +745,14 @@ function renderObjetivos(){
       </div>
       <button class="btn" type="submit">Añadir</button>
     </form>
-  </div>`;
+  </div>
+  ${resumen}
+  ${botonOrdenar("objetivos", modoOrdenObjetivos, objetivos.length)}
+  ${completados.length && enCurso.length ? `<div class="section-title">En curso (${enCurso.length})</div>` : ""}
+  ${enCurso.map((o,k)=>tarjeta(o,k,enCurso.length)).join("")}
+  ${completados.length ? `<div class="section-title">Completados (${completados.length})</div>${completados.map((o,k)=>tarjeta(o,k,completados.length)).join("")}` : ""}
+  ${objetivos.length ? "" : `<div class="card"><div class="empty" style="padding:20px 10px">Sin objetivos todavía. Crea el primero abajo.</div></div>`}
+`;
 }
 
 function etiquetaGasto(id){ const m = movimientos.find(x=>x.id===id); return m ? esc(m.nota||m.categoria) : ""; }
