@@ -155,6 +155,7 @@ let editarPresupuestoId = null;
 let csvHeaders = [], csvFilas = [], csvPreview = [];
 let aportarInvId = null, editarValorInvId = null, editarCatId = null, verAportacionesId = null, ajustarSaldoId = null, rescatarInvId = null;
 let expandidaInvId = null, editarInfoInvId = null, resumenSel = null, resumenAhorroAbierto = false;
+let gruposAbiertos = {}, modoOrdenInv = false, rentasInvId = null;
 const PALETTE = ["#1f4d43","#c08a2e","#a3402f","#5c9683","#7fb8a6","#e0ac4e","#8a6d3b","#3f6b52","#b5651d","#4a7c94"];
 let session = null, appStarted = false;
 
@@ -204,6 +205,10 @@ function showError(msg){
 function hideError(){ document.getElementById("errBar").classList.remove("show"); }
 
 function eur(n){ return (n<0?"-":"") + "€" + Math.abs(n).toFixed(2).replace(".",","); }
+function esc(s){
+  if(s==null) return "";
+  return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
 function today(){ return new Date().toISOString().slice(0,10); }
 function enPeriodo(fecha){
   if(!fecha) return false;
@@ -266,7 +271,10 @@ function renderBalance(){
   `;
 }
 
-function cuentaNombre(id){ const c = cuentas.find(c=>c.id===id); return c? c.nombre : "Sin cuenta"; }
+function cuentaNombre(id){ const c = cuentas.find(c=>c.id===id); return c? esc(c.nombre) : "Sin cuenta"; }
+function opcionesCuentas(selectedId){
+  return cuentas.map(c=>`<option value="${c.id}"${c.id===selectedId?" selected":""}>${esc(c.nombre)}</option>`).join("");
+}
 function aportadoInv(inv){ return (inv.valorInicial||0) + aportaciones.filter(a=>a.inversionId===inv.id).reduce((s,a)=>s+a.importe,0); }
 function retiradoInv(inv){ return retiros.filter(r=>r.inversionId===inv.id).reduce((s,r)=>s+r.importe,0); }
 function beneficioInv(inv){ return (inv.valorActual + retiradoInv(inv)) - aportadoInv(inv); }
@@ -302,9 +310,9 @@ function bloqueGraficaCategoria(titulo, desc, tipo){
       <div style="width:130px;height:130px;border-radius:50%;background:conic-gradient(${pieStyle(desc)});flex-shrink:0"></div>
       <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:180px">
         ${desc.map(d=>`
-          <button data-resumen-sel="${tipo}|${d.categoria}" style="display:flex;align-items:center;gap:8px;background:none;border:none;padding:5px 0;cursor:pointer;text-align:left;color:var(--ink);font-family:inherit;font-size:13px;width:100%">
+          <button data-resumen-sel="${tipo}|${esc(d.categoria)}" style="display:flex;align-items:center;gap:8px;background:none;border:none;padding:5px 0;cursor:pointer;text-align:left;color:var(--ink);font-family:inherit;font-size:13px;width:100%">
             <span style="width:12px;height:12px;border-radius:50%;background:${d.color};flex-shrink:0"></span>
-            <span style="flex:1">${d.categoria}</span>
+            <span style="flex:1">${esc(d.categoria)}</span>
             <span class="meta">${d.pct.toFixed(0)}%</span>
           </button>`).join("")}
       </div>
@@ -329,7 +337,7 @@ function renderResumen(){
     if(lista.length && info){
       detalle = `
       <div class="card">
-        <h2>${resumenSel.categoria}</h2>
+        <h2>${esc(resumenSel.categoria)}</h2>
         <div class="balance" style="margin-top:8px">
           <div><div class="num">${eur(info.total)}</div><div class="lbl">Total</div></div>
           <div><div class="num">${lista.length}</div><div class="lbl">Movimientos</div></div>
@@ -337,7 +345,7 @@ function renderResumen(){
         </div>
         <div class="list" style="margin-top:12px">
           ${[...lista].sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(m=>`
-            <div class="item"><div>${m.nota||m.categoria}<div class="meta">${m.fecha}</div></div><div class="amt ${resumenSel.tipo==='ingreso'?'pos':'neg'}">${eur(m.importe)}</div></div>
+            <div class="item"><div>${esc(m.nota||m.categoria)}<div class="meta">${m.fecha}</div></div><div class="amt ${resumenSel.tipo==='ingreso'?'pos':'neg'}">${eur(m.importe)}</div></div>
           `).join("")}
         </div>
       </div>`;
@@ -353,7 +361,7 @@ function renderResumen(){
     ${resumenAhorroAbierto? `
     <div class="list" style="margin-top:12px">
       ${[...ahorroList].sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(m=>`
-        <div class="item"><div>${m.nota||"Aportación"}<div class="meta">${m.fecha}</div></div><div class="amt neg">${eur(m.importe)}</div></div>
+        <div class="item"><div>${esc(m.nota||"Aportación")}<div class="meta">${m.fecha}</div></div><div class="amt neg">${eur(m.importe)}</div></div>
       `).join("")}
     </div>` : ""}
   </div>` : `<div class="card"><p class="meta" style="margin:0">Sin ahorro/inversión en este periodo.</p></div>`;
@@ -417,8 +425,8 @@ function renderImportar(){
     <label>Columna de concepto (opcional)</label>
     <select id="csvColNota"><option value="">— Ninguna —</option>${csvHeaders.map(h=>`<option value="${h}">${h}</option>`).join("")}</select>
     <div class="row2" style="margin-top:10px">
-      <div><label>Cuenta destino</label>${cuentas.length?`<select id="csvCuenta">${cuentas.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join("")}</select>`:`<div class="meta">Crea antes una cuenta.</div>`}</div>
-      <div><label>Categoría por defecto</label>${categorias.length?`<select id="csvCategoria">${categorias.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join("")}</select>`:`<div class="meta">Crea antes una categoría.</div>`}</div>
+      <div><label>Cuenta destino</label>${cuentas.length?`<select id="csvCuenta">${opcionesCuentas()}</select>`:`<div class="meta">Crea antes una cuenta.</div>`}</div>
+      <div><label>Categoría por defecto</label>${categorias.length?`<select id="csvCategoria">${categorias.map(c=>`<option value="${esc(c.nombre)}">${esc(c.nombre)}</option>`).join("")}</select>`:`<div class="meta">Crea antes una categoría.</div>`}</div>
     </div>
     <button class="btn" id="csvPrevisualizar" style="margin-top:10px" ${cuentas.length&&categorias.length?"":"disabled"}>Previsualizar</button>
   </div>` : ""}
@@ -429,7 +437,7 @@ function renderImportar(){
     <div class="list">
       ${csvPreview.slice(0,15).map(m=>`
         <div class="item">
-          <div>${m.nota||"(sin concepto)"}<div class="meta">${m.fecha}</div></div>
+          <div>${esc(m.nota||"(sin concepto)")}<div class="meta">${m.fecha}</div></div>
           <div class="amt ${m.tipo==='ingreso'?'pos':'neg'}">${m.tipo==='ingreso'?'+':'-'}${eur(m.importe)}</div>
         </div>`).join("")}
       ${csvPreview.length>15? `<div class="empty">... y ${csvPreview.length-15} más</div>` : ""}
@@ -440,16 +448,52 @@ function renderImportar(){
 
 function progresoObjetivo(o){
   if(o.tipoVinculo==="cuenta"){ const c=cuentas.find(x=>x.id===o.vinculoId); return c? saldoCuenta(c) : 0; }
-  if(o.tipoVinculo==="inversion"){ const i=inversiones.find(x=>x.id===o.vinculoId); return i? i.valorActual : 0; }
+  if(o.tipoVinculo==="inversion"){ const i=inversiones.find(x=>x.id===o.vinculoId); return i? (i.esGrupo? valorGrupo(i) : i.valorActual) : 0; }
   return 0;
 }
 function nombreVinculo(o){
   if(o.tipoVinculo==="cuenta") return cuentaNombre(o.vinculoId);
-  if(o.tipoVinculo==="inversion"){ const i=inversiones.find(x=>x.id===o.vinculoId); return i? i.nombre : "—"; }
+  if(o.tipoVinculo==="inversion"){ const i=inversiones.find(x=>x.id===o.vinculoId); return i? esc(i.nombre) : "—"; }
   return "";
 }
 function renderObjetivos(){
+  const conseguidos = objetivos.filter(o=>o.meta>0 && progresoObjetivo(o)>=o.meta).length;
+  const resumen = objetivos.length ? `
+  <div class="card">
+    <h2>Tus objetivos</h2>
+    <div class="balance" style="margin-top:6px">
+      <div><div class="num">${objetivos.length}</div><div class="lbl">Objetivos</div></div>
+      <div><div class="num pos">${conseguidos}</div><div class="lbl">Conseguidos</div></div>
+      <div><div class="num">${eur(objetivos.reduce((s,o)=>s+o.meta,0))}</div><div class="lbl">Meta total</div></div>
+    </div>
+  </div>` : "";
+  const tarjetas = objetivos.map(o=>{
+    const actual = progresoObjetivo(o);
+    const pct = o.meta>0 ? Math.min(actual/o.meta*100,100) : 0;
+    const hecho = o.meta>0 && actual>=o.meta;
+    const col = hecho ? "var(--pos)" : "var(--accent)";
+    return `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:14px">
+        <div style="flex:1;min-width:0">
+          <h2 style="margin:0 0 4px">${esc(o.nombre)}</h2>
+          ${o.tipoVinculo!=="ninguno"?`<span class="tag">${nombreVinculo(o)}</span>`:`<span class="meta">Sin vincular: el progreso no se actualiza solo</span>`}
+          <div style="font-size:14px;margin-top:8px"><strong>${eur(actual)}</strong> <span class="meta">de ${eur(o.meta)}</span></div>
+          <div style="height:8px;background:var(--line);border-radius:999px;margin-top:8px;overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:${col};border-radius:999px"></div>
+          </div>
+          <div class="meta" style="margin-top:6px;${hecho?'color:var(--pos);font-weight:700':''}">${hecho? "Objetivo conseguido" : `Te faltan ${eur(Math.max(o.meta-actual,0))}`}</div>
+        </div>
+        <div style="width:68px;height:68px;border-radius:50%;background:conic-gradient(${col} ${pct*3.6}deg, var(--line) 0);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <div style="width:52px;height:52px;border-radius:50%;background:var(--card);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px">${pct.toFixed(0)}%</div>
+        </div>
+      </div>
+      <div style="margin-top:12px"><button class="btn ghost" data-del-objetivo="${o.id}">Borrar</button></div>
+    </div>`;
+  }).join("");
   return `
+  ${resumen}
+  ${tarjetas || `<div class="card"><div class="empty" style="padding:20px 10px">Sin objetivos todavía. Crea el primero abajo.</div></div>`}
   <div class="card">
     <h2>Nuevo objetivo</h2>
     <form id="fObjetivo">
@@ -461,7 +505,7 @@ function renderObjetivos(){
       <select name="tipoVinculo" id="objTipoVinculo">
         <option value="ninguno">Sin vincular (solo la meta)</option>
         <option value="cuenta">Una cuenta</option>
-        <option value="inversion">Una inversión</option>
+        <option value="inversion">Una inversión o grupo</option>
       </select>
       <div id="objVinculoWrap" style="display:none">
         <label>Elige cuál</label>
@@ -469,25 +513,6 @@ function renderObjetivos(){
       </div>
       <button class="btn" type="submit">Añadir</button>
     </form>
-  </div>
-  <div class="section-title">Objetivos</div>
-  <div class="list">
-    ${objetivos.length? objetivos.map(o=>{
-      const actual = progresoObjetivo(o);
-      const pct = o.meta>0 ? Math.min(actual/o.meta*100,100) : 0;
-      return `
-      <div class="item">
-        <div style="flex:1">
-          <strong>${o.nombre}</strong>
-          ${o.tipoVinculo!=="ninguno"?`<span class="tag">${nombreVinculo(o)}</span>`:""}
-          <div class="meta">${eur(actual)} de ${eur(o.meta)} · ${pct.toFixed(0)}%</div>
-          <div style="height:6px;background:var(--line);border-radius:999px;margin-top:6px;overflow:hidden">
-            <div style="height:100%;width:${pct}%;background:var(--pos)"></div>
-          </div>
-        </div>
-        <button class="btn ghost" data-del-objetivo="${o.id}">Borrar</button>
-      </div>`;
-    }).join("") : `<div class="empty">Sin objetivos todavía. Crea el primero arriba.</div>`}
   </div>`;
 }
 
@@ -498,14 +523,34 @@ function renderPresupuestos(){
   const catsGasto = categorias.filter(c=>c.tipo==="gasto").map(c=>c.nombre);
   const catsSinPresupuesto = catsGasto.filter(c=>!presupuestos.some(p=>p.categoria===c));
   const lbl = periodoMes==="todos" ? `Año ${periodoAnio}` : `${MESES[Number(periodoMes)-1]} ${periodoAnio}`;
+  const mult = periodoMes==="todos" ? 12 : 1;
+  const totalLimite = presupuestos.reduce((s,p)=>s+p.limite*mult,0);
+  const totalGastado = presupuestos.reduce((s,p)=>s+(gastoPorCat[p.categoria]||0),0);
+  const totalPct = totalLimite>0 ? totalGastado/totalLimite*100 : 0;
+  const totalPasado = totalGastado > totalLimite;
+  const bloqueTotal = presupuestos.length ? `
+  <div class="card">
+    <h2>Total presupuestado · ${lbl}</h2>
+    <div class="balance" style="margin-top:6px">
+      <div><div class="num">${eur(totalLimite)}</div><div class="lbl">${mult===12?"Presupuesto anual":"Presupuesto mensual"}</div></div>
+      <div><div class="num ${totalPasado?'neg':''}">${eur(totalGastado)}</div><div class="lbl">Gastado</div></div>
+      <div><div class="num ${totalPasado?'neg':'pos'}">${totalPct.toFixed(0)}%</div><div class="lbl">Consumido</div></div>
+    </div>
+    <div style="height:8px;background:var(--line);border-radius:999px;margin-top:12px;overflow:hidden">
+      <div style="height:100%;width:${Math.min(totalPct,100)}%;background:${totalPasado?'var(--neg)':'var(--accent)'}"></div>
+    </div>
+    ${mult===12? `<p class="meta" style="margin:8px 0 0">Vista anual: cada límite mensual se multiplica por 12.</p>` : ""}
+    ${totalPasado? `<p class="meta" style="margin:8px 0 0;color:var(--neg)">Has superado el total presupuestado en ${eur(totalGastado-totalLimite)}</p>` : ""}
+  </div>` : "";
 
   return `
+  ${bloqueTotal}
   <div class="card">
     <h2>Nuevo presupuesto</h2>
     <form id="fPresupuesto">
       <div class="row2">
         <div><label>Categoría</label>
-          ${catsSinPresupuesto.length? `<select name="categoria">${catsSinPresupuesto.map(c=>`<option value="${c}">${c}</option>`).join("")}</select>` : `<div class="meta">Todas tus categorías de gasto ya tienen presupuesto.</div>`}
+          ${catsSinPresupuesto.length? `<select name="categoria">${catsSinPresupuesto.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join("")}</select>` : `<div class="meta">Todas tus categorías de gasto ya tienen presupuesto.</div>`}
         </div>
         <div><label>Límite mensual (€)</label><input name="limite" type="number" step="0.01" min="0" required></div>
       </div>
@@ -515,18 +560,19 @@ function renderPresupuestos(){
   <div class="section-title">Presupuestos · ${lbl}</div>
   <div class="list">
     ${presupuestos.length? presupuestos.map(p=>{
+      const limiteEf = p.limite*mult;
       const gastado = gastoPorCat[p.categoria] || 0;
-      const pct = p.limite>0 ? (gastado/p.limite*100) : 0;
-      const pasado = gastado > p.limite;
+      const pct = limiteEf>0 ? (gastado/limiteEf*100) : 0;
+      const pasado = gastado > limiteEf;
       return `
       <div class="item">
         <div style="flex:1">
-          <strong>${p.categoria}</strong>
-          <div class="meta">${eur(gastado)} de ${eur(p.limite)} · ${pct.toFixed(0)}%</div>
+          <strong>${esc(p.categoria)}</strong>
+          <div class="meta">${eur(gastado)} de ${eur(limiteEf)}${mult===12?" al año":""} · ${pct.toFixed(0)}%</div>
           <div style="height:6px;background:var(--line);border-radius:999px;margin-top:6px;overflow:hidden">
             <div style="height:100%;width:${Math.min(pct,100)}%;background:${pasado?'var(--neg)':'var(--accent)'}"></div>
           </div>
-          ${pasado? `<div class="meta" style="color:var(--neg);margin-top:4px">Has superado el límite en ${eur(gastado-p.limite)}</div>` : ""}
+          ${pasado? `<div class="meta" style="color:var(--neg);margin-top:4px">Has superado el límite en ${eur(gastado-limiteEf)}</div>` : ""}
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
           <button class="btn ghost" data-editar-presupuesto="${p.id}">Editar</button>
@@ -576,14 +622,14 @@ function renderGastos(){
   <div class="section-title">Por categoría</div>
   <div class="list">
     ${Object.keys(porCategoria).length? Object.entries(porCategoria).sort((a,b)=>b[1]-a[1]).map(([cat,total])=>`
-      <div class="item"><div>${cat}</div><div class="amt neg">${eur(total)}</div></div>
+      <div class="item"><div>${esc(cat)}</div><div class="amt neg">${eur(total)}</div></div>
     `).join("") : `<div class="empty">Sin gastos en este periodo.</div>`}
   </div>
   <div class="section-title">Movimientos de gasto (${gastosReales.length})</div>
   <div class="list">
     ${gastosReales.length? [...gastosReales].sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(m=>`
       <div class="item">
-        <div><span class="tag">${m.categoria}</span>${m.nota?`<div class="meta">${m.nota}</div>`:""}<div class="meta">${m.fecha}</div></div>
+        <div><span class="tag">${esc(m.categoria)}</span>${m.nota?`<div class="meta">${esc(m.nota)}</div>`:""}<div class="meta">${m.fecha}</div></div>
         <div class="amt neg">-${eur(m.importe)}</div>
       </div>`).join("") : `<div class="empty">Sin movimientos de gasto en este periodo.</div>`}
   </div>`;
@@ -605,7 +651,7 @@ function renderMovimientos(){
         <div><label>Categoría</label><select name="categoria" id="movCat"></select></div>
         <div><label>Fecha</label><input name="fecha" type="date" value="${today()}" required></div>
       </div>
-      <div><label>Cuenta</label>${cuentas.length? `<select name="cuentaId">${cuentas.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join("")}</select>` : `<div class="meta">Crea antes una cuenta en la pestaña "Cuentas".</div>`}</div>
+      <div><label>Cuenta</label>${cuentas.length? `<select name="cuentaId">${opcionesCuentas()}</select>` : `<div class="meta">Crea antes una cuenta en la pestaña "Cuentas".</div>`}</div>
       <div><label>Nota (opcional)</label><input name="nota" placeholder="ej. cena viernes"></div>
       <button class="btn" type="submit" ${cuentas.length?"":"disabled"}>Añadir</button>
     </form>
@@ -615,9 +661,9 @@ function renderMovimientos(){
     ${items.length? items.map(m=>`
       <div class="item">
         <div>
-          <span class="tag">${m.categoria}</span>
+          <span class="tag">${esc(m.categoria)}</span>
           <span class="tag">${cuentaNombre(m.cuentaId)}</span>
-          ${m.nota?`<div class="meta">${m.nota}</div>`:""}
+          ${m.nota?`<div class="meta">${esc(m.nota)}</div>`:""}
           <div class="meta">${m.fecha}</div>
         </div>
         <div style="display:flex;align-items:center;gap:10px">
@@ -651,10 +697,10 @@ function renderDeudas(){
     ${items.length? items.map(d=>`
       <div class="item">
         <div>
-          <strong>${d.persona}</strong>
+          <strong>${esc(d.persona)}</strong>
           <span class="tag">${d.direccion==='debo'?'Yo debo':'Me deben'}</span>
           ${d.estado==='saldado'?'<span class="tag">Saldado</span>':''}
-          ${d.concepto?`<div class="meta">${d.concepto}</div>`:""}
+          ${d.concepto?`<div class="meta">${esc(d.concepto)}</div>`:""}
           <div class="meta">${d.fecha}</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
@@ -666,7 +712,7 @@ function renderDeudas(){
       ${saldarId===d.id? `
       <div class="item" style="flex-direction:column;align-items:stretch;gap:8px">
         <label>${d.direccion==='me_deben'?'¿A qué cuenta entra el pago?':'¿De qué cuenta sale el pago?'}</label>
-        ${cuentas.length? `<select id="saldarCuenta">${cuentas.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join("")}</select>` : `<div class="meta">Crea antes una cuenta en la pestaña "Cuentas".</div>`}
+        ${cuentas.length? `<select id="saldarCuenta">${opcionesCuentas()}</select>` : `<div class="meta">Crea antes una cuenta en la pestaña "Cuentas".</div>`}
         <div style="display:flex;gap:8px">
           <button class="btn" data-confirmar-saldar="${d.id}" ${cuentas.length?"":"disabled"}>Confirmar</button>
           <button class="btn ghost" data-cancelar-saldar="1">Cancelar</button>
@@ -678,7 +724,52 @@ function renderDeudas(){
 function renderCuentas(){
   const items = [...cuentas].sort((a,b)=>a.nombre.localeCompare(b.nombre));
   const total = items.reduce((s,c)=>s+saldoCuenta(c),0);
+  const positivas = items.map((c,k)=>({c,k,saldo:saldoCuenta(c)})).filter(x=>x.saldo>0);
+  const totalPos = positivas.reduce((s,x)=>s+x.saldo,0);
+  const resumen = items.length ? `
+  <div class="card">
+    <div class="meta">Saldo total en cuentas</div>
+    <div style="font-size:30px;font-weight:800;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;margin-top:2px" class="${total>=0?'':'neg'}">${eur(total)}</div>
+    ${totalPos>0? `
+    <div style="display:flex;height:10px;border-radius:999px;overflow:hidden;margin-top:14px;gap:2px">
+      ${positivas.map(x=>`<div style="width:${x.saldo/totalPos*100}%;background:${PALETTE[x.k%PALETTE.length]}"></div>`).join("")}
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px">
+      ${positivas.map(x=>`<span class="meta" style="display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:50%;background:${PALETTE[x.k%PALETTE.length]}"></span>${esc(x.c.nombre)} ${(x.saldo/totalPos*100).toFixed(0)}%</span>`).join("")}
+    </div>` : ""}
+  </div>` : "";
+  const tarjetas = items.map((c,k)=>{
+    const saldo = saldoCuenta(c);
+    const col = PALETTE[k%PALETTE.length];
+    const nMov = movimientos.filter(m=>m.cuentaId===c.id).length;
+    return `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+        <div style="display:flex;align-items:center;gap:12px;min-width:0">
+          <div style="width:42px;height:42px;border-radius:14px;background:${col};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">${esc((c.nombre||"?").trim().charAt(0).toUpperCase())}</div>
+          <div style="min-width:0"><strong>${esc(c.nombre)}</strong><div class="meta">Inicial ${eur(c.saldoInicial||0)} · ${nMov} movimiento${nMov===1?"":"s"}</div></div>
+        </div>
+        <div style="font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap" class="${saldo>=0?'':'neg'}">${eur(saldo)}</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+        ${ajustarSaldoId!==c.id?`<button class="btn gold" data-ajustar-saldo="${c.id}">Ajustar saldo</button>`:""}
+        <button class="btn ghost" data-del-cuenta="${c.id}">Borrar</button>
+      </div>
+      ${ajustarSaldoId===c.id? `
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
+        <label>Saldo real actual (€)</label>
+        <input type="number" step="0.01" id="saldoRealInput" value="${saldo.toFixed(2)}">
+        <p class="meta" style="margin:0">Se creará un movimiento de "Ajuste" por la diferencia, así el histórico queda intacto.</p>
+        <div style="display:flex;gap:8px">
+          <button class="btn" data-confirmar-ajuste="${c.id}">Guardar</button>
+          <button class="btn ghost" data-cancelar-ajuste="1">Cancelar</button>
+        </div>
+      </div>` : ""}
+    </div>`;
+  }).join("");
   return `
+  ${resumen}
+  ${tarjetas || `<div class="card"><div class="empty" style="padding:20px 10px">Sin cuentas todavía. Crea la primera abajo.</div></div>`}
   <div class="card">
     <h2>Añadir cuenta</h2>
     <form id="fCuenta">
@@ -688,30 +779,6 @@ function renderCuentas(){
       </div>
       <button class="btn" type="submit">Añadir</button>
     </form>
-  </div>
-  <div class="section-title">Cuentas · Total ${eur(total)}</div>
-  <div class="list">
-    ${items.length? items.map(c=>`
-      <div class="item">
-        <div><strong>${c.nombre}</strong><div class="meta">Inicial ${eur(c.saldoInicial||0)}</div></div>
-        <div style="display:flex;align-items:center;gap:10px">
-          <div class="amt">${eur(saldoCuenta(c))}</div>
-          <button class="btn ghost" data-del-cuenta="${c.id}">Borrar</button>
-        </div>
-      </div>
-      <div style="display:flex;gap:8px;padding:0 4px 8px">
-        ${ajustarSaldoId!==c.id?`<button class="btn ghost" data-ajustar-saldo="${c.id}">Ajustar saldo actual</button>`:""}
-      </div>
-      ${ajustarSaldoId===c.id? `
-      <div class="item" style="flex-direction:column;align-items:stretch;gap:8px">
-        <label>Saldo real actual (€)</label>
-        <input type="number" step="0.01" id="saldoRealInput" value="${saldoCuenta(c).toFixed(2)}">
-        <p class="meta" style="margin:0">Se creará un movimiento de "Ajuste" por la diferencia, así el histórico queda intacto.</p>
-        <div style="display:flex;gap:8px">
-          <button class="btn" data-confirmar-ajuste="${c.id}">Guardar</button>
-          <button class="btn ghost" data-cancelar-ajuste="1">Cancelar</button>
-        </div>
-      </div>` : ""}`).join("") : `<div class="empty">Sin cuentas todavía. Crea la primera arriba.</div>`}
   </div>`;
 }
 
@@ -732,7 +799,64 @@ function renderListaAportaciones(inv){
   </div>`;
 }
 
+function porOrden(a,b){ return ((a.orden||0)-(b.orden||0)) || a.nombre.localeCompare(b.nombre); }
+function grupos(){ return inversiones.filter(i=>i.esGrupo).sort(porOrden); }
+function hijosDe(g){ return inversiones.filter(i=>i.padreId===g.id && !i.esGrupo).sort(porOrden); }
+function valorGrupo(g){ return hijosDe(g).filter(h=>h.estado==="activa").reduce((s,h)=>s+h.valorActual,0); }
+function beneficioGrupo(g){ return hijosDe(g).filter(h=>h.estado==="activa").reduce((s,h)=>s+beneficioInv(h),0); }
+function rentasGrupo(g){ return hijosDe(g).reduce((s,h)=>s+(h.rentas||0),0); }
+function siguienteOrden(){ return Math.max(0, ...inversiones.map(i=>i.orden||0)) + 1; }
+function opcionesGrupos(selectedId){
+  return grupos().map(g=>`<option value="${g.id}"${g.id===selectedId?" selected":""}>${esc(g.nombre)}</option>`).join("");
+}
+function listaHermanos(x){
+  if(x.padreId){ const p=inversiones.find(i=>i.id===x.padreId); return p? hijosDe(p) : []; }
+  if(x.esGrupo || x.estado==="activa") return inversiones.filter(i=>!i.padreId && (i.esGrupo||i.estado==="activa")).sort(porOrden);
+  return inversiones.filter(i=>!i.padreId && !i.esGrupo && i.estado!=="activa").sort(porOrden);
+}
+function flechasHtml(x){
+  if(!modoOrdenInv) return "";
+  return `<div style="display:flex;gap:6px;justify-content:flex-end;padding:0 4px 6px"><button class="btn ghost" data-mover="${x.id}|up">▲ Subir</button><button class="btn ghost" data-mover="${x.id}|down">▼ Bajar</button></div>`;
+}
+function sliceInversiones(){
+  const items = [];
+  inversiones.filter(i=>!i.padreId && i.esGrupo).forEach(g=>{
+    const v = valorGrupo(g);
+    if(v>0) items.push({nombre:g.nombre, total:v, hijos:hijosDe(g).filter(h=>h.estado==="activa" && h.valorActual>0).map(h=>({nombre:h.nombre, total:h.valorActual}))});
+  });
+  inversiones.filter(i=>!i.padreId && !i.esGrupo && i.estado==="activa" && i.valorActual>0).forEach(i=>items.push({nombre:i.nombre, total:i.valorActual, hijos:[]}));
+  const totalGlobal = items.reduce((s,x)=>s+x.total,0);
+  return items.sort((a,b)=>b.total-a.total).map((x,k)=>({...x, color:PALETTE[k%PALETTE.length], pct: totalGlobal? x.total/totalGlobal*100 : 0, totalGlobal}));
+}
+function grupoItem(g){
+  const abierto = !!gruposAbiertos[g.id];
+  const hs = hijosDe(g);
+  const val = valorGrupo(g);
+  const ben = beneficioGrupo(g);
+  const rG = rentasGrupo(g);
+  const cab = `
+  <div class="item" data-toggle-grupo="${g.id}" style="cursor:pointer;background:var(--accent-soft);border-color:transparent">
+    <div>
+      <strong>${abierto?"▾":"▸"} ${esc(g.nombre)}</strong>
+      <span class="tag" style="background:var(--card)">${hs.length} inversion${hs.length===1?"":"es"}</span>
+      <div class="meta">Beneficio: <span class="${ben>=0?'pos':'neg'}">${eur(ben)}</span>${rG>0?` · Rentas: <span class="pos">${eur(rG)}</span>`:""}</div>
+    </div>
+    <div class="amt">${eur(val)}</div>
+  </div>${flechasHtml(g)}`;
+  if(!abierto) return cab;
+  return cab + `
+  <div style="margin:2px 0 6px 12px;padding-left:10px;border-left:2px solid var(--accent-soft);display:flex;flex-direction:column;gap:8px">
+    ${hs.length? hs.map(invItem).join("") : `<div class="empty" style="padding:14px">Grupo vacío. Asigna inversiones desde "Editar información".</div>`}
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      ${editarInfoInvId!==g.id?`<button class="btn ghost" data-editar-info="${g.id}">Renombrar grupo</button>`:""}
+      <button class="btn ghost" data-del-inv="${g.id}">Borrar grupo</button>
+    </div>
+    ${editarInfoInvId===g.id? `<div class="item" style="flex-direction:column;align-items:stretch;gap:8px"><label>Nombre</label><input id="infoNombre" value="${esc(g.nombre)}"><div style="display:flex;gap:8px"><button class="btn" data-confirmar-info="${g.id}">Guardar</button><button class="btn ghost" data-cancelar-info="1">Cancelar</button></div></div>` : ""}
+  </div>`;
+}
+
 function invItem(inv){
+  if(inv.esGrupo) return grupoItem(inv);
   const esActiva = inv.estado === "activa";
   const aportado = aportadoInv(inv);
   const beneficio = beneficioInv(inv);
@@ -741,12 +865,12 @@ function invItem(inv){
   const cabecera = `
   <div class="item" data-expandir-inv="${inv.id}" style="cursor:pointer">
     <div>
-      <strong>${inv.nombre}</strong>
-      ${inv.tipo?`<span class="tag">${inv.tipo}</span>`:""}
+      <strong>${esc(inv.nombre)}</strong>
+      ${inv.tipo?`<span class="tag">${esc(inv.tipo)}</span>`:""}
       ${!esActiva?`<span class="tag">Planificada</span>`:""}
     </div>
     <div class="amt">${esActiva? eur(inv.valorActual) : "—"}</div>
-  </div>`;
+  </div>${flechasHtml(inv)}`;
 
   if(!expandida) return cabecera;
 
@@ -755,11 +879,13 @@ function invItem(inv){
     ${esActiva? `<div class="meta">Aportado: ${eur(aportado)}</div>` : `<div class="meta">Sin aportar todavía — no cuenta en tu patrimonio</div>`}
     ${!esActiva && (inv.fechaPrevista||inv.importePrevisto)? `<div class="meta">Previsto: ${inv.importePrevisto?eur(inv.importePrevisto):"—"}${inv.fechaPrevista?` el ${inv.fechaPrevista}`:""}${inv.cuentaPrevistaId?` desde ${cuentaNombre(inv.cuentaPrevistaId)}`:""}</div>` : ""}
     ${esActiva? `<div class="meta">Beneficio: <span class="${beneficio>=0?'pos':'neg'}">${eur(beneficio)}</span></div>` : ""}
+    ${esActiva? `<div class="meta">Rentas: <span class="pos">${eur(inv.rentas||0)}</span> · solo recuento, no afecta al valor</div>` : ""}
   </div>
   <div style="display:flex;gap:8px;padding:0 4px 8px;flex-wrap:wrap">
     ${aportarInvId!==inv.id?`<button class="btn gold" data-aportar-inv="${inv.id}">Aportar</button>`:""}
     ${esActiva && inv.valorActual>0 && rescatarInvId!==inv.id?`<button class="btn ghost" data-rescatar-inv="${inv.id}">Rescatar</button>`:""}
     ${esActiva && editarValorInvId!==inv.id?`<button class="btn ghost" data-editar-valor="${inv.id}">Actualizar valor</button>`:""}
+    ${esActiva && rentasInvId!==inv.id?`<button class="btn ghost" data-rentas-inv="${inv.id}">Anotar rentas</button>`:""}
     ${aportado>0 || esActiva ? `<button class="btn ghost" data-ver-aportaciones="${inv.id}">${verAportacionesId===inv.id?"Ocultar aportaciones":"Ver aportaciones"}</button>` : ""}
     ${editarInfoInvId!==inv.id?`<button class="btn ghost" data-editar-info="${inv.id}">Editar información</button>`:""}
     <button class="btn ghost" data-del-inv="${inv.id}">Borrar</button>
@@ -770,7 +896,7 @@ function invItem(inv){
     <label>Importe a aportar (€)</label>
     <input type="number" step="0.01" min="0" id="aportarImporte" value="${inv.importePrevisto||''}">
     <label>Cuenta de origen</label>
-    ${cuentas.length? `<select id="aportarCuenta">${cuentas.map(c=>`<option value="${c.id}" ${c.id===inv.cuentaPrevistaId?"selected":""}>${c.nombre}</option>`).join("")}</select>` : `<div class="meta">Crea antes una cuenta en la pestaña "Cuentas".</div>`}
+    ${cuentas.length? `<select id="aportarCuenta">${opcionesCuentas(inv.cuentaPrevistaId)}</select>` : `<div class="meta">Crea antes una cuenta en la pestaña "Cuentas".</div>`}
     <div style="display:flex;gap:8px">
       <button class="btn" data-confirmar-aportar="${inv.id}" ${cuentas.length?"":"disabled"}>Confirmar</button>
       <button class="btn ghost" data-cancelar-aportar="1">Cancelar</button>
@@ -781,10 +907,21 @@ function invItem(inv){
     <label>Importe a rescatar (€) — máximo ${eur(inv.valorActual)}</label>
     <input type="number" step="0.01" min="0" max="${inv.valorActual}" id="rescatarImporte">
     <label>Cuenta destino</label>
-    ${cuentas.length? `<select id="rescatarCuenta">${cuentas.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join("")}</select>` : `<div class="meta">Crea antes una cuenta en la pestaña "Cuentas".</div>`}
+    ${cuentas.length? `<select id="rescatarCuenta">${opcionesCuentas()}</select>` : `<div class="meta">Crea antes una cuenta en la pestaña "Cuentas".</div>`}
     <div style="display:flex;gap:8px">
       <button class="btn" data-confirmar-rescate="${inv.id}" ${cuentas.length?"":"disabled"}>Confirmar</button>
       <button class="btn ghost" data-cancelar-rescate="1">Cancelar</button>
+    </div>
+  </div>` : ""}
+  ${rentasInvId===inv.id? `
+  <div class="item" style="flex-direction:column;align-items:stretch;gap:8px">
+    <label>Cantidad (€)</label>
+    <input type="number" step="0.01" id="rentasImporte">
+    <p class="meta" style="margin:0">Llevas ${eur(inv.rentas||0)} en rentas. Es solo un recuento: no cambia el valor de la inversión, ni el patrimonio, ni crea movimientos. Para corregir un error, suma una cantidad negativa o fija el total.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" data-sumar-rentas="${inv.id}">Sumar</button>
+      <button class="btn gold" data-fijar-rentas="${inv.id}">Fijar total</button>
+      <button class="btn ghost" data-cancelar-rentas="1">Cancelar</button>
     </div>
   </div>` : ""}
   ${editarValorInvId===inv.id? `
@@ -798,8 +935,15 @@ function invItem(inv){
   </div>` : ""}
   ${editarInfoInvId===inv.id? `
   <div class="item" style="flex-direction:column;align-items:stretch;gap:8px">
-    <label>Nombre</label><input id="infoNombre" value="${inv.nombre}">
-    <label>Tipo</label><input id="infoTipo" value="${inv.tipo||''}">
+    <label>Nombre</label><input id="infoNombre" value="${esc(inv.nombre)}">
+    <label>Tipo</label><input id="infoTipo" value="${esc(inv.tipo||'')}">
+    ${grupos().length? `<label>Grupo</label><select id="infoGrupo"><option value="">Sin grupo</option>${opcionesGrupos(inv.padreId)}</select>` : ""}
+    ${!esActiva? `
+    <label>Fecha prevista</label><input id="infoFechaPrevista" type="date" value="${inv.fechaPrevista||''}">
+    <label>Importe previsto (€)</label><input id="infoImportePrevisto" type="number" step="0.01" min="0" value="${inv.importePrevisto??''}">
+    <label>Cuenta prevista</label>
+    ${cuentas.length? `<select id="infoCuentaPrevista"><option value="">Sin elegir todavía</option>${cuentas.map(c=>`<option value="${c.id}" ${c.id===inv.cuentaPrevistaId?"selected":""}>${esc(c.nombre)}</option>`).join("")}</select>` : `<div class="meta">Crea una cuenta cuando quieras usarla.</div>`}
+    ` : ""}
     <div style="display:flex;gap:8px">
       <button class="btn" data-confirmar-info="${inv.id}">Guardar</button>
       <button class="btn ghost" data-cancelar-info="1">Cancelar</button>
@@ -808,11 +952,35 @@ function invItem(inv){
 }
 
 function renderInversiones(){
-  const activas = inversiones.filter(i=>i.estado==="activa").sort((a,b)=>a.nombre.localeCompare(b.nombre));
-  const planificadas = inversiones.filter(i=>i.estado!=="activa").sort((a,b)=>a.nombre.localeCompare(b.nombre));
-  const totalValor = activas.reduce((s,i)=>s+i.valorActual,0);
-  const totalBeneficio = activas.reduce((s,i)=>s+beneficioInv(i),0);
+  const topActivos = inversiones.filter(i=>!i.padreId && (i.esGrupo || i.estado==="activa")).sort(porOrden);
+  const topPlan = inversiones.filter(i=>!i.padreId && !i.esGrupo && i.estado!=="activa").sort(porOrden);
+  const reales = inversiones.filter(i=>!i.esGrupo && i.estado==="activa");
+  const totalValor = reales.reduce((s,i)=>s+i.valorActual,0);
+  const totalBeneficio = reales.reduce((s,i)=>s+beneficioInv(i),0);
+  const totalRentas = reales.reduce((s,i)=>s+(i.rentas||0),0);
+  const slices = sliceInversiones();
+  const bloqueGrafica = slices.length ? `
+  <div class="card">
+    <h2>Distribución de tus inversiones</h2>
+    <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-top:10px">
+      <div style="width:130px;height:130px;border-radius:50%;background:conic-gradient(${pieStyle(slices)});flex-shrink:0;position:relative">
+        <div style="position:absolute;inset:30px;border-radius:50%;background:var(--card);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px">${eur(totalValor)}</div>
+      </div>
+      <div style="flex:1;min-width:190px;display:flex;flex-direction:column;gap:8px">
+        ${slices.map(sl=>`
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:13px">
+            <span style="width:12px;height:12px;border-radius:50%;background:${sl.color};flex-shrink:0"></span>
+            <span style="flex:1;font-weight:600">${esc(sl.nombre)}</span>
+            <span class="meta">${eur(sl.total)} · ${sl.pct.toFixed(1)}%</span>
+          </div>
+          ${sl.hijos.map(h=>`<div class="meta" style="margin-left:20px;display:flex;justify-content:space-between"><span>${esc(h.nombre)}</span><span>${(sl.totalGlobal? h.total/sl.totalGlobal*100 : 0).toFixed(1)}%</span></div>`).join("")}
+        </div>`).join("")}
+      </div>
+    </div>
+  </div>` : "";
   return `
+  ${bloqueGrafica}
   <div class="card">
     <h2>Nueva inversión</h2>
     <form id="fInversion">
@@ -820,6 +988,7 @@ function renderInversiones(){
         <div><label>Nombre</label><input name="nombre" placeholder="ej. Trade Republic" required></div>
         <div><label>Tipo (opcional)</label><input name="tipo" placeholder="ej. ETF, inmobiliaria..."></div>
       </div>
+      ${grupos().length? `<div><label>Grupo (opcional)</label><select name="grupoId"><option value="">Sin grupo</option>${opcionesGrupos()}</select></div>` : ""}
       <div><label>Estado</label><select name="estado" id="invEstado"><option value="activa">Activa — ya tengo dinero invertido</option><option value="planificada">Planificada — todavía no he aportado nada</option></select></div>
       <div id="invValorWrap"><label>Valor actual inicial (€)</label><input name="valorActual" type="number" step="0.01" value="0" id="invValorInput" required></div>
       <div id="invPlanWrap" style="display:none">
@@ -828,32 +997,43 @@ function renderInversiones(){
           <div><label>Importe previsto (€)</label><input name="importePrevisto" type="number" step="0.01" min="0"></div>
         </div>
         <label>Cuenta prevista</label>
-        ${cuentas.length? `<select name="cuentaPrevista"><option value="">Sin elegir todavía</option>${cuentas.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join("")}</select>` : `<div class="meta">Crea una cuenta cuando quieras usarla.</div>`}
+        ${cuentas.length? `<select name="cuentaPrevista"><option value="">Sin elegir todavía</option>${opcionesCuentas()}</select>` : `<div class="meta">Crea una cuenta cuando quieras usarla.</div>`}
       </div>
       <button class="btn" type="submit">Añadir</button>
     </form>
   </div>
-  <div class="section-title">Activas · Valor ${eur(totalValor)} · Beneficio ${eur(totalBeneficio)}</div>
+  <div class="card">
+    <h2>Nuevo grupo</h2>
+    <p class="meta" style="margin:0 0 10px">Agrupa varias inversiones bajo un mismo nombre (por ejemplo, "Trade Republic Felicidad"). Después eliges el grupo desde "Editar información" de cada inversión.</p>
+    <form id="fGrupo">
+      <div><label>Nombre del grupo</label><input name="nombre" required></div>
+      <button class="btn" type="submit">Crear grupo</button>
+    </form>
+  </div>
+  <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
+    <span>Activas · Valor ${eur(totalValor)} · Beneficio ${eur(totalBeneficio)}${totalRentas>0?` · Rentas ${eur(totalRentas)}`:""}</span>
+    <button class="btn ghost" data-toggle-orden="1" style="color:var(--accent)">${modoOrdenInv?"Listo":"Ordenar"}</button>
+  </div>
   <div class="list">
-    ${activas.length? activas.map(invItem).join("") : `<div class="empty">Sin inversiones activas todavía.</div>`}
+    ${topActivos.length? topActivos.map(invItem).join("") : `<div class="empty">Sin inversiones activas todavía.</div>`}
   </div>
   <div class="section-title">Planificadas · no cuentan en tu patrimonio</div>
   <div class="list">
-    ${planificadas.length? planificadas.map(invItem).join("") : `<div class="empty">Sin inversiones planificadas.</div>`}
+    ${topPlan.length? topPlan.map(invItem).join("") : `<div class="empty">Sin inversiones planificadas.</div>`}
   </div>`;
 }
 
 function catItem(c){
   return editarCatId===c.id ? `
     <div class="item" style="flex-direction:column;align-items:stretch;gap:8px">
-      <input id="catNuevoNombre" value="${c.nombre}">
+      <input id="catNuevoNombre" value="${esc(c.nombre)}">
       <div style="display:flex;gap:8px">
         <button class="btn" data-confirmar-cat="${c.id}">Guardar</button>
         <button class="btn ghost" data-cancelar-cat="1">Cancelar</button>
       </div>
     </div>` : `
     <div class="item">
-      <div>${c.nombre}</div>
+      <div>${esc(c.nombre)}</div>
       <div style="display:flex;gap:8px">
         <button class="btn ghost" data-editar-cat="${c.id}">Renombrar</button>
         <button class="btn ghost" data-del-cat="${c.id}">Borrar</button>
@@ -872,7 +1052,7 @@ function renderCategorias(){
     <form id="fCategoria">
       <div class="row2">
         <div><label>Tipo</label><select name="tipo" id="catTipo"><option value="gasto">Gasto</option><option value="ingreso">Ingreso</option></select></div>
-        <div id="catPadreWrap"><label>Grupo</label><input name="padre" id="catPadre" list="padresList" placeholder="ej. Imprescindible"><datalist id="padresList">${padres.map(p=>`<option value="${p}">`).join("")}</datalist></div>
+        <div id="catPadreWrap"><label>Grupo</label><input name="padre" id="catPadre" list="padresList" placeholder="ej. Imprescindible"><datalist id="padresList">${padres.map(p=>`<option value="${esc(p)}">`).join("")}</datalist></div>
       </div>
       <div><label>Nombre</label><input name="nombre" placeholder="ej. Gasolina" required></div>
       <button class="btn" type="submit">Añadir</button>
@@ -881,7 +1061,7 @@ function renderCategorias(){
   <div class="section-title">Gastos</div>
   <div class="list">
     ${padres.length? padres.map(p=>`
-      <div class="meta" style="font-weight:700;margin-top:4px">${p}</div>
+      <div class="meta" style="font-weight:700;margin-top:4px">${esc(p)}</div>
       ${porPadre[p].map(catItem).join("")}
     `).join("") : `<div class="empty">Sin categorías de gasto todavía.</div>`}
   </div>
@@ -919,11 +1099,11 @@ function wireEvents(){
         const porPadre = {};
         categorias.filter(c=>c.tipo==="gasto").forEach(c=>{ const p=c.padre||"Otros"; (porPadre[p]=porPadre[p]||[]).push(c); });
         cat.innerHTML = Object.keys(porPadre).length
-          ? Object.entries(porPadre).map(([p,cats])=>`<optgroup label="${p}">${cats.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join("")}</optgroup>`).join("")
+          ? Object.entries(porPadre).map(([p,cats])=>`<optgroup label="${esc(p)}">${cats.map(c=>`<option value="${esc(c.nombre)}">${esc(c.nombre)}</option>`).join("")}</optgroup>`).join("")
           : `<option value="">Crea una categoría en la pestaña "Categorías"</option>`;
       } else {
         const list = categorias.filter(c=>c.tipo==="ingreso");
-        cat.innerHTML = list.length ? list.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join("") : `<option value="">Crea una categoría en la pestaña "Categorías"</option>`;
+        cat.innerHTML = list.length ? list.map(c=>`<option value="${esc(c.nombre)}">${esc(c.nombre)}</option>`).join("") : `<option value="">Crea una categoría en la pestaña "Categorías"</option>`;
       }
     };
     fill(); tipoSel.onchange = fill;
@@ -961,23 +1141,29 @@ function wireEvents(){
       hideError(); fCuenta.reset(); await fetchAll();
     });
   };
-  document.querySelectorAll("[data-del-mov]").forEach(b=>b.onclick=async ()=>{
+  document.querySelectorAll("[data-del-mov]").forEach(b=>b.onclick=()=>{
     if(!confirm("¿Borrar este movimiento?")) return;
-    const {error} = await sb.from("movimientos").delete().eq("id", b.dataset.delMov);
-    if(error){ showError("No se pudo borrar: "+error.message); return; }
-    hideError(); await fetchAll();
+    conCarga(b, "Borrando…", async ()=>{
+      const {error} = await sb.from("movimientos").delete().eq("id", b.dataset.delMov);
+      if(error){ showError("No se pudo borrar: "+error.message); return; }
+      hideError(); await fetchAll();
+    });
   });
-  document.querySelectorAll("[data-del-deuda]").forEach(b=>b.onclick=async ()=>{
+  document.querySelectorAll("[data-del-deuda]").forEach(b=>b.onclick=()=>{
     if(!confirm("¿Borrar esta deuda?")) return;
-    const {error} = await sb.from("deudas").delete().eq("id", b.dataset.delDeuda);
-    if(error){ showError("No se pudo borrar: "+error.message); return; }
-    hideError(); await fetchAll();
+    conCarga(b, "Borrando…", async ()=>{
+      const {error} = await sb.from("deudas").delete().eq("id", b.dataset.delDeuda);
+      if(error){ showError("No se pudo borrar: "+error.message); return; }
+      hideError(); await fetchAll();
+    });
   });
-  document.querySelectorAll("[data-del-cuenta]").forEach(b=>b.onclick=async ()=>{
+  document.querySelectorAll("[data-del-cuenta]").forEach(b=>b.onclick=()=>{
     if(!confirm("¿Borrar esta cuenta? Los movimientos ya registrados en ella no se borran.")) return;
-    const {error} = await sb.from("cuentas").delete().eq("id", b.dataset.delCuenta);
-    if(error){ showError("No se pudo borrar: "+error.message); return; }
-    hideError(); await fetchAll();
+    conCarga(b, "Borrando…", async ()=>{
+      const {error} = await sb.from("cuentas").delete().eq("id", b.dataset.delCuenta);
+      if(error){ showError("No se pudo borrar: "+error.message); return; }
+      hideError(); await fetchAll();
+    });
   });
   document.querySelectorAll("[data-toggle-ahorro]").forEach(b=>b.onclick=()=>{ resumenAhorroAbierto = !resumenAhorroAbierto; render(); });
   document.querySelectorAll("[data-resumen-sel]").forEach(b=>b.onclick=()=>{
@@ -1026,6 +1212,8 @@ function wireEvents(){
       const estado = f.get("estado")||"activa";
       const valInicial = estado==="planificada" ? 0 : parseFloat(f.get("valorActual"));
       const data = {nombre:f.get("nombre"), tipo:f.get("tipo")||"", valor_actual:valInicial, valor_inicial:valInicial, estado};
+      data.padre_id = f.get("grupoId") || null;
+      data.orden = siguienteOrden();
       if(estado==="planificada"){
         data.fecha_prevista = f.get("fechaPrevista") || null;
         data.importe_previsto = f.get("importePrevisto") ? parseFloat(f.get("importePrevisto")) : null;
@@ -1036,16 +1224,19 @@ function wireEvents(){
       hideError(); fInversion.reset(); await fetchAll();
     });
   };
-  document.querySelectorAll("[data-del-inv]").forEach(b=>b.onclick=async ()=>{
-    if(!confirm("¿Borrar esta inversión? También se borrarán sus aportaciones y los gastos que generó.")) return;
-    const {error} = await sb.rpc("eliminar_inversion", {p_inversion_id: b.dataset.delInv});
-    if(error){ showError("No se pudo borrar: "+error.message); return; }
-    hideError(); await fetchAll();
+  document.querySelectorAll("[data-del-inv]").forEach(b=>b.onclick=()=>{
+    const esG = inversiones.find(i=>i.id===b.dataset.delInv)?.esGrupo;
+    if(!confirm(esG ? "¿Borrar este grupo? Las inversiones de dentro no se borran, quedarán sueltas." : "¿Borrar esta inversión? También se borrarán sus aportaciones y los gastos que generó.")) return;
+    conCarga(b, "Borrando…", async ()=>{
+      const {error} = await sb.rpc("eliminar_inversion", {p_inversion_id: b.dataset.delInv});
+      if(error){ showError("No se pudo borrar: "+error.message); return; }
+      hideError(); await fetchAll();
+    });
   });
   document.querySelectorAll("[data-expandir-inv]").forEach(b=>b.onclick=()=>{
     const id = b.dataset.expandirInv;
     expandidaInvId = expandidaInvId===id ? null : id;
-    aportarInvId=null; editarValorInvId=null; verAportacionesId=null; editarInfoInvId=null; rescatarInvId=null;
+    aportarInvId=null; editarValorInvId=null; verAportacionesId=null; editarInfoInvId=null; rescatarInvId=null; rentasInvId=null;
     render();
   });
   document.querySelectorAll("[data-editar-info]").forEach(b=>b.onclick=()=>{ editarInfoInvId=b.dataset.editarInfo; render(); });
@@ -1055,7 +1246,18 @@ function wireEvents(){
     const nombre = document.getElementById("infoNombre")?.value.trim();
     const tipo = document.getElementById("infoTipo")?.value.trim();
     if(!nombre) return;
-    const {error} = await sb.from("inversiones").update({nombre, tipo}).eq("id", invId);
+    const data = {nombre, tipo};
+    const grupoEl = document.getElementById("infoGrupo");
+    if(grupoEl) data.padre_id = grupoEl.value || null;
+    const fechaEl = document.getElementById("infoFechaPrevista");
+    const importeEl = document.getElementById("infoImportePrevisto");
+    const cuentaEl = document.getElementById("infoCuentaPrevista");
+    if(fechaEl){
+      data.fecha_prevista = fechaEl.value || null;
+      data.importe_previsto = importeEl?.value ? parseFloat(importeEl.value) : null;
+      data.cuenta_prevista_id = cuentaEl?.value || null;
+    }
+    const {error} = await sb.from("inversiones").update(data).eq("id", invId);
     if(error){ showError("No se pudo guardar: "+error.message); return; }
     hideError(); editarInfoInvId = null; await fetchAll();
   }));
@@ -1083,21 +1285,25 @@ function wireEvents(){
     if(error){ showError("No se pudo rescatar: "+error.message); return; }
     hideError(); rescatarInvId = null; await fetchAll();
   }));
-  document.querySelectorAll("[data-del-retiro]").forEach(b=>b.onclick=async ()=>{
+  document.querySelectorAll("[data-del-retiro]").forEach(b=>b.onclick=()=>{
     if(!confirm("¿Deshacer este rescate? Se borrará el ingreso asociado y volverá a la inversión.")) return;
-    const {error} = await sb.rpc("eliminar_retiro", {p_retiro_id: b.dataset.delRetiro});
-    if(error){ showError("No se pudo deshacer: "+error.message); return; }
-    hideError(); await fetchAll();
+    conCarga(b, "Borrando…", async ()=>{
+      const {error} = await sb.rpc("eliminar_retiro", {p_retiro_id: b.dataset.delRetiro});
+      if(error){ showError("No se pudo deshacer: "+error.message); return; }
+      hideError(); await fetchAll();
+    });
   });
   document.querySelectorAll("[data-ver-aportaciones]").forEach(b=>b.onclick=()=>{
     verAportacionesId = verAportacionesId===b.dataset.verAportaciones ? null : b.dataset.verAportaciones;
     render();
   });
-  document.querySelectorAll("[data-del-aportacion]").forEach(b=>b.onclick=async ()=>{
+  document.querySelectorAll("[data-del-aportacion]").forEach(b=>b.onclick=()=>{
     if(!confirm("¿Borrar esta aportación? También se borrará el gasto asociado y se restará del valor de la inversión.")) return;
-    const {error} = await sb.rpc("eliminar_aportacion", {p_aportacion_id: b.dataset.delAportacion});
-    if(error){ showError("No se pudo borrar la aportación: "+error.message); return; }
-    hideError(); await fetchAll();
+    conCarga(b, "Borrando…", async ()=>{
+      const {error} = await sb.rpc("eliminar_aportacion", {p_aportacion_id: b.dataset.delAportacion});
+      if(error){ showError("No se pudo borrar la aportación: "+error.message); return; }
+      hideError(); await fetchAll();
+    });
   });
   document.querySelectorAll("[data-editar-valor]").forEach(b=>b.onclick=()=>{ editarValorInvId=b.dataset.editarValor; aportarInvId=null; render(); });
   document.querySelectorAll("[data-cancelar-valor]").forEach(b=>b.onclick=()=>{ editarValorInvId=null; render(); });
@@ -1127,11 +1333,13 @@ function wireEvents(){
       hideError(); fCategoria.reset(); await fetchAll();
     });
   };
-  document.querySelectorAll("[data-del-cat]").forEach(b=>b.onclick=async ()=>{
+  document.querySelectorAll("[data-del-cat]").forEach(b=>b.onclick=()=>{
     if(!confirm("¿Borrar esta categoría?")) return;
-    const {error} = await sb.from("categorias").delete().eq("id", b.dataset.delCat);
-    if(error){ showError("No se pudo borrar: "+error.message); return; }
-    hideError(); await fetchAll();
+    conCarga(b, "Borrando…", async ()=>{
+      const {error} = await sb.from("categorias").delete().eq("id", b.dataset.delCat);
+      if(error){ showError("No se pudo borrar: "+error.message); return; }
+      hideError(); await fetchAll();
+    });
   });
   document.querySelectorAll("[data-editar-cat]").forEach(b=>b.onclick=()=>{ editarCatId=b.dataset.editarCat; render(); });
   document.querySelectorAll("[data-cancelar-cat]").forEach(b=>b.onclick=()=>{ editarCatId=null; render(); });
@@ -1144,6 +1352,49 @@ function wireEvents(){
     hideError(); editarCatId = null; await fetchAll();
   }));
 
+  document.querySelectorAll("[data-toggle-grupo]").forEach(b=>b.onclick=()=>{ const id=b.dataset.toggleGrupo; gruposAbiertos[id]=!gruposAbiertos[id]; render(); });
+  document.querySelectorAll("[data-toggle-orden]").forEach(b=>b.onclick=()=>{ modoOrdenInv=!modoOrdenInv; render(); });
+  document.querySelectorAll("[data-mover]").forEach(b=>b.onclick=()=>conCarga(b, "…", async ()=>{
+    const [id,dir] = b.dataset.mover.split("|");
+    const x = inversiones.find(i=>i.id===id);
+    if(!x) return;
+    const lista = listaHermanos(x);
+    const idx = lista.findIndex(i=>i.id===id);
+    const j = idx + (dir==="up" ? -1 : 1);
+    if(idx<0 || j<0 || j>=lista.length) return;
+    const ids = lista.map(i=>i.id);
+    [ids[idx], ids[j]] = [ids[j], ids[idx]];
+    const {error} = await sb.rpc("ordenar_inversiones", {p_ids: ids});
+    if(error){ showError("No se pudo cambiar el orden: "+error.message); return; }
+    hideError(); await fetchAll();
+  }));
+  document.querySelectorAll("[data-rentas-inv]").forEach(b=>b.onclick=()=>{ rentasInvId=b.dataset.rentasInv; aportarInvId=null; editarValorInvId=null; rescatarInvId=null; render(); });
+  document.querySelectorAll("[data-cancelar-rentas]").forEach(b=>b.onclick=()=>{ rentasInvId=null; render(); });
+  const guardarRentas = (b, modo)=>conCarga(b, "Guardando…", async ()=>{
+    const id = modo==="sumar" ? b.dataset.sumarRentas : b.dataset.fijarRentas;
+    const v = parseFloat(document.getElementById("rentasImporte")?.value);
+    const inv = inversiones.find(i=>i.id===id);
+    if(isNaN(v) || !inv) return;
+    const nuevo = Math.round((modo==="sumar" ? (inv.rentas||0)+v : v)*100)/100;
+    if(nuevo<0){ showError("Las rentas no pueden quedar en negativo."); return; }
+    const {error} = await sb.from("inversiones").update({rentas:nuevo}).eq("id", id);
+    if(error){ showError("No se pudieron guardar las rentas: "+error.message); return; }
+    hideError(); rentasInvId = null; await fetchAll();
+  });
+  document.querySelectorAll("[data-sumar-rentas]").forEach(b=>b.onclick=()=>guardarRentas(b,"sumar"));
+  document.querySelectorAll("[data-fijar-rentas]").forEach(b=>b.onclick=()=>guardarRentas(b,"fijar"));
+  const fGrupo = document.getElementById("fGrupo");
+  if(fGrupo) fGrupo.onsubmit = (e)=>{
+    e.preventDefault();
+    conCarga(fGrupo.querySelector('button[type="submit"]'), "Guardando…", async ()=>{
+      const f = new FormData(fGrupo);
+      const data = {nombre:f.get("nombre"), tipo:"", valor_actual:0, valor_inicial:0, estado:"activa", es_grupo:true, orden:siguienteOrden()};
+      const {error} = await sb.from("inversiones").insert(data);
+      if(error){ showError("No se pudo crear el grupo: "+error.message); return; }
+      hideError(); fGrupo.reset(); await fetchAll();
+    });
+  };
+
   const fPresupuesto = document.getElementById("fPresupuesto");
   if(fPresupuesto) fPresupuesto.onsubmit = (e)=>{
     e.preventDefault();
@@ -1155,11 +1406,13 @@ function wireEvents(){
       hideError(); fPresupuesto.reset(); await fetchAll();
     });
   };
-  document.querySelectorAll("[data-del-presupuesto]").forEach(b=>b.onclick=async ()=>{
+  document.querySelectorAll("[data-del-presupuesto]").forEach(b=>b.onclick=()=>{
     if(!confirm("¿Borrar este presupuesto?")) return;
-    const {error} = await sb.from("presupuestos").delete().eq("id", b.dataset.delPresupuesto);
-    if(error){ showError("No se pudo borrar: "+error.message); return; }
-    hideError(); await fetchAll();
+    conCarga(b, "Borrando…", async ()=>{
+      const {error} = await sb.from("presupuestos").delete().eq("id", b.dataset.delPresupuesto);
+      if(error){ showError("No se pudo borrar: "+error.message); return; }
+      hideError(); await fetchAll();
+    });
   });
   document.querySelectorAll("[data-editar-presupuesto]").forEach(b=>b.onclick=()=>{ editarPresupuestoId=b.dataset.editarPresupuesto; render(); });
   document.querySelectorAll("[data-cancelar-presupuesto]").forEach(b=>b.onclick=()=>{ editarPresupuestoId=null; render(); });
@@ -1180,8 +1433,8 @@ function wireEvents(){
       const v = objTipoVinculo.value;
       objVinculoWrap.style.display = v==="ninguno" ? "none" : "block";
       if(objVinculoSelect){
-        if(v==="cuenta") objVinculoSelect.innerHTML = cuentas.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join("");
-        else if(v==="inversion") objVinculoSelect.innerHTML = inversiones.map(i=>`<option value="${i.id}">${i.nombre}</option>`).join("");
+        if(v==="cuenta") objVinculoSelect.innerHTML = opcionesCuentas();
+        else if(v==="inversion") objVinculoSelect.innerHTML = inversiones.map(i=>`<option value="${i.id}">${esc(i.nombre)}${i.esGrupo?" (grupo)":""}</option>`).join("");
       }
     };
     toggleObj(); objTipoVinculo.onchange = toggleObj;
@@ -1198,11 +1451,13 @@ function wireEvents(){
       hideError(); fObjetivo.reset(); await fetchAll();
     });
   };
-  document.querySelectorAll("[data-del-objetivo]").forEach(b=>b.onclick=async ()=>{
+  document.querySelectorAll("[data-del-objetivo]").forEach(b=>b.onclick=()=>{
     if(!confirm("¿Borrar este objetivo?")) return;
-    const {error} = await sb.from("objetivos").delete().eq("id", b.dataset.delObjetivo);
-    if(error){ showError("No se pudo borrar: "+error.message); return; }
-    hideError(); await fetchAll();
+    conCarga(b, "Borrando…", async ()=>{
+      const {error} = await sb.from("objetivos").delete().eq("id", b.dataset.delObjetivo);
+      if(error){ showError("No se pudo borrar: "+error.message); return; }
+      hideError(); await fetchAll();
+    });
   });
 
   const csvFile = document.getElementById("csvFile");
@@ -1269,7 +1524,7 @@ async function fetchAll(){
     cuentas = (cta||[]).map(c=>({id:c.id, nombre:c.nombre, saldoInicial:Number(c.saldo_inicial)}));
     movimientos = (mov||[]).map(m=>({id:m.id, tipo:m.tipo, categoria:m.categoria, importe:Number(m.importe), fecha:m.fecha, nota:m.nota, cuentaId:m.cuenta_id}));
     deudas = (deu||[]).map(d=>({id:d.id, persona:d.persona, importe:Number(d.importe), direccion:d.direccion, concepto:d.concepto, estado:d.estado, fecha:d.fecha}));
-    inversiones = (inv||[]).map(i=>({id:i.id, nombre:i.nombre, tipo:i.tipo, valorActual:Number(i.valor_actual), valorInicial:Number(i.valor_inicial), estado:i.estado||"activa", fechaPrevista:i.fecha_prevista, importePrevisto:i.importe_previsto!=null?Number(i.importe_previsto):null, cuentaPrevistaId:i.cuenta_prevista_id}));
+    inversiones = (inv||[]).map(i=>({id:i.id, nombre:i.nombre, tipo:i.tipo, valorActual:Number(i.valor_actual), valorInicial:Number(i.valor_inicial), estado:i.estado||"activa", fechaPrevista:i.fecha_prevista, importePrevisto:i.importe_previsto!=null?Number(i.importe_previsto):null, cuentaPrevistaId:i.cuenta_prevista_id, padreId:i.padre_id||null, esGrupo:!!i.es_grupo, orden:i.orden||0, rentas:Number(i.rentas||0)}));
     aportaciones = (apo||[]).map(a=>({id:a.id, inversionId:a.inversion_id, importe:Number(a.importe), fecha:a.fecha, cuentaId:a.cuenta_id, movimientoId:a.movimiento_id}));
     retiros = (ret||[]).map(r=>({id:r.id, inversionId:r.inversion_id, importe:Number(r.importe), fecha:r.fecha, cuentaId:r.cuenta_id, movimientoId:r.movimiento_id}));
     presupuestos = (pre||[]).map(p=>({id:p.id, categoria:p.categoria, limite:Number(p.limite)}));
