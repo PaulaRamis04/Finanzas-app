@@ -15,7 +15,7 @@ let movimientos = [], deudas = [], cuentas = [], inversiones = [], aportaciones 
 // Carga parcial: "movimientos" solo trae desde movDesde; lo anterior llega agregado por mes en movResumen.
 let movDesde = null, movResumen = [], movParcial = false;
 function previoCuenta(cuentaId, hasta){
-  return movResumen.reduce((s,r)=> r.cuentaId===cuentaId && r.mes<hasta ? s + r.ingresos - r.gastos : s, 0);
+  return movResumen.reduce((s,r)=> r.cuentaId===cuentaId && r.mes<hasta ? restarDinero(sumarDinero(s, r.ingresos), r.gastos) : s, 0);
 }
 
 let editarPresupuestoId = null, editarPresDeudaId = null, meDebenMovId = null;
@@ -79,36 +79,36 @@ function cuentaNombre(id){ const c = cuentas.find(c=>c.id===id); return c? esc(c
 
 function cuentaPorDefecto(){ return cuentas.some(c=>c.id===cuentaDefecto) ? cuentaDefecto : ""; }
 
-function aportadoInv(inv){ return (inv.valorInicial||0) + aportaciones.filter(a=>a.inversionId===inv.id).reduce((s,a)=>s+a.importe,0); }
+function aportadoInv(inv){ return sumarDinero(inv.valorInicial||0, sumaImportes(aportaciones.filter(a=>a.inversionId===inv.id))); }
 
-function retiradoInv(inv){ return retiros.filter(r=>r.inversionId===inv.id).reduce((s,r)=>s+r.importe,0); }
+function retiradoInv(inv){ return sumaImportes(retiros.filter(r=>r.inversionId===inv.id)); }
 
-function beneficioInv(inv){ return (inv.valorActual + retiradoInv(inv)) - aportadoInv(inv); }
+function beneficioInv(inv){ return restarDinero(sumarDinero(inv.valorActual, retiradoInv(inv)), aportadoInv(inv)); }
 
 function saldoCuenta(c){
-  const ing = movimientos.filter(m=>m.cuentaId===c.id && m.tipo==="ingreso").reduce((s,m)=>s+m.importe,0);
-  const gas = movimientos.filter(m=>m.cuentaId===c.id && m.tipo==="gasto").reduce((s,m)=>s+m.importe,0);
-  return (c.saldoInicial||0) + (movParcial ? previoCuenta(c.id, movDesde) : 0) + ing - gas;
+  const ing = sumaImportes(movimientos.filter(m=>m.cuentaId===c.id && m.tipo==="ingreso"));
+  const gas = sumaImportes(movimientos.filter(m=>m.cuentaId===c.id && m.tipo==="gasto"));
+  return restarDinero(sumarDinero(c.saldoInicial||0, movParcial ? previoCuenta(c.id, movDesde) : 0, ing), gas);
 }
 
 function patrimonioEnFecha(corte){
   // Estimación: reconstruye el patrimonio a partir de los movimientos anteriores a "corte".
   // Las deudas ya saldadas no se pueden reconstruir con precisión (no guardamos cuándo se saldaron).
-  const totalCuentas = cuentas.reduce((s,c)=>{
-    if(movParcial && corte<=movDesde) return s + c.saldoInicial + previoCuenta(c.id, corte);
+  const totalCuentas = sumaImportes(cuentas, c=>{
+    if(movParcial && corte<=movDesde) return sumarDinero(c.saldoInicial, previoCuenta(c.id, corte));
     const movs = movimientos.filter(m=>m.cuentaId===c.id && m.fecha < corte);
-    const ing = movs.filter(m=>m.tipo==="ingreso").reduce((a,m)=>a+m.importe,0);
-    const gas = movs.filter(m=>m.tipo==="gasto").reduce((a,m)=>a+m.importe,0);
-    return s + c.saldoInicial + (movParcial ? previoCuenta(c.id, movDesde) : 0) + ing - gas;
-  },0);
-  const totalInv = inversiones.filter(i=>i.estado==="activa").reduce((s,i)=>{
-    const apoDesde = aportaciones.filter(a=>a.inversionId===i.id && a.fecha>=corte).reduce((a,x)=>a+x.importe,0);
-    const retDesde = retiros.filter(r=>r.inversionId===i.id && r.fecha>=corte).reduce((a,x)=>a+x.importe,0);
-    return s + i.valorActual - apoDesde + retDesde;
-  },0);
-  const meDeben = deudas.filter(d=>d.direccion==="me_deben" && d.estado==="pendiente" && d.fecha<corte).reduce((s,d)=>s+d.importe,0);
-  const debo = deudas.filter(d=>d.direccion==="debo" && d.estado==="pendiente" && d.fecha<corte).reduce((s,d)=>s+d.importe,0);
-  return totalCuentas + totalInv + meDeben - debo;
+    const ing = sumaImportes(movs.filter(m=>m.tipo==="ingreso"));
+    const gas = sumaImportes(movs.filter(m=>m.tipo==="gasto"));
+    return restarDinero(sumarDinero(c.saldoInicial, movParcial ? previoCuenta(c.id, movDesde) : 0, ing), gas);
+  });
+  const totalInv = sumaImportes(inversiones.filter(i=>i.estado==="activa"), i=>{
+    const apoDesde = sumaImportes(aportaciones.filter(a=>a.inversionId===i.id && a.fecha>=corte));
+    const retDesde = sumaImportes(retiros.filter(r=>r.inversionId===i.id && r.fecha>=corte));
+    return sumarDinero(restarDinero(i.valorActual, apoDesde), retDesde);
+  });
+  const meDeben = sumaImportes(deudas.filter(d=>d.direccion==="me_deben" && d.estado==="pendiente" && d.fecha<corte));
+  const debo = sumaImportes(deudas.filter(d=>d.direccion==="debo" && d.estado==="pendiente" && d.fecha<corte));
+  return restarDinero(sumarDinero(totalCuentas, totalInv, meDeben), debo);
 }
 
 function inicioPeriodoSeleccionado(){
@@ -130,12 +130,12 @@ function finPeriodoCorte(){
 }
 
 function patrimonioActual(){
-  return cuentas.reduce((s,c)=>s+saldoCuenta(c),0) + inversiones.filter(i=>i.estado==="activa").reduce((s,i)=>s+i.valorActual,0);
+  return sumarDinero(sumaImportes(cuentas, saldoCuenta), sumaImportes(inversiones.filter(i=>i.estado==="activa"), i=>i.valorActual));
 }
 function patrimonioNetoActual(){
-  const meDeben = deudas.filter(d=>d.direccion==="me_deben" && d.estado==="pendiente").reduce((s,d)=>s+d.importe,0);
-  const debo = deudas.filter(d=>d.direccion==="debo" && d.estado==="pendiente").reduce((s,d)=>s+d.importe,0);
-  return patrimonioActual() + meDeben - debo;
+  const meDeben = sumaImportes(deudas.filter(d=>d.direccion==="me_deben" && d.estado==="pendiente"));
+  const debo = sumaImportes(deudas.filter(d=>d.direccion==="debo" && d.estado==="pendiente"));
+  return restarDinero(sumarDinero(patrimonioActual(), meDeben), debo);
 }
 let patrimonioRango = "6m"; // "max" | "1a" | "6m" | "1m" | "1d"
 function serieMensual(mesesAtras){
@@ -144,8 +144,7 @@ function serieMensual(mesesAtras){
   const valores = meses.map((d,i)=>{
     if(i===meses.length-1) return patrimonioNetoActual();
     const sig = new Date(d.getFullYear(), d.getMonth()+1, 1);
-    const corte = `${sig.getFullYear()}-${String(sig.getMonth()+1).padStart(2,"0")}-01`;
-    return patrimonioEnFecha(corte);
+    return patrimonioEnFecha(fechaLocal(sig));
   });
   const etiquetas = meses.map(d=>MESES[d.getMonth()].slice(0,3));
   return {valores, etiquetas};
@@ -153,11 +152,10 @@ function serieMensual(mesesAtras){
 function serieDiaria(diasAtras){
   const hoy = new Date();
   const dias = Array.from({length:diasAtras},(_,i)=>{ const d=new Date(hoy); d.setDate(d.getDate()-(diasAtras-1-i)); return d; });
-  const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
   const valores = dias.map((d,i)=>{
     if(i===dias.length-1) return patrimonioNetoActual();
     const sig = new Date(d); sig.setDate(sig.getDate()+1);
-    return patrimonioEnFecha(fmt(sig));
+    return patrimonioEnFecha(fechaLocal(sig));
   });
   const etiquetas = diasAtras<=2 ? dias.map((d,i)=> i===dias.length-1 ? "Hoy" : "Ayer") : dias.map(d=>`${d.getDate()}/${d.getMonth()+1}`);
   return {valores, etiquetas};
@@ -171,8 +169,7 @@ function rangoMaximoPatrimonio(){
   const [y0,m0] = minFecha.split("-").map(Number);
   const mesesTotal = (hoy.getFullYear()-y0)*12 + (hoy.getMonth()+1-m0) + 1;
   if(mesesTotal<=1){
-    const dMin = new Date(minFecha+"T00:00:00");
-    const diasSpan = Math.max(1, Math.round((hoy-dMin)/86400000)+1);
+    const diasSpan = Math.max(1, diasEntre(minFecha, today())+1);
     return serieDiaria(diasSpan);
   }
   return serieMensual(mesesTotal);
@@ -202,8 +199,8 @@ function calcularProyeccion(){
 
 function desglosePorCategoria(lista){
   const map = {};
-  lista.forEach(m=>{ map[m.categoria] = (map[m.categoria]||0) + m.importe; });
-  const total = lista.reduce((s,m)=>s+m.importe,0);
+  lista.forEach(m=>{ map[m.categoria] = sumarDinero(map[m.categoria]||0, m.importe); });
+  const total = sumaImportes(lista);
   return Object.entries(map).sort((a,b)=>b[1]-a[1]).map(([categoria,tot],i)=>({
     categoria, total:tot, color: PALETTE[i%PALETTE.length], pct: total? (tot/total*100) : 0
   }));
@@ -236,9 +233,9 @@ function calcularPreview(){
     if(isNaN(imp) || imp===0) return null;
     const saldoRaw = iSaldo>=0 ? parseImporteCSV(fila[iSaldo]) : NaN;
     const r = {
-      fecha: parseFechaCSV(fila[iFecha]) || "", importe: Math.round(Math.abs(imp)*100)/100,
+      fecha: parseFechaCSV(fila[iFecha]) || "", importe: redondearDinero(Math.abs(imp)),
       tipo: imp<0 ? "gasto" : "ingreso", nota: iNota>=0 ? (fila[iNota]||"") : "",
-      saldo: isNaN(saldoRaw) ? null : saldoRaw, posicion: idx,
+      saldo: isNaN(saldoRaw) ? null : redondearDinero(saldoRaw), posicion: idx,
       dup:false, invalida:false, matchId:null
     };
     r.invalida = !/^\d{4}-\d{2}-\d{2}$/.test(r.fecha);
@@ -249,8 +246,8 @@ function calcularPreview(){
     // en una fecha cercana (no hace falta que la descripción coincida).
     let mejor = null, mejorDif = Infinity;
     movsCuenta.forEach(m=>{
-      if(usados.has(m.id) || m.tipo!==r.tipo || Math.abs(m.importe-r.importe)>0.005) return;
-      const dif = Math.abs((new Date(m.fecha) - new Date(r.fecha)) / 86400000);
+      if(usados.has(m.id) || m.tipo!==r.tipo || restarDinero(m.importe, r.importe)!==0) return;
+      const dif = Math.abs(diasEntre(m.fecha, r.fecha));
       if(dif<=VENTANA_DIAS && dif<mejorDif){ mejor = m; mejorDif = dif; }
     });
     if(mejor){ r.matchId = mejor.id; usados.add(mejor.id); csvDecisiones[idx] = "igual"; }
@@ -309,7 +306,7 @@ function movimientosEfectivos(){
     if(!enPeriodo(m.fecha) || m.categoria==="Ajuste" || m.categoria==="Transferencia" || m.reembolsoDe) return;
     if(m.tipo==="gasto" && cub[m.id]){
       const cubierto = Math.min(m.importe, cub[m.id]);
-      out.push({...m, importe: Math.round((m.importe-cubierto)*100)/100, importeOriginal: m.importe, cubierto});
+      out.push({...m, importe: restarDinero(m.importe, cubierto), importeOriginal: m.importe, cubierto});
     } else out.push(m);
   });
   return out;
@@ -333,9 +330,9 @@ function gastoCategoriaEnMes(categoria, y, m){
   movimientos.forEach(mv=>{
     if(mv.categoria!==categoria || mv.tipo!=="gasto" || mv.fecha<desde || mv.fecha>=hasta) return;
     const cubierto = cub[mv.id] || 0;
-    total += Math.max(0, mv.importe - cubierto);
+    total = sumarDinero(total, Math.max(0, restarDinero(mv.importe, cubierto)));
   });
-  return Math.round(total*100)/100;
+  return total;
 }
 
 function rolloverAcumulado(p){
@@ -345,9 +342,9 @@ function rolloverAcumulado(p){
   let acumulado = 0;
   meses.forEach(ym=>{
     const [y,m] = ym.split("-").map(Number);
-    acumulado += p.limite - gastoCategoriaEnMes(p.categoria, y, m);
+    acumulado = sumarDinero(acumulado, restarDinero(p.limite, gastoCategoriaEnMes(p.categoria, y, m)));
   });
-  return Math.round(acumulado*100)/100;
+  return acumulado;
 }
 
 function movimientoProtegido(id){
@@ -370,11 +367,11 @@ function grupos(){ return inversiones.filter(i=>i.esGrupo).sort(porOrden); }
 
 function hijosDe(g){ return inversiones.filter(i=>i.padreId===g.id && !i.esGrupo).sort(porOrden); }
 
-function valorGrupo(g){ return hijosDe(g).filter(h=>h.estado==="activa").reduce((s,h)=>s+h.valorActual,0); }
+function valorGrupo(g){ return sumaImportes(hijosDe(g).filter(h=>h.estado==="activa"), h=>h.valorActual); }
 
-function beneficioGrupo(g){ return hijosDe(g).filter(h=>h.estado==="activa").reduce((s,h)=>s+beneficioInv(h),0); }
+function beneficioGrupo(g){ return sumaImportes(hijosDe(g).filter(h=>h.estado==="activa"), beneficioInv); }
 
-function rentasGrupo(g){ return hijosDe(g).reduce((s,h)=>s+(h.rentas||0),0); }
+function rentasGrupo(g){ return sumaImportes(hijosDe(g), h=>h.rentas||0); }
 
 function siguienteOrden(){ return Math.max(0, ...inversiones.map(i=>i.orden||0)) + 1; }
 
@@ -385,7 +382,7 @@ function sliceInversiones(){
     if(v>0) items.push({nombre:g.nombre, total:v, hijos:hijosDe(g).filter(h=>h.estado==="activa" && h.valorActual>0).map(h=>({nombre:h.nombre, total:h.valorActual}))});
   });
   inversiones.filter(i=>!i.padreId && !i.esGrupo && i.estado==="activa" && i.valorActual>0).forEach(i=>items.push({nombre:i.nombre, total:i.valorActual, hijos:[]}));
-  const totalGlobal = items.reduce((s,x)=>s+x.total,0);
+  const totalGlobal = sumaImportes(items, x=>x.total);
   return items.sort((a,b)=>b.total-a.total).map((x,k)=>({...x, color:PALETTE[k%PALETTE.length], pct: totalGlobal? x.total/totalGlobal*100 : 0, totalGlobal}));
 }
 
