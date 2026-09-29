@@ -19,7 +19,7 @@ function formAbierto(clave){ return clave in formsEstado ? formsEstado[clave] : 
 // Convierte las tarjetas de "añadir algo" en plegables (se toca el título para abrir o cerrar)
 
 function aplicarPlegables(){
-  const defs = [["fMov","mov"],["fDeuda","deuda"],["fCuenta","cuenta"],["fInversion","inversion"],["fGrupo","grupo"],["fCategoria","categoria"],["fPresupuesto","presupuesto"],["fObjetivo","objetivo"]];
+  const defs = [["fMov","mov"],["fTransferencia","transferencia"],["fDeuda","deuda"],["fCuenta","cuenta"],["fInversion","inversion"],["fGrupo","grupo"],["fCategoria","categoria"],["fPresupuesto","presupuesto"],["fObjetivo","objetivo"]];
   defs.forEach(([id,clave])=>{
     const form = document.getElementById(id);
     const card = form ? form.closest(".card") : null;
