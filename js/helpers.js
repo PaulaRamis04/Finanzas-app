@@ -1,5 +1,8 @@
 const PALETTE = ["#1f4d43","#c08a2e","#a3402f","#5c9683","#7fb8a6","#e0ac4e","#8a6d3b","#3f6b52","#b5651d","#4a7c94"];
 
+// Valores de movimientos.categoria que genera la propia app; no son categorías de usuario.
+const CATEGORIAS_ESPECIALES = ["Ajuste","Inversión","Deuda","Transferencia"];
+
 const CATEGORIAS_DEFECTO = [
   {tipo:"gasto", padre:"Imprescindible", nombre:"Gasolina"},
   {tipo:"gasto", padre:"Imprescindible", nombre:"Academia"},
@@ -172,12 +175,29 @@ function parseCSV(texto){
   return {headers: filas[h]||[], filas: filas.slice(h+1).filter(f=>f.length>1)};
 }
 
+// Admite "1.234,56", "1,234.56", "1.234", "-12,50", "12,50-", "(12,50)", "+12,50 €".
 function parseImporteCSV(str){
   if(str==null) return NaN;
-  let s = String(str).trim().replace(/[€\s]/g,"");
-  if(s.includes(",") && s.includes(".")) s = s.replace(/\./g,"").replace(",", ".");
-  else if(s.includes(",")) s = s.replace(",", ".");
-  return parseFloat(s);
+  let s = String(str).trim().replace(/[€\s\u00a0+]/g,"").replace(/EUR/i,"");
+  let neg = false;
+  if(/^\(.*\)$/.test(s)){ neg = true; s = s.slice(1,-1); }
+  if(s.endsWith("-")){ neg = true; s = s.slice(0,-1); }
+  if(s.startsWith("-")){ neg = !neg; s = s.slice(1); }
+  if(!/^[\d.,]+$/.test(s)) return NaN;
+  const ultComa = s.lastIndexOf(","), ultPunto = s.lastIndexOf(".");
+  let dec = null; // separador decimal
+  if(ultComa>=0 && ultPunto>=0) dec = ultComa>ultPunto ? "," : ".";
+  else if(ultComa>=0) dec = s.split(",").length>2 ? null : ",";
+  else if(ultPunto>=0){
+    // Un único punto seguido de 3 cifras es de miles ("1.234"), salvo "0.123".
+    const partes = s.split(".");
+    dec = partes.length>2 || (partes[1].length===3 && !/^0*$/.test(partes[0])) ? null : ".";
+  }
+  const miles = dec==="," ? "." : dec==="." ? "," : /[.,]/g;
+  s = s.replace(typeof miles==="string" ? new RegExp("\\"+miles,"g") : miles, "");
+  if(dec) s = s.replace(dec, ".");
+  const n = parseFloat(s);
+  return isNaN(n) ? NaN : (neg ? -n : n);
 }
 
 function parseFechaCSV(str){
