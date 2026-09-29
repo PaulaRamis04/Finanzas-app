@@ -1021,8 +1021,13 @@ function renderMovimientos(){
   <div id="movListaWrap">${renderMovimientosLista()}</div>`;
 }
 
+function abonosDeDeuda(id){
+  return movimientos.filter(m=>m.deudaId===id).sort((a,b)=>a.fecha.localeCompare(b.fecha));
+}
 function deudaItem(d){
   const pend = d.estado==='pendiente';
+  const abonos = abonosDeDeuda(d.id);
+  const abonado = Math.round(((d.importeInicial||d.importe) - d.importe)*100)/100;
   return `
   <div class="item" style="${pend?'':'opacity:.72'}">
     <div style="min-width:0">
@@ -1031,6 +1036,8 @@ function deudaItem(d){
       ${pend && d.direccion==='me_deben'? `<button class="tag" data-pres-deuda="${d.id}" style="cursor:pointer;border:none;font-family:inherit">${d.movimientoId? "Gasto: "+etiquetaGasto(d.movimientoId) : "+ Vincular gasto"}</button>` : (d.movimientoId? `<span class="tag">Gasto: ${etiquetaGasto(d.movimientoId)}</span>` : "")}
       ${d.concepto?`<div class="meta">${esc(d.concepto)}</div>`:""}
       <div class="meta">${d.fecha}</div>
+      ${abonos.length? `<div class="meta">Importe inicial: ${eur(d.importeInicial)} · Abonado: ${eur(abonado)} · Pendiente: ${eur(d.importe)}</div>` : ""}
+      ${abonos.length? `<button class="tag" data-ver-abonos="${d.id}" style="cursor:pointer;border:none;font-family:inherit;margin-top:4px">${verAbonosDeudaId===d.id?"Ocultar abonos":`Ver abonos (${abonos.length})`}</button>` : ""}
     </div>
     <div style="display:flex;align-items:center;gap:8px">
       <div class="amt ${d.direccion==='me_deben'?'pos':'neg'}">${eur(d.importe)}</div>
@@ -1038,6 +1045,14 @@ function deudaItem(d){
       <button class="btn ghost" data-del-deuda="${d.id}">Borrar</button>
     </div>
   </div>
+  ${verAbonosDeudaId===d.id? `
+  <div style="padding:0 4px 10px">
+    ${abonos.map(m=>`
+      <div class="item" style="padding:8px 10px;margin-bottom:6px">
+        <div><span class="tag">${m.fecha}</span><div class="meta">${cuentaNombre(m.cuentaId)}</div></div>
+        <div class="amt ${d.direccion==='me_deben'?'pos':'neg'}">${eur(m.importe)}</div>
+      </div>`).join("")}
+  </div>` : ""}
   ${editarPresDeudaId===d.id? `
   <div class="item" style="flex-direction:column;align-items:stretch;gap:8px">
     <label>Gasto asociado</label>
@@ -1527,6 +1542,7 @@ function wireEvents(){
     });
   };
   document.querySelectorAll("[data-lado-deuda]").forEach(b=>b.onclick=()=>{ deudaLado = b.dataset.ladoDeuda; saldarId = null; editarPresDeudaId = null; render(); });
+  document.querySelectorAll("[data-ver-abonos]").forEach(b=>b.onclick=()=>{ verAbonosDeudaId = verAbonosDeudaId===b.dataset.verAbonos ? null : b.dataset.verAbonos; render(); });
   document.querySelectorAll("[data-toggle-saldadas]").forEach(b=>b.onclick=()=>{ const k = b.dataset.toggleSaldadas; saldadasAbiertas[k] = !saldadasAbiertas[k]; render(); });
   const fDeuda = document.getElementById("fDeuda");
   const fDeudaDir = fDeuda ? fDeuda.querySelector('select[name="direccion"]') : null;
@@ -1539,7 +1555,8 @@ function wireEvents(){
     e.preventDefault();
     conCarga(fDeuda.querySelector('button[type="submit"]'), "Guardando…", async ()=>{
       const f = new FormData(fDeuda);
-      const data = {persona:f.get("persona"), importe:parseFloat(f.get("importe")), direccion:f.get("direccion"), fecha:f.get("fecha"), concepto:f.get("concepto")||"", estado:"pendiente", movimiento_id: f.get("direccion")==="me_deben" ? (f.get("movimientoId")||null) : null};
+      const impInicial = parseFloat(f.get("importe"));
+      const data = {persona:f.get("persona"), importe:impInicial, importe_inicial:impInicial, direccion:f.get("direccion"), fecha:f.get("fecha"), concepto:f.get("concepto")||"", estado:"pendiente", movimiento_id: f.get("direccion")==="me_deben" ? (f.get("movimientoId")||null) : null};
       const {error} = await sb.from("deudas").insert(data);
       if(error){ showError("No se pudo guardar la deuda: "+error.message); return; }
       deudaLado = data.direccion==="debo" ? "debo" : "me_deben";
@@ -1637,7 +1654,7 @@ function wireEvents(){
       const imp = parseFloat(document.getElementById("mdImporte")?.value);
       if(!m || !persona || isNaN(imp) || imp<=0){ showError("Escribe quién te lo debe y una cantidad válida."); return; }
       if(imp>m.importe){ showError("Te pueden deber como máximo el importe del gasto ("+eur(m.importe)+")."); return; }
-      const {error} = await sb.from("deudas").insert({persona, importe:imp, direccion:"me_deben", fecha:m.fecha, concepto:m.nota||m.categoria, estado:"pendiente", movimiento_id:m.id});
+      const {error} = await sb.from("deudas").insert({persona, importe:imp, importe_inicial:imp, direccion:"me_deben", fecha:m.fecha, concepto:m.nota||m.categoria, estado:"pendiente", movimiento_id:m.id});
       if(error){ showError("No se pudo crear la deuda: "+error.message); return; }
       hideError(); meDebenMovId = null; await fetchAll();
     }));
