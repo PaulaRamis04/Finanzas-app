@@ -77,7 +77,9 @@ function enPeriodo(fecha){
 
 function cuentaNombre(id){ const c = cuentas.find(c=>c.id===id); return c? esc(c.nombre) : "Sin cuenta"; }
 
-function cuentaPorDefecto(){ return cuentas.some(c=>c.id===cuentaDefecto) ? cuentaDefecto : ""; }
+// Las archivadas siguen sumando al patrimonio, pero no se ofrecen para movimientos nuevos.
+function cuentasActivas(){ return cuentas.filter(c=>!c.archivada); }
+function cuentaPorDefecto(){ return cuentasActivas().some(c=>c.id===cuentaDefecto) ? cuentaDefecto : ""; }
 
 function aportadoInv(inv){ return sumarDinero(inv.valorInicial||0, sumaImportes(aportaciones.filter(a=>a.inversionId===inv.id))); }
 
@@ -299,17 +301,49 @@ function pendientePorMovimiento(){
 // Movimientos del periodo tal y como cuentan para TU gasto/ingreso: sin ajustes, sin
 // reembolsos, y con los gastos rebajados por la parte que te deben o te han devuelto.
 
-function movimientosEfectivos(){
+function movimientosEfectivos(dentro = enPeriodo){
   const cub = cubiertoPorMovimiento();
   const out = [];
   movimientos.forEach(m=>{
-    if(!enPeriodo(m.fecha) || m.categoria==="Ajuste" || m.categoria==="Transferencia" || m.reembolsoDe) return;
+    if(!dentro(m.fecha) || m.categoria==="Ajuste" || m.categoria==="Transferencia" || m.reembolsoDe) return;
     if(m.tipo==="gasto" && cub[m.id]){
       const cubierto = Math.min(m.importe, cub[m.id]);
       out.push({...m, importe: restarDinero(m.importe, cubierto), importeOriginal: m.importe, cubierto});
     } else out.push(m);
   });
   return out;
+}
+
+// Mes anterior al seleccionado, solo si sus movimientos están cargados (si no, null).
+function mesAnteriorCargado(){
+  if(periodoMes==="todos") return null;
+  let y = periodoAnio, m = Number(periodoMes)-1;
+  if(m<1){ m = 12; y--; }
+  const desde = `${y}-${String(m).padStart(2,"0")}-01`;
+  if(movParcial && desde<movDesde) return null;
+  const hasta = inicioPeriodoSeleccionado();
+  return {y, m, dentro: f=>!!f && f>=desde && f<hasta};
+}
+
+function totalesEfectivos(lista){
+  return {
+    ingresos: sumaImportes(lista.filter(m=>m.tipo==="ingreso")),
+    gastos: sumaImportes(lista.filter(m=>m.tipo==="gasto" && m.categoria!=="Inversión"))
+  };
+}
+
+// Presupuestos del mes seleccionado que han llegado al umbral (% del límite con remanente).
+function presupuestosEnAlerta(umbral = 80){
+  if(periodoMes==="todos") return [];
+  const gastoPorCat = {};
+  movimientosEfectivos().forEach(m=>{
+    if(m.tipo==="gasto" && m.categoria!=="Inversión") gastoPorCat[m.categoria] = sumarDinero(gastoPorCat[m.categoria]||0, m.importe);
+  });
+  return presupuestos.map(p=>{
+    const limite = sumarDinero(p.limite, rolloverAcumulado(p));
+    const gastado = gastoPorCat[p.categoria] || 0;
+    return {categoria:p.categoria, limite, gastado, pct: limite>0 ? gastado/limite*100 : (gastado>0 ? Infinity : 0)};
+  }).filter(x=>x.pct>=umbral).sort((a,b)=>b.pct-a.pct);
 }
 
 function proximaFechaRecurrente(r){
