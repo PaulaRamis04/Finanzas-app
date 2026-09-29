@@ -166,6 +166,7 @@ let tab = "Inicio";
 let ready = false;
 let movimientos = [], deudas = [], cuentas = [], inversiones = [], aportaciones = [], categorias = [], retiros = [], presupuestos = [], objetivos = [];
 let editarPresupuestoId = null, editarPresDeudaId = null, meDebenMovId = null;
+let editarAutoObjId = null;
 let formsPorDefecto = "abiertos", formsEstado = {};
 try{ formsPorDefecto = localStorage.getItem("formsPorDefecto")==="cerrados" ? "cerrados" : "abiertos"; }catch(e){}
 let catsContraidas = {};
@@ -1137,7 +1138,31 @@ function renderObjetivos(){
           <div style="width:52px;height:52px;border-radius:50%;background:var(--card);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px">${pct.toFixed(0)}%</div>
         </div>
       </div>
-      <div style="margin-top:12px"><button class="btn ghost" data-del-objetivo="${o.id}">Borrar</button></div>
+      ${o.autoActivo? `<div class="meta" style="margin-top:8px">Aporta ${eur(o.autoCuota)} el día ${o.autoDiaMes} de cada mes desde ${cuentaNombre(o.autoCuentaOrigen)}</div>` : ""}
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+        ${(()=>{
+          const invVinculo = o.tipoVinculo==="inversion" ? inversiones.find(i=>i.id===o.vinculoId) : null;
+          const puedeAuto = o.tipoVinculo==="cuenta" || (o.tipoVinculo==="inversion" && invVinculo && !invVinculo.esGrupo);
+          if(!puedeAuto) return "";
+          return `<button class="btn ghost" data-toggle-auto-obj="${o.id}">${o.autoActivo?"Editar aportación automática":"Aportación automática"}</button>`;
+        })()}
+        <button class="btn ghost" data-del-objetivo="${o.id}">Borrar</button>
+      </div>
+      ${editarAutoObjId===o.id? `
+      <div class="item" style="flex-direction:column;align-items:stretch;gap:8px;margin-top:10px">
+        <label>Cuota mensual (€)</label>
+        <input type="number" step="0.01" min="0.01" id="autoObjCuota" value="${o.autoCuota||''}">
+        <label>Día del mes</label>
+        <input type="number" min="1" max="28" id="autoObjDia" value="${o.autoDiaMes||1}">
+        <label>Cuenta de origen</label>
+        <select id="autoObjCuenta">${opcionesCuentas(o.autoCuentaOrigen || cuentaPorDefecto())}</select>
+        <p class="meta" style="margin:0">Cada mes se ${o.tipoVinculo==="cuenta"?"transfiere":"aporta"} esa cantidad desde esta cuenta a "${esc(o.nombre)}", sin que tengas que hacerlo tú.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" data-confirmar-auto-obj="${o.id}">Guardar y activar</button>
+          ${o.autoActivo? `<button class="btn ghost" data-desactivar-auto-obj="${o.id}">Desactivar</button>` : ""}
+          <button class="btn ghost" data-cancelar-auto-obj="1">Cancelar</button>
+        </div>
+      </div>` : ""}
     </div></div>`;
   };
   return `
@@ -1268,6 +1293,41 @@ function renderRecurrentes(){
   </div>`;
 }
 
+function mesesEntre(desde, hastaExclusivo){
+  const out = [];
+  let [y,m] = desde.split("-").map(Number);
+  const [yh,mh] = hastaExclusivo.split("-").map(Number);
+  let guard = 0;
+  while((y<yh || (y===yh && m<mh)) && guard++<600){
+    out.push(`${y}-${String(m).padStart(2,"0")}-01`);
+    m++; if(m>12){ m=1; y++; }
+  }
+  return out;
+}
+function gastoCategoriaEnMes(categoria, y, m){
+  const desde = `${y}-${String(m).padStart(2,"0")}-01`;
+  let yn=y, mn=m+1; if(mn>12){ mn=1; yn=y+1; }
+  const hasta = `${yn}-${String(mn).padStart(2,"0")}-01`;
+  const cub = cubiertoPorMovimiento();
+  let total = 0;
+  movimientos.forEach(mv=>{
+    if(mv.categoria!==categoria || mv.tipo!=="gasto" || mv.fecha<desde || mv.fecha>=hasta) return;
+    const cubierto = cub[mv.id] || 0;
+    total += Math.max(0, mv.importe - cubierto);
+  });
+  return Math.round(total*100)/100;
+}
+function rolloverAcumulado(p){
+  if(!p.rollover || !p.rolloverDesde || periodoMes==="todos") return 0;
+  const hastaMes = `${periodoAnio}-${String(periodoMes).padStart(2,"0")}-01`;
+  const meses = mesesEntre(p.rolloverDesde, hastaMes);
+  let acumulado = 0;
+  meses.forEach(ym=>{
+    const [y,m] = ym.split("-").map(Number);
+    acumulado += p.limite - gastoCategoriaEnMes(p.categoria, y, m);
+  });
+  return Math.round(acumulado*100)/100;
+}
 function renderPresupuestos(){
   const enP = movimientosEfectivos().filter(m=>m.tipo==="gasto" && m.categoria!=="Inversión");
   const cubiertoCat = {};
@@ -1309,11 +1369,13 @@ function renderPresupuestos(){
       </div>
       <button class="btn" type="submit" ${catsSinPresupuesto.length?"":"disabled"}>Añadir</button>
     </form>
+    <p class="meta" style="margin:10px 0 0">Después de crearlo puedes activarle "remanente": lo que te sobre o te pases un mes se suma o resta al límite del siguiente.</p>
   </div>
   <div class="section-title">Presupuestos · ${lbl}</div>
   <div class="list">
     ${presupuestos.length? presupuestos.map(p=>{
-      const limiteEf = p.limite*mult;
+      const rolloverImp = rolloverAcumulado(p);
+      const limiteEf = mult===12 ? p.limite*mult : (p.limite + rolloverImp);
       const ajuste = cubiertoCat[p.categoria] || 0;
       const gastado = gastoPorCat[p.categoria] || 0;
       const pct = limiteEf>0 ? Math.max(0, gastado/limiteEf*100) : 0;
@@ -1322,7 +1384,9 @@ function renderPresupuestos(){
       <div class="item">
         <div style="flex:1">
           <strong>${esc(p.categoria)}</strong>
+          ${p.rollover?`<span class="tag">Con remanente</span>`:""}
           <div class="meta">${eur(gastado)} de ${eur(limiteEf)}${mult===12?" al año":""} · ${pct.toFixed(0)}%</div>
+          ${rolloverImp!==0 && mult!==12? `<div class="meta">Incluye ${rolloverImp>=0?"+":""}${eur(rolloverImp)} de meses anteriores</div>` : ""}
           ${ajuste>0? `<div class="meta">Sin contar ${eur(ajuste)} que ya te han devuelto</div>` : ""}
           <div style="height:6px;background:var(--line);border-radius:999px;margin-top:6px;overflow:hidden">
             <div style="height:100%;width:${Math.min(pct,100)}%;background:${pasado?'var(--neg)':'var(--accent)'}"></div>
@@ -1330,6 +1394,7 @@ function renderPresupuestos(){
           ${pasado? `<div class="meta" style="color:var(--neg);margin-top:4px">Has superado el límite en ${eur(gastado-limiteEf)}</div>` : ""}
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+          <button class="btn ghost" data-toggle-rollover="${p.id}">${p.rollover?"Quitar remanente":"Activar remanente"}</button>
           <button class="btn ghost" data-editar-presupuesto="${p.id}">Editar</button>
           <button class="btn ghost" data-del-presupuesto="${p.id}">Borrar</button>
         </div>
@@ -2529,6 +2594,18 @@ function wireEvents(){
       hideError(); await fetchAll();
     });
   });
+  document.querySelectorAll("[data-toggle-rollover]").forEach(b=>b.onclick=()=>conCarga(b, "…", async ()=>{
+    const p = presupuestos.find(x=>x.id===b.dataset.toggleRollover);
+    if(!p) return;
+    const activar = !p.rollover;
+    const hoy = new Date();
+    const cambios = activar
+      ? {rollover:true, rollover_desde:`${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,"0")}-01`}
+      : {rollover:false};
+    const {error} = await sb.from("presupuestos").update(cambios).eq("id", p.id);
+    if(error){ showError("No se pudo actualizar: "+error.message); return; }
+    hideError(); await fetchAll();
+  }));
   document.querySelectorAll("[data-editar-presupuesto]").forEach(b=>b.onclick=()=>{ editarPresupuestoId=b.dataset.editarPresupuesto; render(); });
   document.querySelectorAll("[data-cancelar-presupuesto]").forEach(b=>b.onclick=()=>{ editarPresupuestoId=null; render(); });
   document.querySelectorAll("[data-confirmar-presupuesto]").forEach(b=>b.onclick=()=>conCarga(b, "Guardando…", async ()=>{
@@ -2554,6 +2631,23 @@ function wireEvents(){
     };
     toggleObj(); objTipoVinculo.onchange = toggleObj;
   }
+  document.querySelectorAll("[data-toggle-auto-obj]").forEach(b=>b.onclick=()=>{ editarAutoObjId = b.dataset.toggleAutoObj; pendienteEnfoque = "autoObjCuota"; render(); });
+  document.querySelectorAll("[data-cancelar-auto-obj]").forEach(b=>b.onclick=()=>{ editarAutoObjId = null; render(); });
+  document.querySelectorAll("[data-confirmar-auto-obj]").forEach(b=>b.onclick=()=>conCarga(b, "Guardando…", async ()=>{
+    const id = b.dataset.confirmarAutoObj;
+    const cuota = parseFloat(document.getElementById("autoObjCuota")?.value);
+    const dia = Math.min(Math.max(parseInt(document.getElementById("autoObjDia")?.value,10)||1,1),28);
+    const cuentaOrigen = document.getElementById("autoObjCuenta")?.value;
+    if(isNaN(cuota) || cuota<=0 || !cuentaOrigen){ showError("Pon una cuota y una cuenta de origen válidas."); return; }
+    const {error} = await sb.from("objetivos").update({auto_activo:true, auto_cuota:cuota, auto_dia_mes:dia, auto_cuenta_origen:cuentaOrigen}).eq("id", id);
+    if(error){ showError("No se pudo guardar: "+error.message); return; }
+    hideError(); editarAutoObjId = null; await fetchAll();
+  }));
+  document.querySelectorAll("[data-desactivar-auto-obj]").forEach(b=>b.onclick=()=>conCarga(b, "…", async ()=>{
+    const {error} = await sb.from("objetivos").update({auto_activo:false}).eq("id", b.dataset.desactivarAutoObj);
+    if(error){ showError("No se pudo desactivar: "+error.message); return; }
+    hideError(); editarAutoObjId = null; await fetchAll();
+  }));
   const fObjetivo = document.getElementById("fObjetivo");
   if(fObjetivo) fObjetivo.onsubmit = (e)=>{
     e.preventDefault();
@@ -2674,6 +2768,7 @@ function wireEvents(){
 async function fetchAll(){
   try{
     try{ await sb.rpc("procesar_recurrentes"); }catch(e){}
+    try{ await sb.rpc("procesar_aportaciones_objetivos"); }catch(e){}
     const [{data:cta, error:e1}, {data:mov, error:e2}, {data:deu, error:e3}, {data:inv, error:e4}, {data:apo, error:e5}, {data:cat, error:e6}, {data:ret, error:e7}, {data:pre, error:e8}, {data:obj, error:e9}, {data:pen, error:e10}, {data:pref}] = await Promise.all([
       sb.from("cuentas").select("*").order("nombre"),
       sb.from("movimientos").select("*").order("fecha", {ascending:false}),
@@ -2695,10 +2790,11 @@ async function fetchAll(){
     inversiones = (inv||[]).map(i=>({id:i.id, nombre:i.nombre, tipo:i.tipo, valorActual:Number(i.valor_actual), valorInicial:Number(i.valor_inicial), estado:i.estado||"activa", fechaPrevista:i.fecha_prevista, importePrevisto:i.importe_previsto!=null?Number(i.importe_previsto):null, cuentaPrevistaId:i.cuenta_prevista_id, padreId:i.padre_id||null, esGrupo:!!i.es_grupo, orden:i.orden||0, rentas:Number(i.rentas||0)}));
     aportaciones = (apo||[]).map(a=>({id:a.id, inversionId:a.inversion_id, importe:Number(a.importe), fecha:a.fecha, cuentaId:a.cuenta_id, movimientoId:a.movimiento_id}));
     retiros = (ret||[]).map(r=>({id:r.id, inversionId:r.inversion_id, importe:Number(r.importe), fecha:r.fecha, cuentaId:r.cuenta_id, movimientoId:r.movimiento_id}));
-    presupuestos = (pre||[]).map(p=>({id:p.id, categoria:p.categoria, limite:Number(p.limite)}));
+    presupuestos = (pre||[]).map(p=>({id:p.id, categoria:p.categoria, limite:Number(p.limite), rollover:!!p.rollover, rolloverDesde:p.rollover_desde||null}));
     const {data:rec} = await sb.from("recurrentes").select("*");
     recurrentes = (rec||[]).map(r=>({id:r.id, tipo:r.tipo, categoria:r.categoria, importe:Number(r.importe), nota:r.nota||"", cuentaId:r.cuenta_id, diaMes:r.dia_mes, activo:r.activo, fechaInicio:r.fecha_inicio, ultimaGenerada:r.ultima_generada}));
-    objetivos = (obj||[]).map(o=>({id:o.id, nombre:o.nombre, meta:Number(o.meta), tipoVinculo:o.tipo_vinculo, vinculoId:o.vinculo_id, orden:o.orden||0})).sort(porOrden);
+    objetivos = (obj||[]).map(o=>({id:o.id, nombre:o.nombre, meta:Number(o.meta), tipoVinculo:o.tipo_vinculo, vinculoId:o.vinculo_id, orden:o.orden||0,
+      autoActivo:!!o.auto_activo, autoCuota:o.auto_cuota!=null?Number(o.auto_cuota):null, autoDiaMes:o.auto_dia_mes||null, autoCuentaOrigen:o.auto_cuenta_origen||null, autoUltimaGenerada:o.auto_ultima_generada||null})).sort(porOrden);
     if(pref && pref[0]){
       cuentaDefecto = pref[0].cuenta_defecto || "";
       try{ if(cuentaDefecto) localStorage.setItem("cuentaDefecto", cuentaDefecto); else localStorage.removeItem("cuentaDefecto"); }catch(e){}
