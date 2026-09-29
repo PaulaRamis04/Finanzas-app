@@ -845,6 +845,11 @@ function renderGastos(){
   gastosReales.forEach(m=>{ porCategoria[m.categoria] = (porCategoria[m.categoria]||0) + m.importe; });
   const gastosMostrados = gastosCatSel ? gastosReales.filter(m=>m.categoria===gastosCatSel) : gastosReales;
   const lbl = periodoMes==="todos" ? `Año ${periodoAnio}` : `${MESES[Number(periodoMes)-1]} ${periodoAnio}`;
+  const catBtnStyle = (activa) => {
+    const base = "display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;border-radius:11px;padding:12px 13px;cursor:pointer;font-family:inherit;font-size:14px;color:var(--ink);transition:background .15s,box-shadow .15s,opacity .15s;";
+    if(activa) return base + "background:var(--accent-soft);border:1px solid var(--accent);box-shadow:inset 3px 0 0 var(--accent),0 0 0 2px var(--accent-soft);font-weight:600";
+    return base + `background:var(--card);border:1px solid var(--line);${gastosCatSel?'opacity:.55':''}`;
+  };
   return `
   <div class="card">
     <h2>Disponible para gastar · ${lbl}</h2>
@@ -861,17 +866,19 @@ function renderGastos(){
       <div><div class="num ${restante>=0?'pos':'neg'}">${eur(restante)}</div><div class="lbl">Te queda</div></div>
     </div>
   </div>
-  <div class="section-title">Por categoría</div>
+  <div class="section-title">Por categoría${gastosCatSel? ` <span class="meta" style="font-weight:400">· pulsa de nuevo para quitar el filtro</span>` : ""}</div>
   <div class="list">
-    ${Object.keys(porCategoria).length? Object.entries(porCategoria).sort((a,b)=>b[1]-a[1]).map(([cat,total])=>`
-      <button data-gastos-cat="${esc(cat)}" style="display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;background:${gastosCatSel===cat?'var(--accent-soft)':'var(--card)'};border:1px solid var(--line);border-radius:11px;padding:12px 13px;cursor:pointer;font-family:inherit;font-size:14px;color:var(--ink)">
-        <span>${esc(cat)}</span><span class="amt neg">${eur(total)}</span>
-      </button>
-    `).join("") : `<div class="empty">Sin gastos en este periodo.</div>`}
+    ${Object.keys(porCategoria).length? Object.entries(porCategoria).sort((a,b)=>b[1]-a[1]).map(([cat,total])=>{
+      const activa = gastosCatSel===cat;
+      return `
+      <button data-gastos-cat="${esc(cat)}" aria-pressed="${activa}" style="${catBtnStyle(activa)}">
+        <span style="display:flex;align-items:center;gap:8px">${activa?`<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px">✓</span>`:""}${esc(cat)}</span><span class="amt neg">${eur(total)}</span>
+      </button>`;
+    }).join("") : `<div class="empty">Sin gastos en este periodo.</div>`}
   </div>
-  <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
-    <span>Movimientos de gasto${gastosCatSel? ` · ${esc(gastosCatSel)}` : ""} (${gastosMostrados.length})</span>
-    ${gastosCatSel? `<button class="btn ghost" data-gastos-cat="">Ver todos</button>` : ""}
+  <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+    <span>Movimientos de gasto (${gastosMostrados.length})</span>
+    ${gastosCatSel? `<button data-gastos-cat="" title="Quitar filtro" style="display:inline-flex;align-items:center;gap:6px;background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:5px 8px 5px 12px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">${esc(gastosCatSel)}<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--accent);color:#fff;font-size:12px;line-height:1">✕</span></button>` : ""}
   </div>
   <div class="list">
     ${gastosMostrados.length? [...gastosMostrados].sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(m=>`
@@ -881,7 +888,6 @@ function renderGastos(){
       </div>`).join("") : `<div class="empty">${gastosCatSel? "Sin movimientos en esta categoría." : "Sin movimientos de gasto en este periodo."}</div>`}
   </div>`;
 }
-
 function movItem(m, cubMov, pendMov){
   const protegido = movimientoProtegido(m.id);
   if(m.transferenciaId){
