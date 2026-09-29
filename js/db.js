@@ -16,12 +16,53 @@ async function guardarCuentaDefecto(id){
   return true;
 }
 
+// Movimientos: se cargan desde la fecha más antigua que necesita la vista actual.
+let movForzarDesde = null; // mínimo pedido a mano (año anterior, abonos antiguos, importación, copia)
+function fechaMes(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-01`; }
+function calcularMovDesde(){
+  const hoy = new Date();
+  const c = [`${periodoAnio}-01-01`, fechaMes(new Date(hoy.getFullYear(), hoy.getMonth()-1, 1))];
+  if(movForzarDesde) c.push(movForzarDesde);
+  presupuestos.forEach(p=>{ if(p.rollover && p.rolloverDesde) c.push(p.rolloverDesde.slice(0,7)+"-01"); });
+  deudas.forEach(d=>{ if(d.estado==="pendiente" && d.fecha) c.push(d.fecha.slice(0,7)+"-01"); });
+  return c.sort()[0];
+}
+// Si hace falta histórico anterior a lo cargado, lo pide y devuelve true (recargar ya repinta).
+function asegurarMovimientosDesde(fecha){
+  if(!movParcial || !fecha || fecha>=movDesde) return false;
+  const f = fecha.slice(0,7)+"-01";
+  if(!movForzarDesde || f<movForzarDesde) movForzarDesde = f;
+  recargar(["movimientos"]);
+  return true;
+}
+async function cargarHistoricoCompleto(){
+  if(!movParcial || movDesde<="1900-01-01") return;
+  movForzarDesde = "1900-01-01";
+  await recargar(["movimientos"]);
+}
+
 const TABLAS = {
   cuentas: { q:()=>sb.from("cuentas").select("*").order("nombre"),
     set:d=>{ cuentas = d.map(c=>({id:c.id, nombre:c.nombre, saldoInicial:Number(c.saldo_inicial), orden:c.orden||0})).sort(porOrden); } },
-  movimientos: { q:()=>sb.from("movimientos").select("*").order("fecha", {ascending:false}),
+  movimientos: { q: async ()=>{
+      const desde = calcularMovDesde();
+      const [res, lista] = await Promise.all([
+        sb.rpc("resumen_movimientos_mensual"),
+        sb.from("movimientos").select("*").gte("fecha", desde).order("fecha", {ascending:false})
+      ]);
+      if(res.error){ // schema_resumen_movimientos.sql sin aplicar: carga completa como antes
+        const todo = await sb.from("movimientos").select("*").order("fecha", {ascending:false});
+        return {data:{filas:todo.data||[], resumen:null, desde:null}, error:todo.error};
+      }
+      return {data:{filas:lista.data||[], resumen:res.data||[], desde}, error:lista.error};
+    },
     map:m=>({id:m.id, tipo:m.tipo, categoria:m.categoria, importe:Number(m.importe), fecha:m.fecha, nota:m.nota, cuentaId:m.cuenta_id, saldoBanco:m.saldo_banco!=null?Number(m.saldo_banco):null, presupuesto:m.presupuesto||null, presupuestoFecha:m.presupuesto_fecha||null, reembolsoDe:m.reembolso_de||null, recurrenteId:m.recurrente_id||null, transferenciaId:m.transferencia_id||null, conciliado:!!m.conciliado, deudaId:m.deuda_id||null}),
-    set:d=>{ movimientos = d.map(TABLAS.movimientos.map); } },
+    set:d=>{
+      movimientos = d.filas.map(TABLAS.movimientos.map);
+      movParcial = !!d.resumen;
+      movDesde = movParcial ? d.desde : null;
+      movResumen = (d.resumen||[]).map(r=>({cuentaId:r.cuenta_id, mes:r.mes, ingresos:Number(r.ingresos), gastos:Number(r.gastos), n:Number(r.n)}));
+    } },
   deudas: { q:()=>sb.from("deudas").select("*"),
     set:rows=>{ deudas = rows.map(d=>({id:d.id, persona:d.persona, importe:Number(d.importe), importeInicial:d.importe_inicial!=null?Number(d.importe_inicial):Number(d.importe), direccion:d.direccion, concepto:d.concepto, estado:d.estado, fecha:d.fecha, presupuesto:d.presupuesto||null, movimientoId:d.movimiento_id||null})); } },
   inversiones: { q:()=>sb.from("inversiones").select("*"),
@@ -65,6 +106,8 @@ async function recargar(tablas = Object.keys(TABLAS), {procesar=false} = {}){
       }
       TABLAS[tablas[i]].set(data);
     }
+    // Presupuestos/deudas pueden pedir más histórico del que se calculó antes de tenerlos.
+    if(movParcial && calcularMovDesde()<movDesde){ await recargar(["movimientos"]); return; }
     detectarObjetivosCompletados();
     hideError(); ready = true;
     const ae = document.activeElement;
