@@ -918,6 +918,7 @@ function movItem(m, cubMov, pendMov){
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
         ${m.tipo==='gasto' && !m.reembolsoDe && m.categoria!=='Inversión' && m.categoria!=='Ajuste' && m.categoria!=='Transferencia' && meDebenMovId!==m.id? `<button class="tag" data-me-deben="${m.id}" style="cursor:pointer;border:none;font-family:inherit">Me deben…</button>` : ""}
         ${!protegido && editarMovId!==m.id? `<button class="tag" data-editar-mov="${m.id}" style="cursor:pointer;border:none;font-family:inherit">Editar</button>` : ""}
+        <button class="tag" data-duplicar-mov="${m.id}" style="cursor:pointer;border:none;font-family:inherit">Repetir</button>
         <button class="tag" data-toggle-conciliado="${m.id}" style="cursor:pointer;border:none;font-family:inherit;${m.conciliado?'background:var(--pos);color:#fff':''}">${m.conciliado?"✓ Conciliado":"Sin conciliar"}</button>
       </div>
     </div>
@@ -981,17 +982,18 @@ function renderMovimientos(){
   ${soloVista ? `<div class="card"><p class="meta" style="margin:0">Estás viendo el total del año — elige un mes concreto arriba para poder añadir movimientos o transferencias.</p></div>` : `
   <div class="card">
     <h2>Añadir movimiento</h2>
+    ${movPlantilla? `<p class="meta" style="margin:0 0 10px;color:var(--accent)">Repitiendo un movimiento — revisa los datos y añade.</p>` : ""}
     <form id="fMov">
       <div class="row2">
-        <div><label>Tipo</label><select name="tipo" id="movTipo"><option value="gasto">Gasto</option><option value="ingreso">Ingreso</option></select></div>
-        <div><label>Importe (€)</label><input name="importe" type="number" step="0.01" min="0" required></div>
+        <div><label>Tipo</label><select name="tipo" id="movTipo"><option value="gasto"${(!movPlantilla||movPlantilla.tipo==="gasto")?" selected":""}>Gasto</option><option value="ingreso"${movPlantilla&&movPlantilla.tipo==="ingreso"?" selected":""}>Ingreso</option></select></div>
+        <div><label>Importe (€)</label><input name="importe" type="number" step="0.01" min="0" value="${movPlantilla?movPlantilla.importe:''}" required></div>
       </div>
       <div class="row2">
         <div><label>Categoría</label><select name="categoria" id="movCat"></select></div>
         <div><label>Fecha</label><input name="fecha" type="date" value="${today()}" required></div>
       </div>
-      <div><label>Cuenta</label>${cuentas.length? `<select name="cuentaId">${opcionesCuentas()}</select>` : `<div class="meta">Crea antes una cuenta en la pestaña "Cuentas".</div>`}</div>
-      <div><label>Nota (opcional)</label><input name="nota" placeholder="ej. cena viernes"></div>
+      <div><label>Cuenta</label>${cuentas.length? `<select name="cuentaId">${opcionesCuentas(movPlantilla?movPlantilla.cuentaId:null)}</select>` : `<div class="meta">Crea antes una cuenta en la pestaña "Cuentas".</div>`}</div>
+      <div><label>Nota (opcional)</label><input name="nota" placeholder="ej. cena viernes" value="${movPlantilla?esc(movPlantilla.nota||''):''}"></div>
       <button class="btn" type="submit" ${cuentas.length?"":"disabled"}>Añadir</button>
     </form>
   </div>
@@ -1517,15 +1519,16 @@ function wireEvents(){
   const tipoSel = document.getElementById("movTipo");
   if(cat){
     const fill = ()=>{
+      const sel = movPlantilla && movPlantilla.tipo===tipoSel.value ? movPlantilla.categoria : null;
       if(tipoSel.value==="gasto"){
         const porPadre = {};
         categorias.filter(c=>c.tipo==="gasto").forEach(c=>{ const p=c.padre||"Otros"; (porPadre[p]=porPadre[p]||[]).push(c); });
         cat.innerHTML = Object.keys(porPadre).length
-          ? Object.entries(porPadre).map(([p,cats])=>`<optgroup label="${esc(p)}">${cats.map(c=>`<option value="${esc(c.nombre)}">${esc(c.nombre)}</option>`).join("")}</optgroup>`).join("")
+          ? Object.entries(porPadre).map(([p,cats])=>`<optgroup label="${esc(p)}">${cats.map(c=>`<option value="${esc(c.nombre)}"${c.nombre===sel?" selected":""}>${esc(c.nombre)}</option>`).join("")}</optgroup>`).join("")
           : `<option value="">Crea una categoría en la pestaña "Categorías"</option>`;
       } else {
         const list = categorias.filter(c=>c.tipo==="ingreso");
-        cat.innerHTML = list.length ? list.map(c=>`<option value="${esc(c.nombre)}">${esc(c.nombre)}</option>`).join("") : `<option value="">Crea una categoría en la pestaña "Categorías"</option>`;
+        cat.innerHTML = list.length ? list.map(c=>`<option value="${esc(c.nombre)}"${c.nombre===sel?" selected":""}>${esc(c.nombre)}</option>`).join("") : `<option value="">Crea una categoría en la pestaña "Categorías"</option>`;
       }
     };
     fill(); tipoSel.onchange = fill;
@@ -1538,7 +1541,7 @@ function wireEvents(){
       const data = {tipo:f.get("tipo"), categoria:f.get("categoria"), importe:parseFloat(f.get("importe")), fecha:f.get("fecha"), nota:f.get("nota")||"", cuenta_id:f.get("cuentaId")||null};
       const {error} = await sb.from("movimientos").insert(data);
       if(error){ showError("No se pudo guardar el movimiento: "+error.message); return; }
-      hideError(); fMov.reset(); await fetchAll();
+      hideError(); fMov.reset(); movPlantilla = null; await fetchAll();
     });
   };
   document.querySelectorAll("[data-lado-deuda]").forEach(b=>b.onclick=()=>{ deudaLado = b.dataset.ladoDeuda; saldarId = null; editarPresDeudaId = null; render(); });
@@ -1666,6 +1669,17 @@ function wireEvents(){
       hideError(); await fetchAll();
     }));
     document.querySelectorAll("[data-editar-mov]").forEach(b=>b.onclick=()=>{ editarMovId = b.dataset.editarMov; meDebenMovId=null; render(); });
+    document.querySelectorAll("[data-duplicar-mov]").forEach(b=>b.onclick=()=>{
+      const m = movimientos.find(x=>x.id===b.dataset.duplicarMov);
+      if(!m) return;
+      movPlantilla = {tipo:m.tipo, categoria:m.categoria, importe:m.importe, cuentaId:m.cuentaId, nota:m.nota||""};
+      formsEstado["mov"] = true;
+      editarMovId = null; meDebenMovId = null;
+      const hoy = new Date();
+      if(periodoMes==="todos"){ periodoMes = String(hoy.getMonth()+1); periodoAnio = hoy.getFullYear(); }
+      pendienteEnfoque = "fMov";
+      render();
+    });
     document.querySelectorAll("[data-cancelar-editar-mov]").forEach(b=>b.onclick=()=>{ editarMovId = null; render(); });
     document.querySelectorAll("#movEditTipo").forEach(sel=>sel.onchange=()=>{
       const cat = document.getElementById("movEditCategoria");
