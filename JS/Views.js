@@ -351,9 +351,7 @@ function bloqueGraficaCategoria(titulo, desc, tipo){
       <strong style="font-size:15px;font-variant-numeric:tabular-nums">${eur(totalGrafica)}</strong>
     </div>
     <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;margin-top:10px">
-      <div style="width:130px;height:130px;border-radius:50%;background:conic-gradient(${pieStyle(desc)});flex-shrink:0;position:relative">
-        <div style="position:absolute;inset:30px;border-radius:50%;background:var(--card);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;text-align:center">${eur(totalGrafica)}</div>
-      </div>
+      ${donutClicable(desc, tipo)}
       <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:180px">
         ${desc.map(d=>`
           <button data-resumen-sel="${tipo}|${esc(d.categoria)}" style="display:flex;align-items:center;gap:8px;background:none;border:none;padding:5px 0;cursor:pointer;text-align:left;color:var(--ink);font-family:inherit;font-size:13px;width:100%">
@@ -845,6 +843,7 @@ function renderGastos(){
   const restante = disponible - gastado;
   const porCategoria = {};
   gastosReales.forEach(m=>{ porCategoria[m.categoria] = (porCategoria[m.categoria]||0) + m.importe; });
+  const gastosMostrados = gastosCatSel ? gastosReales.filter(m=>m.categoria===gastosCatSel) : gastosReales;
   const lbl = periodoMes==="todos" ? `Año ${periodoAnio}` : `${MESES[Number(periodoMes)-1]} ${periodoAnio}`;
   return `
   <div class="card">
@@ -865,16 +864,21 @@ function renderGastos(){
   <div class="section-title">Por categoría</div>
   <div class="list">
     ${Object.keys(porCategoria).length? Object.entries(porCategoria).sort((a,b)=>b[1]-a[1]).map(([cat,total])=>`
-      <div class="item"><div>${esc(cat)}</div><div class="amt neg">${eur(total)}</div></div>
+      <button data-gastos-cat="${esc(cat)}" style="display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;background:${gastosCatSel===cat?'var(--accent-soft)':'var(--card)'};border:1px solid var(--line);border-radius:11px;padding:12px 13px;cursor:pointer;font-family:inherit;font-size:14px;color:var(--ink)">
+        <span>${esc(cat)}</span><span class="amt neg">${eur(total)}</span>
+      </button>
     `).join("") : `<div class="empty">Sin gastos en este periodo.</div>`}
   </div>
-  <div class="section-title">Movimientos de gasto (${gastosReales.length})</div>
+  <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
+    <span>Movimientos de gasto${gastosCatSel? ` · ${esc(gastosCatSel)}` : ""} (${gastosMostrados.length})</span>
+    ${gastosCatSel? `<button class="btn ghost" data-gastos-cat="">Ver todos</button>` : ""}
+  </div>
   <div class="list">
-    ${gastosReales.length? [...gastosReales].sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(m=>`
+    ${gastosMostrados.length? [...gastosMostrados].sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(m=>`
       <div class="item">
         <div><span class="tag">${esc(m.categoria)}</span>${m.nota?`<div class="meta">${esc(m.nota)}</div>`:""}<div class="meta">${m.fecha}</div>${m.cubierto?`<div class="meta">De ${eur(m.importeOriginal)}; ${eur(m.cubierto)} ya cobrados de deudas</div>`:""}</div>
         <div class="amt neg">-${eur(m.importe)}</div>
-      </div>`).join("") : `<div class="empty">Sin movimientos de gasto en este periodo.</div>`}
+      </div>`).join("") : `<div class="empty">${gastosCatSel? "Sin movimientos en esta categoría." : "Sin movimientos de gasto en este periodo."}</div>`}
   </div>`;
 }
 
@@ -1572,6 +1576,11 @@ function wireEvents(){
   document.querySelectorAll("[data-ir-tab]").forEach(b=>b.onclick=()=>{ tab=b.dataset.irTab; render(); });
   document.querySelectorAll("[data-rango-pat]").forEach(b=>b.onclick=()=>{ patrimonioRango = b.dataset.rangoPat; render(); });
   document.querySelectorAll("[data-toggle-ahorro]").forEach(b=>b.onclick=()=>{ resumenAhorroAbierto = !resumenAhorroAbierto; render(); });
+  document.querySelectorAll("[data-gastos-cat]").forEach(b=>b.onclick=()=>{
+    const cat = b.dataset.gastosCat;
+    gastosCatSel = (!cat || gastosCatSel===cat) ? null : cat;
+    render();
+  });
   document.querySelectorAll("[data-resumen-sel]").forEach(b=>b.onclick=()=>{
     const [t,cat] = b.dataset.resumenSel.split("|");
     resumenSel = (resumenSel && resumenSel.tipo===t && resumenSel.categoria===cat) ? null : {tipo:t, categoria:cat};
