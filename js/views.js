@@ -119,7 +119,7 @@ function iniciarArrastre(e, handle, item, cont){
     arrastrando = false;
     const {error} = await sb.rpc(rpcNombre, {p_ids: ids});
     if(error) showError("No se pudo cambiar el orden: "+error.message); else hideError();
-    await fetchAll();
+    await recargar();
   };
   window.addEventListener("pointermove", onMove);
   window.addEventListener("pointerup", fin);
@@ -845,11 +845,6 @@ function renderGastos(){
   gastosReales.forEach(m=>{ porCategoria[m.categoria] = (porCategoria[m.categoria]||0) + m.importe; });
   const gastosMostrados = gastosCatSel ? gastosReales.filter(m=>m.categoria===gastosCatSel) : gastosReales;
   const lbl = periodoMes==="todos" ? `Año ${periodoAnio}` : `${MESES[Number(periodoMes)-1]} ${periodoAnio}`;
-  const catBtnStyle = (activa) => {
-    const base = "display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;border-radius:11px;padding:12px 13px;cursor:pointer;font-family:inherit;font-size:14px;color:var(--ink);transition:background .15s,box-shadow .15s,opacity .15s;";
-    if(activa) return base + "background:var(--accent-soft);border:1px solid var(--accent);box-shadow:inset 3px 0 0 var(--accent),0 0 0 2px var(--accent-soft);font-weight:600";
-    return base + `background:var(--card);border:1px solid var(--line);${gastosCatSel?'opacity:.55':''}`;
-  };
   return `
   <div class="card">
     <h2>Disponible para gastar · ${lbl}</h2>
@@ -866,19 +861,17 @@ function renderGastos(){
       <div><div class="num ${restante>=0?'pos':'neg'}">${eur(restante)}</div><div class="lbl">Te queda</div></div>
     </div>
   </div>
-  <div class="section-title">Por categoría${gastosCatSel? ` <span class="meta" style="font-weight:400">· pulsa de nuevo para quitar el filtro</span>` : ""}</div>
+  <div class="section-title">Por categoría</div>
   <div class="list">
-    ${Object.keys(porCategoria).length? Object.entries(porCategoria).sort((a,b)=>b[1]-a[1]).map(([cat,total])=>{
-      const activa = gastosCatSel===cat;
-      return `
-      <button data-gastos-cat="${esc(cat)}" aria-pressed="${activa}" style="${catBtnStyle(activa)}">
-        <span style="display:flex;align-items:center;gap:8px">${activa?`<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px">✓</span>`:""}${esc(cat)}</span><span class="amt neg">${eur(total)}</span>
-      </button>`;
-    }).join("") : `<div class="empty">Sin gastos en este periodo.</div>`}
+    ${Object.keys(porCategoria).length? Object.entries(porCategoria).sort((a,b)=>b[1]-a[1]).map(([cat,total])=>`
+      <button data-gastos-cat="${esc(cat)}" style="display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;background:${gastosCatSel===cat?'var(--accent-soft)':'var(--card)'};border:1px solid var(--line);border-radius:11px;padding:12px 13px;cursor:pointer;font-family:inherit;font-size:14px;color:var(--ink)">
+        <span>${esc(cat)}</span><span class="amt neg">${eur(total)}</span>
+      </button>
+    `).join("") : `<div class="empty">Sin gastos en este periodo.</div>`}
   </div>
-  <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-    <span>Movimientos de gasto (${gastosMostrados.length})</span>
-    ${gastosCatSel? `<button data-gastos-cat="" title="Quitar filtro" style="display:inline-flex;align-items:center;gap:6px;background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:5px 8px 5px 12px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">${esc(gastosCatSel)}<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--accent);color:#fff;font-size:12px;line-height:1">✕</span></button>` : ""}
+  <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
+    <span>Movimientos de gasto${gastosCatSel? ` · ${esc(gastosCatSel)}` : ""} (${gastosMostrados.length})</span>
+    ${gastosCatSel? `<button class="btn ghost" data-gastos-cat="">Ver todos</button>` : ""}
   </div>
   <div class="list">
     ${gastosMostrados.length? [...gastosMostrados].sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(m=>`
@@ -888,6 +881,7 @@ function renderGastos(){
       </div>`).join("") : `<div class="empty">${gastosCatSel? "Sin movimientos en esta categoría." : "Sin movimientos de gasto en este periodo."}</div>`}
   </div>`;
 }
+
 function movItem(m, cubMov, pendMov){
   const protegido = movimientoProtegido(m.id);
   if(m.transferenciaId){
@@ -1490,7 +1484,11 @@ function renderCategorias(){
   </div>`;
 }
 
+let tabPintada = null;
 function render(){
+  const y0 = window.scrollY, ae = document.activeElement;
+  const focoId = tab===tabPintada && ae && ae.id && document.getElementById("app").contains(ae) ? ae.id : null;
+  const sel = focoId && typeof ae.selectionStart==="number" ? [ae.selectionStart, ae.selectionEnd] : null;
   renderTabs();
   renderBalance();
   renderPeriodo();
@@ -1517,7 +1515,11 @@ function render(){
     const el = document.getElementById(pendienteEnfoque);
     pendienteEnfoque = null;
     if(el){ el.scrollIntoView({block:"center", behavior:"smooth"}); try{ el.focus({preventScroll:true}); }catch(e){} }
+  } else if(ready && tab===tabPintada){
+    if(focoId){ const el = document.getElementById(focoId); if(el){ try{ el.focus({preventScroll:true}); if(sel) el.setSelectionRange(sel[0], sel[1]); }catch(e){} } }
+    window.scrollTo(0, y0);
   }
+  if(ready) tabPintada = tab;
 }
 
 function wireEvents(){
@@ -1547,7 +1549,7 @@ function wireEvents(){
       const data = {tipo:f.get("tipo"), categoria:f.get("categoria"), importe:parseFloat(f.get("importe")), fecha:f.get("fecha"), nota:f.get("nota")||"", cuenta_id:f.get("cuentaId")||null};
       const {error} = await sb.from("movimientos").insert(data);
       if(error){ showError("No se pudo guardar el movimiento: "+error.message); return; }
-      hideError(); fMov.reset(); movPlantilla = null; await fetchAll();
+      hideError(); fMov.reset(); movPlantilla = null; await recargar(["movimientos"]);
     });
   };
   document.querySelectorAll("[data-lado-deuda]").forEach(b=>b.onclick=()=>{ deudaLado = b.dataset.ladoDeuda; saldarId = null; editarPresDeudaId = null; render(); });
@@ -1569,7 +1571,7 @@ function wireEvents(){
       const {error} = await sb.from("deudas").insert(data);
       if(error){ showError("No se pudo guardar la deuda: "+error.message); return; }
       deudaLado = data.direccion==="debo" ? "debo" : "me_deben";
-      hideError(); fDeuda.reset(); await fetchAll();
+      hideError(); fDeuda.reset(); await recargar(["deudas"]);
     });
   };
   const fCuenta = document.getElementById("fCuenta");
@@ -1580,7 +1582,7 @@ function wireEvents(){
       const data = {nombre:f.get("nombre"), saldo_inicial:parseFloat(f.get("saldoInicial")), orden:siguienteOrdenLista(cuentas)};
       const {error} = await sb.from("cuentas").insert(data);
       if(error){ showError("No se pudo guardar la cuenta: "+error.message); return; }
-      hideError(); fCuenta.reset(); await fetchAll();
+      hideError(); fCuenta.reset(); await recargar(["cuentas"]);
     });
   };
   document.querySelectorAll("[data-del-deuda]").forEach(b=>b.onclick=()=>{
@@ -1588,7 +1590,7 @@ function wireEvents(){
     conCarga(b, "Borrando…", async ()=>{
       const {error} = await sb.from("deudas").delete().eq("id", b.dataset.delDeuda);
       if(error){ showError("No se pudo borrar: "+error.message); return; }
-      hideError(); await fetchAll();
+      hideError(); await recargar(["deudas","movimientos"]);
     });
   });
   document.querySelectorAll("[data-del-cuenta]").forEach(b=>b.onclick=()=>{
@@ -1596,7 +1598,7 @@ function wireEvents(){
     conCarga(b, "Borrando…", async ()=>{
       const {error} = await sb.from("cuentas").delete().eq("id", b.dataset.delCuenta);
       if(error){ showError("No se pudo borrar: "+error.message); return; }
-      hideError(); await fetchAll();
+      hideError(); await recargar(["cuentas","movimientos","recurrentes","objetivos"]);
     });
   });
   document.querySelectorAll("[data-ir-tab]").forEach(b=>b.onclick=()=>{ tab=b.dataset.irTab; render(); });
@@ -1620,7 +1622,7 @@ function wireEvents(){
     if(isNaN(nuevo)) return;
     const {error} = await sb.rpc("ajustar_saldo_cuenta", {p_cuenta_id: cuentaId, p_saldo_real: nuevo});
     if(error){ showError("No se pudo ajustar el saldo: "+error.message); return; }
-    hideError(); ajustarSaldoId = null; await fetchAll();
+    hideError(); ajustarSaldoId = null; await recargar(["cuentas","movimientos"]);
   }));
   document.querySelectorAll("[data-pres-deuda]").forEach(b=>b.onclick=()=>{ editarPresDeudaId = b.dataset.presDeuda; saldarId = null; render(); });
   document.querySelectorAll("[data-cancelar-pres-deuda]").forEach(b=>b.onclick=()=>{ editarPresDeudaId = null; render(); });
@@ -1629,7 +1631,7 @@ function wireEvents(){
     const mov = document.getElementById("presDeudaSel")?.value || null;
     const {error} = await sb.from("deudas").update({movimiento_id: mov}).eq("id", id);
     if(error){ showError("No se pudo guardar: "+error.message); return; }
-    hideError(); editarPresDeudaId = null; await fetchAll();
+    hideError(); editarPresDeudaId = null; await recargar(["deudas"]);
   }));
   function refrescarListaMov(){
     const wrap = document.getElementById("movListaWrap");
@@ -1643,7 +1645,7 @@ function wireEvents(){
       conCarga(b, "Borrando…", async ()=>{
         const {error} = await sb.from("movimientos").delete().eq("id", b.dataset.delMov);
         if(error){ showError("No se pudo borrar: "+error.message); return; }
-        hideError(); await fetchAll();
+        hideError(); await recargar(["movimientos","deudas","aportaciones_inversion","retiros_inversion"]);
       });
     });
     document.querySelectorAll("[data-del-transferencia]").forEach(b=>b.onclick=()=>{
@@ -1651,7 +1653,7 @@ function wireEvents(){
       conCarga(b, "Borrando…", async ()=>{
         const {error} = await sb.rpc("eliminar_transferencia", {p_transferencia_id: b.dataset.delTransferencia});
         if(error){ showError("No se pudo borrar: "+error.message); return; }
-        hideError(); await fetchAll();
+        hideError(); await recargar(["movimientos"]);
       });
     });
     document.querySelectorAll("[data-me-deben]").forEach(b=>b.onclick=()=>{ meDebenMovId = b.dataset.meDeben; editarMovId=null; render(); });
@@ -1665,14 +1667,14 @@ function wireEvents(){
       if(imp>m.importe){ showError("Te pueden deber como máximo el importe del gasto ("+eur(m.importe)+")."); return; }
       const {error} = await sb.from("deudas").insert({persona, importe:imp, importe_inicial:imp, direccion:"me_deben", fecha:m.fecha, concepto:m.nota||m.categoria, estado:"pendiente", movimiento_id:m.id});
       if(error){ showError("No se pudo crear la deuda: "+error.message); return; }
-      hideError(); meDebenMovId = null; await fetchAll();
+      hideError(); meDebenMovId = null; await recargar(["deudas"]);
     }));
     document.querySelectorAll("[data-toggle-conciliado]").forEach(b=>b.onclick=()=>conCarga(b, "…", async ()=>{
       const m = movimientos.find(x=>x.id===b.dataset.toggleConciliado);
       if(!m) return;
       const {error} = await sb.from("movimientos").update({conciliado: !m.conciliado}).eq("id", m.id);
       if(error){ showError("No se pudo actualizar: "+error.message); return; }
-      hideError(); await fetchAll();
+      hideError(); await recargar(["movimientos"]);
     }));
     document.querySelectorAll("[data-editar-mov]").forEach(b=>b.onclick=()=>{ editarMovId = b.dataset.editarMov; meDebenMovId=null; render(); });
     document.querySelectorAll("[data-duplicar-mov]").forEach(b=>b.onclick=()=>{
@@ -1702,7 +1704,7 @@ function wireEvents(){
       if(!categoria || isNaN(importe) || importe<=0 || !fecha || !cuentaId){ showError("Revisa los datos del movimiento."); return; }
       const {error} = await sb.from("movimientos").update({tipo, categoria, importe, fecha, nota, cuenta_id:cuentaId}).eq("id", id);
       if(error){ showError("No se pudo guardar: "+error.message); return; }
-      hideError(); editarMovId = null; await fetchAll();
+      hideError(); editarMovId = null; await recargar(["movimientos"]);
     }));
   }
   wireListaMovimientos();
@@ -1721,7 +1723,7 @@ function wireEvents(){
       if(isNaN(importe) || importe<=0){ showError("Escribe un importe válido."); return; }
       const {error} = await sb.rpc("crear_transferencia", {p_cuenta_origen:origen, p_cuenta_destino:destino, p_importe:importe, p_fecha:f.get("fecha"), p_nota:f.get("nota")||""});
       if(error){ showError("No se pudo transferir: "+error.message); return; }
-      hideError(); fTransferencia.reset(); await fetchAll();
+      hideError(); fTransferencia.reset(); await recargar(["movimientos"]);
     });
   };
   document.querySelectorAll("[data-saldar]").forEach(b=>b.onclick=()=>{ saldarId = b.dataset.saldar; editarPresDeudaId = null; render(); });
@@ -1735,7 +1737,7 @@ function wireEvents(){
     const cat = document.getElementById("saldarCat")?.value || null;
     const {error} = await sb.rpc("saldar_deuda", {p_deuda_id: deudaId, p_cuenta_id: sel.value, p_categoria: cat, p_importe: importe});
     if(error){ showError("No se pudo saldar la deuda: "+error.message); return; }
-    hideError(); saldarId = null; await fetchAll();
+    hideError(); saldarId = null; await recargar(["deudas","movimientos"]);
   }));
   const invEstado = document.getElementById("invEstado");
   const invValorWrap = document.getElementById("invValorWrap");
@@ -1767,7 +1769,7 @@ function wireEvents(){
       }
       const {error} = await sb.from("inversiones").insert(data);
       if(error){ showError("No se pudo guardar la inversión: "+error.message); return; }
-      hideError(); fInversion.reset(); await fetchAll();
+      hideError(); fInversion.reset(); await recargar(["inversiones"]);
     });
   };
   document.querySelectorAll("[data-del-inv]").forEach(b=>b.onclick=()=>{
@@ -1776,7 +1778,7 @@ function wireEvents(){
     conCarga(b, "Borrando…", async ()=>{
       const {error} = await sb.rpc("eliminar_inversion", {p_inversion_id: b.dataset.delInv});
       if(error){ showError("No se pudo borrar: "+error.message); return; }
-      hideError(); await fetchAll();
+      hideError(); await recargar(["inversiones","aportaciones_inversion","retiros_inversion","movimientos","objetivos"]);
     });
   });
   document.querySelectorAll("[data-expandir-inv]").forEach(b=>b.onclick=()=>{
@@ -1805,7 +1807,7 @@ function wireEvents(){
     }
     const {error} = await sb.from("inversiones").update(data).eq("id", invId);
     if(error){ showError("No se pudo guardar: "+error.message); return; }
-    hideError(); editarInfoInvId = null; await fetchAll();
+    hideError(); editarInfoInvId = null; await recargar(["inversiones"]);
   }));
   document.querySelectorAll("[data-aportar-inv]").forEach(b=>b.onclick=()=>{ aportarInvId=b.dataset.aportarInv; editarValorInvId=null; pendienteEnfoque = "aportarImporte"; render(); });
   document.querySelectorAll("[data-cancelar-aportar]").forEach(b=>b.onclick=()=>{ aportarInvId=null; render(); });
@@ -1817,7 +1819,7 @@ function wireEvents(){
     if(!cuentaEl?.value || !importe || importe<=0) return;
     const {error} = await sb.rpc("aportar_inversion", {p_inversion_id: invId, p_importe: importe, p_cuenta_id: cuentaEl.value});
     if(error){ showError("No se pudo guardar la aportación: "+error.message); return; }
-    hideError(); aportarInvId = null; await fetchAll();
+    hideError(); aportarInvId = null; await recargar(["inversiones","aportaciones_inversion","movimientos"]);
   }));
   document.querySelectorAll("[data-rescatar-inv]").forEach(b=>b.onclick=()=>{ rescatarInvId=b.dataset.rescatarInv; aportarInvId=null; editarValorInvId=null; pendienteEnfoque = "rescatarImporte"; render(); });
   document.querySelectorAll("[data-cancelar-rescate]").forEach(b=>b.onclick=()=>{ rescatarInvId=null; render(); });
@@ -1829,14 +1831,14 @@ function wireEvents(){
     if(!cuentaEl?.value || !importe || importe<=0) return;
     const {error} = await sb.rpc("rescatar_inversion", {p_inversion_id: invId, p_importe: importe, p_cuenta_id: cuentaEl.value});
     if(error){ showError("No se pudo rescatar: "+error.message); return; }
-    hideError(); rescatarInvId = null; await fetchAll();
+    hideError(); rescatarInvId = null; await recargar(["inversiones","retiros_inversion","movimientos"]);
   }));
   document.querySelectorAll("[data-del-retiro]").forEach(b=>b.onclick=()=>{
     if(!confirm("¿Deshacer este rescate? Se borrará el ingreso asociado y volverá a la inversión.")) return;
     conCarga(b, "Borrando…", async ()=>{
       const {error} = await sb.rpc("eliminar_retiro", {p_retiro_id: b.dataset.delRetiro});
       if(error){ showError("No se pudo deshacer: "+error.message); return; }
-      hideError(); await fetchAll();
+      hideError(); await recargar(["inversiones","retiros_inversion","movimientos"]);
     });
   });
   document.querySelectorAll("[data-ver-aportaciones]").forEach(b=>b.onclick=()=>{
@@ -1848,7 +1850,7 @@ function wireEvents(){
     conCarga(b, "Borrando…", async ()=>{
       const {error} = await sb.rpc("eliminar_aportacion", {p_aportacion_id: b.dataset.delAportacion});
       if(error){ showError("No se pudo borrar la aportación: "+error.message); return; }
-      hideError(); await fetchAll();
+      hideError(); await recargar(["inversiones","aportaciones_inversion","movimientos"]);
     });
   });
   document.querySelectorAll("[data-editar-valor]").forEach(b=>b.onclick=()=>{ editarValorInvId=b.dataset.editarValor; aportarInvId=null; pendienteEnfoque = "valorNuevo"; render(); });
@@ -1859,7 +1861,7 @@ function wireEvents(){
     if(isNaN(nuevo)) return;
     const {error} = await sb.from("inversiones").update({valor_actual:nuevo}).eq("id", invId);
     if(error){ showError("No se pudo guardar el nuevo valor: "+error.message); return; }
-    hideError(); editarValorInvId = null; await fetchAll();
+    hideError(); editarValorInvId = null; await recargar(["inversiones"]);
   }));
   const catTipo = document.getElementById("catTipo");
   const catPadreWrap = document.getElementById("catPadreWrap");
@@ -1876,7 +1878,7 @@ function wireEvents(){
       const data = {tipo:tipoVal, padre: tipoVal==="gasto" ? (f.get("padre")||"Otros") : null, nombre:f.get("nombre")};
       const {error} = await sb.from("categorias").insert(data);
       if(error){ showError("No se pudo guardar la categoría: "+error.message); return; }
-      hideError(); fCategoria.reset(); await fetchAll();
+      hideError(); fCategoria.reset(); await recargar(["categorias"]);
     });
   };
   document.querySelectorAll("[data-del-cat]").forEach(b=>b.onclick=()=>{
@@ -1884,7 +1886,7 @@ function wireEvents(){
     conCarga(b, "Borrando…", async ()=>{
       const {error} = await sb.from("categorias").delete().eq("id", b.dataset.delCat);
       if(error){ showError("No se pudo borrar: "+error.message); return; }
-      hideError(); await fetchAll();
+      hideError(); await recargar(["categorias"]);
     });
   });
   document.querySelectorAll("[data-editar-cat]").forEach(b=>b.onclick=()=>{ editarCatId=b.dataset.editarCat; render(); });
@@ -1895,7 +1897,7 @@ function wireEvents(){
     if(!nuevo) return;
     const {error} = await sb.from("categorias").update({nombre:nuevo}).eq("id", catId);
     if(error){ showError("No se pudo renombrar: "+error.message); return; }
-    hideError(); editarCatId = null; await fetchAll();
+    hideError(); editarCatId = null; await recargar(["categorias","movimientos","presupuestos","recurrentes"]);
   }));
 
   document.querySelectorAll("[data-toggle-grupo]").forEach(b=>b.onclick=()=>{ const id=b.dataset.toggleGrupo; gruposAbiertos[id]=!gruposAbiertos[id]; render(); });
@@ -1911,7 +1913,7 @@ function wireEvents(){
     if(nuevo<0){ showError("Las rentas no pueden quedar en negativo."); return; }
     const {error} = await sb.from("inversiones").update({rentas:nuevo}).eq("id", id);
     if(error){ showError("No se pudieron guardar las rentas: "+error.message); return; }
-    hideError(); rentasInvId = null; await fetchAll();
+    hideError(); rentasInvId = null; await recargar(["inversiones"]);
   });
   document.querySelectorAll("[data-sumar-rentas]").forEach(b=>b.onclick=()=>guardarRentas(b,"sumar"));
   document.querySelectorAll("[data-fijar-rentas]").forEach(b=>b.onclick=()=>guardarRentas(b,"fijar"));
@@ -1949,7 +1951,7 @@ function wireEvents(){
       };
       const {error} = await sb.from("recurrentes").insert(data);
       if(error){ showError("No se pudo guardar: "+error.message); return; }
-      hideError(); fRecurrente.reset(); await fetchAll();
+      hideError(); fRecurrente.reset(); await recargar(["recurrentes","movimientos"], {procesar:true});
     });
   };
   document.querySelectorAll("[data-toggle-recurrente]").forEach(b=>b.onclick=()=>conCarga(b, "…", async ()=>{
@@ -1957,14 +1959,14 @@ function wireEvents(){
     if(!r) return;
     const {error} = await sb.from("recurrentes").update({activo: !r.activo}).eq("id", r.id);
     if(error){ showError("No se pudo actualizar: "+error.message); return; }
-    hideError(); await fetchAll();
+    hideError(); await recargar(["recurrentes","movimientos"], {procesar:true});
   }));
   document.querySelectorAll("[data-del-recurrente]").forEach(b=>b.onclick=()=>{
     if(!confirm("¿Borrar este recurrente? Los movimientos que ya generó no se borran.")) return;
     conCarga(b, "Borrando…", async ()=>{
       const {error} = await sb.from("recurrentes").delete().eq("id", b.dataset.delRecurrente);
       if(error){ showError("No se pudo borrar: "+error.message); return; }
-      hideError(); await fetchAll();
+      hideError(); await recargar(["recurrentes"]);
     });
   });
   const btnExportar = document.getElementById("btnExportar");
@@ -2015,7 +2017,7 @@ function wireEvents(){
       const data = {nombre:f.get("nombre"), tipo:"", valor_actual:0, valor_inicial:0, estado:"activa", es_grupo:true, orden:siguienteOrden()};
       const {error} = await sb.from("inversiones").insert(data);
       if(error){ showError("No se pudo crear el grupo: "+error.message); return; }
-      hideError(); fGrupo.reset(); await fetchAll();
+      hideError(); fGrupo.reset(); await recargar(["inversiones"]);
     });
   };
 
@@ -2027,7 +2029,7 @@ function wireEvents(){
       const data = {categoria:f.get("categoria"), limite:parseFloat(f.get("limite"))};
       const {error} = await sb.from("presupuestos").insert(data);
       if(error){ showError("No se pudo guardar el presupuesto: "+error.message); return; }
-      hideError(); fPresupuesto.reset(); await fetchAll();
+      hideError(); fPresupuesto.reset(); await recargar(["presupuestos"]);
     });
   };
   document.querySelectorAll("[data-del-presupuesto]").forEach(b=>b.onclick=()=>{
@@ -2035,7 +2037,7 @@ function wireEvents(){
     conCarga(b, "Borrando…", async ()=>{
       const {error} = await sb.from("presupuestos").delete().eq("id", b.dataset.delPresupuesto);
       if(error){ showError("No se pudo borrar: "+error.message); return; }
-      hideError(); await fetchAll();
+      hideError(); await recargar(["presupuestos"]);
     });
   });
   document.querySelectorAll("[data-toggle-rollover]").forEach(b=>b.onclick=()=>conCarga(b, "…", async ()=>{
@@ -2048,7 +2050,7 @@ function wireEvents(){
       : {rollover:false};
     const {error} = await sb.from("presupuestos").update(cambios).eq("id", p.id);
     if(error){ showError("No se pudo actualizar: "+error.message); return; }
-    hideError(); await fetchAll();
+    hideError(); await recargar(["presupuestos"]);
   }));
   document.querySelectorAll("[data-editar-presupuesto]").forEach(b=>b.onclick=()=>{ editarPresupuestoId=b.dataset.editarPresupuesto; render(); });
   document.querySelectorAll("[data-cancelar-presupuesto]").forEach(b=>b.onclick=()=>{ editarPresupuestoId=null; render(); });
@@ -2058,7 +2060,7 @@ function wireEvents(){
     if(isNaN(nuevo)) return;
     const {error} = await sb.from("presupuestos").update({limite:nuevo}).eq("id", id);
     if(error){ showError("No se pudo guardar: "+error.message); return; }
-    hideError(); editarPresupuestoId=null; await fetchAll();
+    hideError(); editarPresupuestoId=null; await recargar(["presupuestos"]);
   }));
 
   const objTipoVinculo = document.getElementById("objTipoVinculo");
@@ -2085,12 +2087,12 @@ function wireEvents(){
     if(isNaN(cuota) || cuota<=0 || !cuentaOrigen){ showError("Pon una cuota y una cuenta de origen válidas."); return; }
     const {error} = await sb.from("objetivos").update({auto_activo:true, auto_cuota:cuota, auto_dia_mes:dia, auto_cuenta_origen:cuentaOrigen}).eq("id", id);
     if(error){ showError("No se pudo guardar: "+error.message); return; }
-    hideError(); editarAutoObjId = null; await fetchAll();
+    hideError(); editarAutoObjId = null; await recargar(["objetivos","movimientos"], {procesar:true});
   }));
   document.querySelectorAll("[data-desactivar-auto-obj]").forEach(b=>b.onclick=()=>conCarga(b, "…", async ()=>{
     const {error} = await sb.from("objetivos").update({auto_activo:false}).eq("id", b.dataset.desactivarAutoObj);
     if(error){ showError("No se pudo desactivar: "+error.message); return; }
-    hideError(); editarAutoObjId = null; await fetchAll();
+    hideError(); editarAutoObjId = null; await recargar(["objetivos"]);
   }));
   const fObjetivo = document.getElementById("fObjetivo");
   if(fObjetivo) fObjetivo.onsubmit = (e)=>{
@@ -2101,7 +2103,7 @@ function wireEvents(){
       const data = {nombre:f.get("nombre"), meta:parseFloat(f.get("meta")), tipo_vinculo:tipoVinculo, vinculo_id: tipoVinculo==="ninguno"?null:(f.get("vinculoId")||null), orden:siguienteOrdenLista(objetivos)};
       const {error} = await sb.from("objetivos").insert(data);
       if(error){ showError("No se pudo guardar el objetivo: "+error.message); return; }
-      hideError(); fObjetivo.reset(); await fetchAll();
+      hideError(); fObjetivo.reset(); await recargar(["objetivos"]);
     });
   };
   document.querySelectorAll("[data-del-objetivo]").forEach(b=>b.onclick=()=>{
@@ -2109,7 +2111,7 @@ function wireEvents(){
     conCarga(b, "Borrando…", async ()=>{
       const {error} = await sb.from("objetivos").delete().eq("id", b.dataset.delObjetivo);
       if(error){ showError("No se pudo borrar: "+error.message); return; }
-      hideError(); await fetchAll();
+      hideError(); await recargar(["objetivos"]);
     });
   });
 
@@ -2155,9 +2157,10 @@ function wireEvents(){
     const conciliar = csvPreview.filter(m=>!m.invalida && !m.dup && m.matchId && (csvDecisiones[m.posicion]||"igual")==="igual");
     const nuevas = csvPreview.filter(m=>!m.invalida && (!m.dup && (!m.matchId || (csvDecisiones[m.posicion]||"igual")==="distinto")));
     if(!csvSel.cuenta) return;
-       if(conciliar.length){
-      const items = conciliar.map(m=>({id:m.matchId, saldo:m.saldo??null}));
-      const {error} = await sb.rpc("conciliar_movimientos_lote", {p_items:items});
+    for(const m of conciliar){
+      const cambios = {conciliado:true};
+      if(m.saldo!=null) cambios.saldo_banco = m.saldo;
+      const {error} = await sb.from("movimientos").update(cambios).eq("id", m.matchId);
       if(error){ showError("No se pudo conciliar: "+error.message); return; }
     }
     if(nuevas.length){
@@ -2167,7 +2170,7 @@ function wireEvents(){
       const {error} = await sb.from("movimientos_pendientes").insert(filas);
       if(error){ showError("No se pudo importar: "+error.message); return; }
     }
-    hideError(); csvHeaders=[]; csvFilas=[]; csvPreview=[]; csvSel={}; csvDecisiones={}; await fetchAll();
+    hideError(); csvHeaders=[]; csvFilas=[]; csvPreview=[]; csvSel={}; csvDecisiones={}; await recargar(["movimientos","movimientos_pendientes"]);
   });
 
   document.querySelectorAll('select[id^="pendCat-"]').forEach(el=>el.onchange = ()=>{ pendCats[el.id.slice(8)] = el.value; });
@@ -2177,7 +2180,7 @@ function wireEvents(){
     if(!cat){ showError("Elige una categoría antes de confirmar."); return; }
     const {error} = await sb.rpc("confirmar_pendiente", {p_id:id, p_categoria:cat});
     if(error){ showError("No se pudo confirmar: "+error.message); return; }
-    delete pendCats[id]; hideError(); await fetchAll();
+    delete pendCats[id]; hideError(); await recargar(["movimientos","movimientos_pendientes"]);
   }));
   document.querySelectorAll("[data-pend-descartar]").forEach(b=>b.onclick=()=>{
     if(!confirm("¿Descartar este movimiento? No se importará.")) return;
@@ -2185,7 +2188,7 @@ function wireEvents(){
       const id = b.dataset.pendDescartar;
       const {error} = await sb.from("movimientos_pendientes").delete().eq("id", id);
       if(error){ showError("No se pudo descartar: "+error.message); return; }
-      delete pendCats[id]; hideError(); await fetchAll();
+      delete pendCats[id]; hideError(); await recargar(["movimientos_pendientes"]);
     });
   });
   const pendConfirmarTodos = document.getElementById("pendConfirmarTodos");
@@ -2195,7 +2198,7 @@ function wireEvents(){
     if(!ids.length){ showError("Elige la categoría de al menos un movimiento."); return; }
     const {error} = await sb.rpc("confirmar_pendientes", {p_ids:ids, p_categorias:cats});
     if(error){ showError("No se pudieron confirmar: "+error.message); return; }
-    ids.forEach(id=>delete pendCats[id]); hideError(); await fetchAll();
+    ids.forEach(id=>delete pendCats[id]); hideError(); await recargar(["movimientos","movimientos_pendientes"]);
   });
   const pendDescartarTodos = document.getElementById("pendDescartarTodos");
   if(pendDescartarTodos) pendDescartarTodos.onclick = ()=>{
@@ -2203,7 +2206,7 @@ function wireEvents(){
     conCarga(pendDescartarTodos, "Descartando…", async ()=>{
       const {error} = await sb.from("movimientos_pendientes").delete().not("id","is",null);
       if(error){ showError("No se pudo descartar: "+error.message); return; }
-      pendCats = {}; hideError(); await fetchAll();
+      pendCats = {}; hideError(); await recargar(["movimientos_pendientes"]);
     });
   };
 }
