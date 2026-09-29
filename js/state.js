@@ -46,6 +46,7 @@ let aportarInvId = null, editarValorInvId = null, editarCatId = null, verAportac
 
 let expandidaInvId = null, editarInfoInvId = null, resumenSel = null, resumenAhorroAbierto = false;
 let gastosCatSel = null;
+let verAbonosDeudaId = null;
 
 let gruposAbiertos = {}, modoOrdenInv = false, rentasInvId = null, modoOrdenCuentas = false, modoOrdenObjetivos = false;
 
