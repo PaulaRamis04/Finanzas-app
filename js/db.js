@@ -16,46 +16,54 @@ async function guardarCuentaDefecto(id){
   return true;
 }
 
-async function fetchAll(){
+const TABLAS = {
+  cuentas: { q:()=>sb.from("cuentas").select("*").order("nombre"),
+    set:d=>{ cuentas = d.map(c=>({id:c.id, nombre:c.nombre, saldoInicial:Number(c.saldo_inicial), orden:c.orden||0})).sort(porOrden); } },
+  movimientos: { q:()=>sb.from("movimientos").select("*").order("fecha", {ascending:false}),
+    map:m=>({id:m.id, tipo:m.tipo, categoria:m.categoria, importe:Number(m.importe), fecha:m.fecha, nota:m.nota, cuentaId:m.cuenta_id, saldoBanco:m.saldo_banco!=null?Number(m.saldo_banco):null, presupuesto:m.presupuesto||null, presupuestoFecha:m.presupuesto_fecha||null, reembolsoDe:m.reembolso_de||null, recurrenteId:m.recurrente_id||null, transferenciaId:m.transferencia_id||null, conciliado:!!m.conciliado, deudaId:m.deuda_id||null}),
+    set:d=>{ movimientos = d.map(TABLAS.movimientos.map); } },
+  deudas: { q:()=>sb.from("deudas").select("*"),
+    set:rows=>{ deudas = rows.map(d=>({id:d.id, persona:d.persona, importe:Number(d.importe), importeInicial:d.importe_inicial!=null?Number(d.importe_inicial):Number(d.importe), direccion:d.direccion, concepto:d.concepto, estado:d.estado, fecha:d.fecha, presupuesto:d.presupuesto||null, movimientoId:d.movimiento_id||null})); } },
+  inversiones: { q:()=>sb.from("inversiones").select("*"),
+    set:d=>{ inversiones = d.map(i=>({id:i.id, nombre:i.nombre, tipo:i.tipo, valorActual:Number(i.valor_actual), valorInicial:Number(i.valor_inicial), estado:i.estado||"activa", fechaPrevista:i.fecha_prevista, importePrevisto:i.importe_previsto!=null?Number(i.importe_previsto):null, cuentaPrevistaId:i.cuenta_prevista_id, padreId:i.padre_id||null, esGrupo:!!i.es_grupo, orden:i.orden||0, rentas:Number(i.rentas||0)})); } },
+  aportaciones_inversion: { q:()=>sb.from("aportaciones_inversion").select("*"),
+    set:d=>{ aportaciones = d.map(a=>({id:a.id, inversionId:a.inversion_id, importe:Number(a.importe), fecha:a.fecha, cuentaId:a.cuenta_id, movimientoId:a.movimiento_id})); } },
+  retiros_inversion: { q:()=>sb.from("retiros_inversion").select("*"),
+    set:d=>{ retiros = d.map(r=>({id:r.id, inversionId:r.inversion_id, importe:Number(r.importe), fecha:r.fecha, cuentaId:r.cuenta_id, movimientoId:r.movimiento_id})); } },
+  categorias: { q:()=>sb.from("categorias").select("*"),
+    set:d=>{ categorias = d.map(c=>({id:c.id, tipo:c.tipo, padre:c.padre, nombre:c.nombre})); } },
+  presupuestos: { q:()=>sb.from("presupuestos").select("*"),
+    set:d=>{ presupuestos = d.map(p=>({id:p.id, categoria:p.categoria, limite:Number(p.limite), rollover:!!p.rollover, rolloverDesde:p.rollover_desde||null})); } },
+  recurrentes: { q:()=>sb.from("recurrentes").select("*"),
+    set:d=>{ recurrentes = d.map(r=>({id:r.id, tipo:r.tipo, categoria:r.categoria, importe:Number(r.importe), nota:r.nota||"", cuentaId:r.cuenta_id, diaMes:r.dia_mes, activo:r.activo, fechaInicio:r.fecha_inicio, ultimaGenerada:r.ultima_generada})); } },
+  objetivos: { q:()=>sb.from("objetivos").select("*"),
+    set:d=>{ objetivos = d.map(o=>({id:o.id, nombre:o.nombre, meta:Number(o.meta), tipoVinculo:o.tipo_vinculo, vinculoId:o.vinculo_id, orden:o.orden||0,
+      autoActivo:!!o.auto_activo, autoCuota:o.auto_cuota!=null?Number(o.auto_cuota):null, autoDiaMes:o.auto_dia_mes||null, autoCuentaOrigen:o.auto_cuenta_origen||null, autoUltimaGenerada:o.auto_ultima_generada||null})).sort(porOrden); } },
+  movimientos_pendientes: { q:()=>sb.from("movimientos_pendientes").select("*"),
+    set:d=>{ pendientes = d.map(x=>({id:x.id, cuentaId:x.cuenta_id, tipo:x.tipo, importe:Number(x.importe), fecha:x.fecha, descripcion:x.descripcion||"", saldo:x.saldo!=null?Number(x.saldo):null, posicion:x.posicion||0})); } },
+  preferencias: { q:()=>sb.from("preferencias").select("*"), opcional:true,
+    set:d=>{ if(!d[0]) return;
+      cuentaDefecto = d[0].cuenta_defecto || "";
+      try{ if(cuentaDefecto) localStorage.setItem("cuentaDefecto", cuentaDefecto); else localStorage.removeItem("cuentaDefecto"); }catch(e){} } }
+};
+
+async function recargar(tablas = Object.keys(TABLAS), {procesar=false} = {}){
   try{
-    try{ await sb.rpc("procesar_recurrentes"); }catch(e){}
-    try{ await sb.rpc("procesar_aportaciones_objetivos"); }catch(e){}
-    const [{data:cta, error:e1}, {data:mov, error:e2}, {data:deu, error:e3}, {data:inv, error:e4}, {data:apo, error:e5}, {data:cat, error:e6}, {data:ret, error:e7}, {data:pre, error:e8}, {data:obj, error:e9}, {data:pen, error:e10}, {data:pref}] = await Promise.all([
-      sb.from("cuentas").select("*").order("nombre"),
-      sb.from("movimientos").select("*").order("fecha", {ascending:false}),
-      sb.from("deudas").select("*"),
-      sb.from("inversiones").select("*"),
-      sb.from("aportaciones_inversion").select("*"),
-      sb.from("categorias").select("*"),
-      sb.from("retiros_inversion").select("*"),
-      sb.from("presupuestos").select("*"),
-      sb.from("objetivos").select("*"),
-      sb.from("movimientos_pendientes").select("*"),
-      sb.from("preferencias").select("*")
-    ]);
-    const err = e1||e2||e3||e4||e5||e6||e7||e8||e9||e10;
-    if(err){ ready = true; render(); showError("No se pudieron cargar los datos: "+err.message); return; }
-    cuentas = (cta||[]).map(c=>({id:c.id, nombre:c.nombre, saldoInicial:Number(c.saldo_inicial), orden:c.orden||0})).sort(porOrden);
-    movimientos = (mov||[]).map(m=>({id:m.id, tipo:m.tipo, categoria:m.categoria, importe:Number(m.importe), fecha:m.fecha, nota:m.nota, cuentaId:m.cuenta_id, saldoBanco:m.saldo_banco!=null?Number(m.saldo_banco):null, presupuesto:m.presupuesto||null, presupuestoFecha:m.presupuesto_fecha||null, reembolsoDe:m.reembolso_de||null, recurrenteId:m.recurrente_id||null, transferenciaId:m.transferencia_id||null, conciliado:!!m.conciliado, deudaId:m.deuda_id||null}));
-    deudas = (deu||[]).map(d=>({id:d.id, persona:d.persona, importe:Number(d.importe), importeInicial:d.importe_inicial!=null?Number(d.importe_inicial):Number(d.importe), direccion:d.direccion, concepto:d.concepto, estado:d.estado, fecha:d.fecha, presupuesto:d.presupuesto||null, movimientoId:d.movimiento_id||null}));
-    inversiones = (inv||[]).map(i=>({id:i.id, nombre:i.nombre, tipo:i.tipo, valorActual:Number(i.valor_actual), valorInicial:Number(i.valor_inicial), estado:i.estado||"activa", fechaPrevista:i.fecha_prevista, importePrevisto:i.importe_previsto!=null?Number(i.importe_previsto):null, cuentaPrevistaId:i.cuenta_prevista_id, padreId:i.padre_id||null, esGrupo:!!i.es_grupo, orden:i.orden||0, rentas:Number(i.rentas||0)}));
-    aportaciones = (apo||[]).map(a=>({id:a.id, inversionId:a.inversion_id, importe:Number(a.importe), fecha:a.fecha, cuentaId:a.cuenta_id, movimientoId:a.movimiento_id}));
-    retiros = (ret||[]).map(r=>({id:r.id, inversionId:r.inversion_id, importe:Number(r.importe), fecha:r.fecha, cuentaId:r.cuenta_id, movimientoId:r.movimiento_id}));
-    presupuestos = (pre||[]).map(p=>({id:p.id, categoria:p.categoria, limite:Number(p.limite), rollover:!!p.rollover, rolloverDesde:p.rollover_desde||null}));
-    const {data:rec} = await sb.from("recurrentes").select("*");
-    recurrentes = (rec||[]).map(r=>({id:r.id, tipo:r.tipo, categoria:r.categoria, importe:Number(r.importe), nota:r.nota||"", cuentaId:r.cuenta_id, diaMes:r.dia_mes, activo:r.activo, fechaInicio:r.fecha_inicio, ultimaGenerada:r.ultima_generada}));
-    objetivos = (obj||[]).map(o=>({id:o.id, nombre:o.nombre, meta:Number(o.meta), tipoVinculo:o.tipo_vinculo, vinculoId:o.vinculo_id, orden:o.orden||0,
-      autoActivo:!!o.auto_activo, autoCuota:o.auto_cuota!=null?Number(o.auto_cuota):null, autoDiaMes:o.auto_dia_mes||null, autoCuentaOrigen:o.auto_cuenta_origen||null, autoUltimaGenerada:o.auto_ultima_generada||null})).sort(porOrden);
-    if(pref && pref[0]){
-      cuentaDefecto = pref[0].cuenta_defecto || "";
-      try{ if(cuentaDefecto) localStorage.setItem("cuentaDefecto", cuentaDefecto); else localStorage.removeItem("cuentaDefecto"); }catch(e){}
+    if(procesar){
+      try{ await sb.rpc("procesar_recurrentes"); }catch(e){}
+      try{ await sb.rpc("procesar_aportaciones_objetivos"); }catch(e){}
     }
-    pendientes = (pen||[]).map(x=>({id:x.id, cuentaId:x.cuenta_id, tipo:x.tipo, importe:Number(x.importe), fecha:x.fecha, descripcion:x.descripcion||"", saldo:x.saldo!=null?Number(x.saldo):null, posicion:x.posicion||0}));
-    if((cat||[]).length===0){
-      const {error:eSeed} = await sb.from("categorias").insert(CATEGORIAS_DEFECTO);
-      if(!eSeed){ const {data:cat2} = await sb.from("categorias").select("*"); categorias = (cat2||[]).map(c=>({id:c.id, tipo:c.tipo, padre:c.padre, nombre:c.nombre})); }
-    } else {
-      categorias = cat.map(c=>({id:c.id, tipo:c.tipo, padre:c.padre, nombre:c.nombre}));
+    const res = await Promise.all(tablas.map(t=>TABLAS[t].q()));
+    const fallo = res.find((r,i)=>r.error && !TABLAS[tablas[i]].opcional);
+    if(fallo){ ready = true; render(); showError("No se pudieron cargar los datos: "+fallo.error.message); return; }
+    for(let i=0; i<tablas.length; i++){
+      let data = res[i].data || [];
+      if(tablas[i]==="categorias" && data.length===0){
+        const {error:eSeed} = await sb.from("categorias").insert(CATEGORIAS_DEFECTO);
+        if(eSeed) continue;
+        data = (await TABLAS.categorias.q()).data || [];
+      }
+      TABLAS[tablas[i]].set(data);
     }
     detectarObjetivosCompletados();
     hideError(); ready = true;
@@ -69,6 +77,8 @@ async function fetchAll(){
   }
 }
 
+function fetchAll(){ return recargar(undefined, {procesar:true}); }
+
 function applyAuthUI(){
   document.getElementById("authScreen").style.display = session ? "none" : "block";
   document.getElementById("appShell").style.display = session ? "block" : "none";
@@ -80,24 +90,31 @@ function applyAuthUI(){
 
 function refrescar(){ if(!session) return; refrescoSilencioso = true; fetchAll(); }
 
+// Realtime: agrupa los cambios de 400 ms y recarga solo las tablas afectadas.
+const tablasPorRecargar = new Set();
+let timerRecarga = null;
+function refrescarTabla(tabla){
+  if(!session) return;
+  tablasPorRecargar.add(tabla);
+  clearTimeout(timerRecarga);
+  timerRecarga = setTimeout(()=>{
+    const tablas = [...tablasPorRecargar];
+    tablasPorRecargar.clear();
+    refrescoSilencioso = true;
+    recargar(tablas);
+  }, 400);
+}
+
 async function startApp(){
   if(appStarted) return;
   appStarted = true;
   render();
   await fetchAll();
   let primeraSub = true;
-  sb.channel("cambios")
-    .on("postgres_changes", {event:"*", schema:"public", table:"movimientos"}, refrescar)
-    .on("postgres_changes", {event:"*", schema:"public", table:"deudas"}, refrescar)
-    .on("postgres_changes", {event:"*", schema:"public", table:"cuentas"}, refrescar)
-    .on("postgres_changes", {event:"*", schema:"public", table:"inversiones"}, refrescar)
-    .on("postgres_changes", {event:"*", schema:"public", table:"aportaciones_inversion"}, refrescar)
-    .on("postgres_changes", {event:"*", schema:"public", table:"categorias"}, refrescar)
-    .on("postgres_changes", {event:"*", schema:"public", table:"retiros_inversion"}, refrescar)
-    .on("postgres_changes", {event:"*", schema:"public", table:"presupuestos"}, refrescar)
-    .on("postgres_changes", {event:"*", schema:"public", table:"objetivos"}, refrescar)
-    .on("postgres_changes", {event:"*", schema:"public", table:"movimientos_pendientes"}, refrescar)
-    .on("postgres_changes", {event:"*", schema:"public", table:"recurrentes"}, refrescar)
+  const canal = sb.channel("cambios");
+  Object.keys(TABLAS).filter(t=>t!=="preferencias").forEach(t=>
+    canal.on("postgres_changes", {event:"*", schema:"public", table:t}, ()=>refrescarTabla(t)));
+  canal
     .subscribe((status)=>{
       if(status==="SUBSCRIBED"){ if(primeraSub) primeraSub = false; else refrescar(); }
     });
