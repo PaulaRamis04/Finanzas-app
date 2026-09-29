@@ -12,6 +12,11 @@ let tab = "Inicio";
 let ready = false;
 
 let movimientos = [], deudas = [], cuentas = [], inversiones = [], aportaciones = [], categorias = [], retiros = [], presupuestos = [], objetivos = [];
+// Carga parcial: "movimientos" solo trae desde movDesde; lo anterior llega agregado por mes en movResumen.
+let movDesde = null, movResumen = [], movParcial = false;
+function previoCuenta(cuentaId, hasta){
+  return movResumen.reduce((s,r)=> r.cuentaId===cuentaId && r.mes<hasta ? s + r.ingresos - r.gastos : s, 0);
+}
 
 let editarPresupuestoId = null, editarPresDeudaId = null, meDebenMovId = null;
 
@@ -83,17 +88,18 @@ function beneficioInv(inv){ return (inv.valorActual + retiradoInv(inv)) - aporta
 function saldoCuenta(c){
   const ing = movimientos.filter(m=>m.cuentaId===c.id && m.tipo==="ingreso").reduce((s,m)=>s+m.importe,0);
   const gas = movimientos.filter(m=>m.cuentaId===c.id && m.tipo==="gasto").reduce((s,m)=>s+m.importe,0);
-  return (c.saldoInicial||0) + ing - gas;
+  return (c.saldoInicial||0) + (movParcial ? previoCuenta(c.id, movDesde) : 0) + ing - gas;
 }
 
 function patrimonioEnFecha(corte){
   // Estimación: reconstruye el patrimonio a partir de los movimientos anteriores a "corte".
   // Las deudas ya saldadas no se pueden reconstruir con precisión (no guardamos cuándo se saldaron).
   const totalCuentas = cuentas.reduce((s,c)=>{
+    if(movParcial && corte<=movDesde) return s + c.saldoInicial + previoCuenta(c.id, corte);
     const movs = movimientos.filter(m=>m.cuentaId===c.id && m.fecha < corte);
     const ing = movs.filter(m=>m.tipo==="ingreso").reduce((a,m)=>a+m.importe,0);
     const gas = movs.filter(m=>m.tipo==="gasto").reduce((a,m)=>a+m.importe,0);
-    return s + c.saldoInicial + ing - gas;
+    return s + c.saldoInicial + (movParcial ? previoCuenta(c.id, movDesde) : 0) + ing - gas;
   },0);
   const totalInv = inversiones.filter(i=>i.estado==="activa").reduce((s,i)=>{
     const apoDesde = aportaciones.filter(a=>a.inversionId===i.id && a.fecha>=corte).reduce((a,x)=>a+x.importe,0);
@@ -157,8 +163,10 @@ function serieDiaria(diasAtras){
   return {valores, etiquetas};
 }
 function rangoMaximoPatrimonio(){
-  if(!movimientos.length) return {valores:[patrimonioNetoActual()], etiquetas:["Hoy"]};
-  const minFecha = movimientos.reduce((a,m)=> m.fecha<a? m.fecha : a, movimientos[0].fecha);
+  const minCargado = movimientos.length ? movimientos.reduce((a,m)=> m.fecha<a? m.fecha : a, movimientos[0].fecha) : null;
+  const minRes = movResumen.reduce((a,r)=> !a || r.mes<a ? r.mes : a, null);
+  const minFecha = minRes && (!minCargado || minRes.slice(0,7)<minCargado.slice(0,7)) ? minRes : minCargado;
+  if(!minFecha) return {valores:[patrimonioNetoActual()], etiquetas:["Hoy"]};
   const hoy = new Date();
   const [y0,m0] = minFecha.split("-").map(Number);
   const mesesTotal = (hoy.getFullYear()-y0)*12 + (hoy.getMonth()+1-m0) + 1;
