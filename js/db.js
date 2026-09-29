@@ -41,17 +41,44 @@ async function cargarHistoricoCompleto(){
   await recargar(["movimientos"]);
 }
 
+// Supabase corta cada consulta en 1000 filas: pide páginas hasta traerlo todo.
+const TAM_PAGINA = 1000;
+async function todas(consulta){
+  const filas = [];
+  for(let desde=0; ; desde+=TAM_PAGINA){
+    const {data, error} = await consulta().order("id").range(desde, desde+TAM_PAGINA-1);
+    if(error) return {data:null, error};
+    filas.push(...(data||[]));
+    if(!data || data.length<TAM_PAGINA) return {data:filas, error:null};
+  }
+}
+
+// Renombra la categoría y todo lo que la usa (movimientos, presupuestos, recurrentes).
+async function renombrarCategoria(cat, nuevo){
+  const r = await sb.rpc("renombrar_categoria", {p_id: String(cat.id), p_nombre: nuevo});
+  if(!r.error || r.error.code!=="PGRST202") return r;
+  // schema_renombrar_categoria.sql sin aplicar: mismo cambio desde el cliente (no atómico).
+  const pasos = [
+    ()=>sb.from("categorias").update({nombre:nuevo}).eq("id", cat.id),
+    ()=>sb.from("movimientos").update({categoria:nuevo}).eq("categoria", cat.nombre).eq("tipo", cat.tipo),
+    ()=>sb.from("recurrentes").update({categoria:nuevo}).eq("categoria", cat.nombre).eq("tipo", cat.tipo)
+  ];
+  if(cat.tipo==="gasto") pasos.push(()=>sb.from("presupuestos").update({categoria:nuevo}).eq("categoria", cat.nombre));
+  for(const paso of pasos){ const {error} = await paso(); if(error) return {error}; }
+  return {error:null};
+}
+
 const TABLAS = {
-  cuentas: { q:()=>sb.from("cuentas").select("*").order("nombre"),
-    set:d=>{ cuentas = d.map(c=>({id:c.id, nombre:c.nombre, saldoInicial:Number(c.saldo_inicial), orden:c.orden||0})).sort(porOrden); } },
+  cuentas: { q:()=>todas(()=>sb.from("cuentas").select("*").order("nombre")),
+    set:d=>{ cuentas = d.map(c=>({id:c.id, nombre:c.nombre, saldoInicial:Number(c.saldo_inicial), orden:c.orden||0, archivada:!!c.archivada})).sort(porOrden); } },
   movimientos: { q: async ()=>{
       const desde = calcularMovDesde();
       const [res, lista] = await Promise.all([
         sb.rpc("resumen_movimientos_mensual"),
-        sb.from("movimientos").select("*").gte("fecha", desde).order("fecha", {ascending:false})
+        todas(()=>sb.from("movimientos").select("*").gte("fecha", desde).order("fecha", {ascending:false}))
       ]);
       if(res.error){ // schema_resumen_movimientos.sql sin aplicar: carga completa como antes
-        const todo = await sb.from("movimientos").select("*").order("fecha", {ascending:false});
+        const todo = await todas(()=>sb.from("movimientos").select("*").order("fecha", {ascending:false}));
         return {data:{filas:todo.data||[], resumen:null, desde:null}, error:todo.error};
       }
       return {data:{filas:lista.data||[], resumen:res.data||[], desde}, error:lista.error};
@@ -63,24 +90,24 @@ const TABLAS = {
       movDesde = movParcial ? d.desde : null;
       movResumen = (d.resumen||[]).map(r=>({cuentaId:r.cuenta_id, mes:r.mes, ingresos:Number(r.ingresos), gastos:Number(r.gastos), n:Number(r.n)}));
     } },
-  deudas: { q:()=>sb.from("deudas").select("*"),
+  deudas: { q:()=>todas(()=>sb.from("deudas").select("*")),
     set:rows=>{ deudas = rows.map(d=>({id:d.id, persona:d.persona, importe:Number(d.importe), importeInicial:d.importe_inicial!=null?Number(d.importe_inicial):Number(d.importe), direccion:d.direccion, concepto:d.concepto, estado:d.estado, fecha:d.fecha, presupuesto:d.presupuesto||null, movimientoId:d.movimiento_id||null})); } },
-  inversiones: { q:()=>sb.from("inversiones").select("*"),
+  inversiones: { q:()=>todas(()=>sb.from("inversiones").select("*")),
     set:d=>{ inversiones = d.map(i=>({id:i.id, nombre:i.nombre, tipo:i.tipo, valorActual:Number(i.valor_actual), valorInicial:Number(i.valor_inicial), estado:i.estado||"activa", fechaPrevista:i.fecha_prevista, importePrevisto:i.importe_previsto!=null?Number(i.importe_previsto):null, cuentaPrevistaId:i.cuenta_prevista_id, padreId:i.padre_id||null, esGrupo:!!i.es_grupo, orden:i.orden||0, rentas:Number(i.rentas||0)})); } },
-  aportaciones_inversion: { q:()=>sb.from("aportaciones_inversion").select("*"),
+  aportaciones_inversion: { q:()=>todas(()=>sb.from("aportaciones_inversion").select("*")),
     set:d=>{ aportaciones = d.map(a=>({id:a.id, inversionId:a.inversion_id, importe:Number(a.importe), fecha:a.fecha, cuentaId:a.cuenta_id, movimientoId:a.movimiento_id})); } },
-  retiros_inversion: { q:()=>sb.from("retiros_inversion").select("*"),
+  retiros_inversion: { q:()=>todas(()=>sb.from("retiros_inversion").select("*")),
     set:d=>{ retiros = d.map(r=>({id:r.id, inversionId:r.inversion_id, importe:Number(r.importe), fecha:r.fecha, cuentaId:r.cuenta_id, movimientoId:r.movimiento_id})); } },
-  categorias: { q:()=>sb.from("categorias").select("*"),
+  categorias: { q:()=>todas(()=>sb.from("categorias").select("*")),
     set:d=>{ categorias = d.map(c=>({id:c.id, tipo:c.tipo, padre:c.padre, nombre:c.nombre})); } },
-  presupuestos: { q:()=>sb.from("presupuestos").select("*"),
+  presupuestos: { q:()=>todas(()=>sb.from("presupuestos").select("*")),
     set:d=>{ presupuestos = d.map(p=>({id:p.id, categoria:p.categoria, limite:Number(p.limite), rollover:!!p.rollover, rolloverDesde:p.rollover_desde||null})); } },
-  recurrentes: { q:()=>sb.from("recurrentes").select("*"),
+  recurrentes: { q:()=>todas(()=>sb.from("recurrentes").select("*")),
     set:d=>{ recurrentes = d.map(r=>({id:r.id, tipo:r.tipo, categoria:r.categoria, importe:Number(r.importe), nota:r.nota||"", cuentaId:r.cuenta_id, diaMes:r.dia_mes, activo:r.activo, fechaInicio:r.fecha_inicio, ultimaGenerada:r.ultima_generada})); } },
-  objetivos: { q:()=>sb.from("objetivos").select("*"),
+  objetivos: { q:()=>todas(()=>sb.from("objetivos").select("*")),
     set:d=>{ objetivos = d.map(o=>({id:o.id, nombre:o.nombre, meta:Number(o.meta), tipoVinculo:o.tipo_vinculo, vinculoId:o.vinculo_id, orden:o.orden||0,
       autoActivo:!!o.auto_activo, autoCuota:o.auto_cuota!=null?Number(o.auto_cuota):null, autoDiaMes:o.auto_dia_mes||null, autoCuentaOrigen:o.auto_cuenta_origen||null, autoUltimaGenerada:o.auto_ultima_generada||null})).sort(porOrden); } },
-  movimientos_pendientes: { q:()=>sb.from("movimientos_pendientes").select("*"),
+  movimientos_pendientes: { q:()=>todas(()=>sb.from("movimientos_pendientes").select("*")),
     set:d=>{ pendientes = d.map(x=>({id:x.id, cuentaId:x.cuenta_id, tipo:x.tipo, importe:Number(x.importe), fecha:x.fecha, descripcion:x.descripcion||"", saldo:x.saldo!=null?Number(x.saldo):null, posicion:x.posicion||0})); } },
   preferencias: { q:()=>sb.from("preferencias").select("*"), opcional:true,
     set:d=>{ if(!d[0]) return;
@@ -181,6 +208,12 @@ async function init(){
     msg.textContent = error ? "Error: "+error.message : "Enlace enviado. Revisa tu correo y pulsa el enlace desde este mismo dispositivo.";
   };
   document.getElementById("btnLogout").onclick = ()=> sb.auth.signOut();
+  // Al cerrar sesión o cambiar de usuario no puede quedar nada del anterior: ni datos
+  // en memoria, ni el canal realtime, ni preferencias locales.
+  const cambiarDeUsuario = ()=>{
+    ["cuentaDefecto","objCompletados","catsContraidas","formsPorDefecto"].forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
+    location.reload();
+  };
 
   const {data:{session:s}} = await sb.auth.getSession();
   session = s;
@@ -189,6 +222,7 @@ async function init(){
   if(session) startApp();
 
   sb.auth.onAuthStateChange(async (_event, s2)=>{
+    if(appStarted && session && s2?.user?.id!==session.user.id){ cambiarDeUsuario(); return; }
     session = s2;
     await syncPendingName();
     applyAuthUI();
