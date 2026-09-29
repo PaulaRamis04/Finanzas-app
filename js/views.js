@@ -138,7 +138,7 @@ function showError(msg){
 function hideError(){ document.getElementById("errBar").classList.remove("show"); }
 
 function renderPeriodo(){
-  const years = Array.from(new Set([...movimientos.map(m=>Number((m.fecha||"").slice(0,4))).filter(Boolean), periodoAnio])).sort((a,b)=>b-a);
+  const years = Array.from(new Set([...movimientos.map(m=>Number((m.fecha||"").slice(0,4))), ...movResumen.map(r=>Number(r.mes.slice(0,4))), periodoAnio].filter(Boolean))).sort((a,b)=>b-a);
   document.getElementById("periodoBox").innerHTML = `
     <select id="selMes">
       <option value="todos" ${periodoMes==="todos"?"selected":""}>Total del año</option>
@@ -147,7 +147,7 @@ function renderPeriodo(){
     <select id="selAnio">${years.map(y=>`<option value="${y}" ${y===periodoAnio?"selected":""}>${y}</option>`).join("")}</select>
   `;
   document.getElementById("selMes").onchange = e=>{periodoMes=e.target.value; render();};
-  document.getElementById("selAnio").onchange = e=>{periodoAnio=Number(e.target.value); render();};
+  document.getElementById("selAnio").onchange = e=>{periodoAnio=Number(e.target.value); if(!asegurarMovimientosDesde(`${periodoAnio}-01-01`)) render();};
 }
 
 function closeMenu(){
@@ -198,7 +198,7 @@ function renderBalance(){
 
 function opcionesCuentas(selectedId, sinDefecto){
   const sel = selectedId || (sinDefecto ? "" : cuentaPorDefecto());
-  return cuentas.map(c=>`<option value="${c.id}"${c.id===sel?" selected":""}>${esc(c.nombre)}</option>`).join("");
+  return cuentas.filter(c=>!c.archivada || c.id===sel).map(c=>`<option value="${c.id}"${c.id===sel?" selected":""}>${esc(c.nombre)}</option>`).join("");
 }
 
 function renderInicio(){
@@ -218,6 +218,37 @@ function renderInicio(){
   const gastosReales = enP.filter(m=>m.tipo==="gasto" && m.categoria!=="Inversión").reduce((s,m)=>s+m.importe,0);
   const ahorroMes = ingresos - gastosReales;
   const disponible = ahorroMes - inversionMes;
+
+  const mesAnt = mesAnteriorCargado();
+  const tAnt = mesAnt ? totalesEfectivos(movimientosEfectivos(mesAnt.dentro)) : null;
+  const comparar = (actual, previo, masEsBueno)=>{
+    if(!tAnt || previo===0) return "";
+    const pct = (actual-previo)/previo*100;
+    if(Math.abs(pct)<0.5) return `<div class="meta">= que ${MESES[mesAnt.m-1].toLowerCase()}</div>`;
+    const bueno = (pct>0)===masEsBueno;
+    return `<div class="meta" style="color:var(${bueno?'--pos':'--neg'})">${pct>0?"▲":"▼"} ${Math.abs(pct).toFixed(0)}% vs ${MESES[mesAnt.m-1].toLowerCase()}</div>`;
+  };
+  const alertas = presupuestosEnAlerta();
+  const bloqueAlertas = alertas.length ? `
+  <div class="card">
+    <h2>⚠️ Presupuestos al límite</h2>
+    <div class="list" style="margin-top:8px">
+      ${alertas.map(a=>{
+        const pasado = a.gastado>a.limite;
+        return `
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:14px;margin-bottom:5px">
+            <span>${esc(a.categoria)}</span>
+            <strong class="${pasado?'neg':''}">${eur(a.gastado)} de ${eur(a.limite)}</strong>
+          </div>
+          <div style="height:7px;background:var(--line);border-radius:999px;overflow:hidden">
+            <div style="height:100%;width:${Math.min(a.pct,100)}%;background:${pasado?'var(--neg)':'#e0ac4e'};border-radius:999px"></div>
+          </div>
+        </div>`;
+      }).join("")}
+    </div>
+    <button class="btn ghost" data-ir-tab="Presupuestos" style="margin-top:14px">Ver presupuestos</button>
+  </div>` : "";
 
   const enCurso = objetivos.filter(o=>!objetivoCompletado(o)).sort(porOrden);
   const bloqueObjetivos = objetivos.length ? `
@@ -269,12 +300,13 @@ function renderInicio(){
   <div class="card">
     <h2>📅 ${lbl}</h2>
     <div class="balance" style="margin-top:6px">
-      <div><div class="num pos">${eur(ingresos)}</div><div class="lbl">Ingresos</div></div>
-      <div><div class="num neg">${eur(gastosReales)}</div><div class="lbl">Gastos</div></div>
+      <div><div class="num pos">${eur(ingresos)}</div><div class="lbl">Ingresos</div>${tAnt ? comparar(ingresos, tAnt.ingresos, true) : ""}</div>
+      <div><div class="num neg">${eur(gastosReales)}</div><div class="lbl">Gastos</div>${tAnt ? comparar(gastosReales, tAnt.gastos, false) : ""}</div>
       <div><div class="num">${eur(ahorroMes)}</div><div class="lbl">Ahorro</div></div>
       <div><div class="num">${eur(inversionMes)}</div><div class="lbl">Inversión</div></div>
     </div>
   </div>
+  ${bloqueAlertas}
   <div class="card">
     <h2>📈 Patrimonio</h2>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 12px">
@@ -509,8 +541,8 @@ function renderImportar(){
       <div><label>Descripción / concepto</label>${sel("csvColNota", csvSel.nota, true)}</div>
       <div><label>Saldo (opcional)</label>${sel("csvColSaldo", csvSel.saldo, true)}</div>
     </div>
-    <div style="margin-top:10px"><label>Cuenta</label>${cuentas.length?`<select id="csvCuenta">${opcionesCuentas(csvSel.cuenta)}</select>`:`<div class="meta">Crea antes una cuenta.</div>`}</div>
-    <button class="btn" id="csvPrevisualizar" style="margin-top:12px" ${cuentas.length?"":"disabled"}>Previsualizar</button>
+    <div style="margin-top:10px"><label>Cuenta</label>${cuentasActivas().length?`<select id="csvCuenta">${opcionesCuentas(csvSel.cuenta)}</select>`:`<div class="meta">Crea antes una cuenta.</div>`}</div>
+    <button class="btn" id="csvPrevisualizar" style="margin-top:12px" ${cuentasActivas().length?"":"disabled"}>Previsualizar</button>
   </div>` : ""}
   ${csvPreview.length? `
   <div class="card">
@@ -565,7 +597,7 @@ function renderPreferencias(){
   <div class="card">
     <h2>Cuenta por defecto</h2>
     <p class="meta" style="margin:0 0 10px">Es la cuenta que aparece ya seleccionada cuando añades un movimiento, aportas o rescatas de una inversión, saldas una deuda o importas un extracto. Siempre puedes elegir otra en cada caso.</p>
-    ${cuentas.length? `<select id="prefCuenta"><option value="">Ninguna (la primera de la lista)</option>${cuentas.map(c=>`<option value="${c.id}"${c.id===def?" selected":""}>${esc(c.nombre)}</option>`).join("")}</select>` : `<div class="meta">Crea antes una cuenta en la pestaña "Cuentas".</div>`}
+    ${cuentasActivas().length? `<select id="prefCuenta"><option value="">Ninguna (la primera de la lista)</option>${cuentasActivas().map(c=>`<option value="${c.id}"${c.id===def?" selected":""}>${esc(c.nombre)}</option>`).join("")}</select>` : `<div class="meta">Crea antes una cuenta en la pestaña "Cuentas".</div>`}
     <div class="meta" id="prefEstado" style="margin-top:8px"></div>
   </div>
   <div class="card">
@@ -728,7 +760,7 @@ function renderRecurrentes(){
     <form id="fRecurrente">
       <div class="row2">
         <div><label>Tipo</label><select name="tipo" id="recTipo"><option value="gasto">Gasto</option><option value="ingreso">Ingreso</option></select></div>
-        <div><label>Importe (€)</label><input name="importe" type="number" step="0.01" min="0" required></div>
+        <div><label>Importe (€)</label><input name="importe" type="number" step="0.01" min="0.01" required></div>
       </div>
       <div class="row2">
         <div><label>Categoría</label><select name="categoria" id="recCategoria" required></select></div>
@@ -736,11 +768,11 @@ function renderRecurrentes(){
       </div>
       <div><label>Nota (opcional)</label><input name="nota" placeholder="ej. Netflix"></div>
       <div class="row2">
-        <div><label>Cuenta</label>${cuentas.length? `<select name="cuentaId">${opcionesCuentas()}</select>` : `<div class="meta">Crea antes una cuenta.</div>`}</div>
+        <div><label>Cuenta</label>${cuentasActivas().length? `<select name="cuentaId">${opcionesCuentas()}</select>` : `<div class="meta">Crea antes una cuenta.</div>`}</div>
         <div><label>Empieza el</label><input name="fechaInicio" type="date" value="${today()}" required></div>
       </div>
       <p class="meta" style="margin:0">El día máximo es 28 para que funcione igual en todos los meses, incluido febrero.</p>
-      <button class="btn" type="submit" ${cuentas.length?"":"disabled"}>Añadir</button>
+      <button class="btn" type="submit" ${cuentasActivas().length?"":"disabled"}>Añadir</button>
     </form>
   </div>
   <div class="section-title">Recurrentes (${items.length})</div>
@@ -932,7 +964,7 @@ function movItem(m, cubMov, pendMov){
     <label>¿Quién te lo debe?</label>
     <input id="mdPersona" placeholder="ej. Marta">
     <label>Cuánto te deben (€)</label>
-    <input id="mdImporte" type="number" step="0.01" min="0" value="${m.importe}">
+    <input id="mdImporte" type="number" step="0.01" min="0.01" value="${m.importe}">
     <div class="meta">Se crea una deuda "me deben" vinculada a este gasto. Hasta que la saldes no cambia nada; cuando la cobres, esa cantidad dejará de contar como gasto tuyo (mes, resumen y presupuesto).</div>
     <div style="display:flex;gap:8px">
       <button class="btn" data-confirmar-me-deben="${m.id}">Crear deuda</button>
@@ -949,7 +981,7 @@ function movItem(m, cubMov, pendMov){
     <label>Categoría</label>
     <select id="movEditCategoria">${opcionesCategoriaPend(m.tipo, m.categoria)}</select>
     <div class="row2">
-      <div><label>Importe (€)</label><input id="movEditImporte" type="number" step="0.01" min="0" value="${m.importe}"></div>
+      <div><label>Importe (€)</label><input id="movEditImporte" type="number" step="0.01" min="0.01" value="${m.importe}"></div>
       <div><label>Fecha</label><input id="movEditFecha" type="date" value="${m.fecha}"></div>
     </div>
     <label>Cuenta</label>
@@ -986,28 +1018,28 @@ function renderMovimientos(){
     <form id="fMov">
       <div class="row2">
         <div><label>Tipo</label><select name="tipo" id="movTipo"><option value="gasto"${(!movPlantilla||movPlantilla.tipo==="gasto")?" selected":""}>Gasto</option><option value="ingreso"${movPlantilla&&movPlantilla.tipo==="ingreso"?" selected":""}>Ingreso</option></select></div>
-        <div><label>Importe (€)</label><input name="importe" type="number" step="0.01" min="0" value="${movPlantilla?movPlantilla.importe:''}" required></div>
+        <div><label>Importe (€)</label><input name="importe" type="number" step="0.01" min="0.01" value="${movPlantilla?movPlantilla.importe:''}" required></div>
       </div>
       <div class="row2">
         <div><label>Categoría</label><select name="categoria" id="movCat"></select></div>
         <div><label>Fecha</label><input name="fecha" type="date" value="${today()}" required></div>
       </div>
-      <div><label>Cuenta</label>${cuentas.length? `<select name="cuentaId">${opcionesCuentas(movPlantilla?movPlantilla.cuentaId:null)}</select>` : `<div class="meta">Crea antes una cuenta en la pestaña "Cuentas".</div>`}</div>
+      <div><label>Cuenta</label>${cuentasActivas().length? `<select name="cuentaId">${opcionesCuentas(movPlantilla?movPlantilla.cuentaId:null)}</select>` : `<div class="meta">Crea antes una cuenta en la pestaña "Cuentas".</div>`}</div>
       <div><label>Nota (opcional)</label><input name="nota" placeholder="ej. cena viernes" value="${movPlantilla?esc(movPlantilla.nota||''):''}"></div>
-      <button class="btn" type="submit" ${cuentas.length?"":"disabled"}>Añadir</button>
+      <button class="btn" type="submit" ${cuentasActivas().length?"":"disabled"}>Añadir</button>
     </form>
   </div>
   <div class="card">
     <h2>Transferencia entre cuentas</h2>
     <p class="meta" style="margin:0 0 10px">Mueve dinero de una cuenta a otra sin que cuente como gasto ni ingreso.</p>
-    ${cuentas.length<2? `<div class="meta">Necesitas al menos dos cuentas para transferir entre ellas.</div>` : `
+    ${cuentasActivas().length<2? `<div class="meta">Necesitas al menos dos cuentas para transferir entre ellas.</div>` : `
     <form id="fTransferencia">
       <div class="row2">
         <div><label>Desde</label><select name="origen" id="trOrigen">${opcionesCuentas()}</select></div>
         <div><label>Hacia</label><select name="destino" id="trDestino">${opcionesCuentas()}</select></div>
       </div>
       <div class="row2">
-        <div><label>Importe (€)</label><input name="importe" type="number" step="0.01" min="0" required></div>
+        <div><label>Importe (€)</label><input name="importe" type="number" step="0.01" min="0.01" required></div>
         <div><label>Fecha</label><input name="fecha" type="date" value="${today()}" required></div>
       </div>
       <div><label>Nota (opcional)</label><input name="nota" placeholder="ej. traspaso a ahorro"></div>
@@ -1071,13 +1103,13 @@ function deudaItem(d){
     <input type="number" step="0.01" min="0.01" max="${d.importe}" id="saldarImporte" value="${d.importe}">
     <p class="meta" style="margin:0">Si abonas menos del total, la deuda queda pendiente por el resto.</p>
     <label>${d.direccion==='me_deben'?'¿A qué cuenta entra el pago?':'¿De qué cuenta sale el pago?'}</label>
-    ${cuentas.length? `<select id="saldarCuenta">${opcionesCuentas()}</select>` : `<div class="meta">Crea antes una cuenta en la pestaña "Cuentas".</div>`}
+    ${cuentasActivas().length? `<select id="saldarCuenta">${opcionesCuentas()}</select>` : `<div class="meta">Crea antes una cuenta en la pestaña "Cuentas".</div>`}
     ${d.direccion==='debo'? `
     <label>Categoría del gasto (opcional)</label>
     <select id="saldarCat"><option value="">Deuda (sin categoría)</option>${opcionesCategoriasGasto()}</select>
     <div class="meta">Al pagarlo cuenta como gasto en esa categoría, y por tanto en su presupuesto.</div>` : (d.movimientoId? `<div class="meta">Al cobrarlo se registra como reembolso de ese gasto: rebaja ese gasto y no cuenta como ingreso.</div>` : `<div class="meta">Sin gasto vinculado, el cobro cuenta como un ingreso normal.</div>`)}
     <div style="display:flex;gap:8px">
-      <button class="btn" data-confirmar-saldar="${d.id}" ${cuentas.length?"":"disabled"}>Confirmar</button>
+      <button class="btn" data-confirmar-saldar="${d.id}" ${cuentasActivas().length?"":"disabled"}>Confirmar</button>
       <button class="btn ghost" data-cancelar-saldar="1">Cancelar</button>
     </div>
   </div>` : ""}`;
@@ -1111,7 +1143,7 @@ function renderDeudas(){
     <form id="fDeuda">
       <div class="row2">
         <div><label>Persona</label><input name="persona" placeholder="ej. Marta" required></div>
-        <div><label>Importe (€)</label><input name="importe" type="number" step="0.01" min="0" required></div>
+        <div><label>Importe (€)</label><input name="importe" type="number" step="0.01" min="0.01" required></div>
       </div>
       <div class="row2">
         <div><label>Dirección</label><select name="direccion"><option value="debo"${lado==="debo"?" selected":""}>Yo debo</option><option value="me_deben"${lado==="me_deben"?" selected":""}>Me deben</option></select></div>
@@ -1138,9 +1170,13 @@ function renderDeudas(){
   ${saldadasAbiertas[lado] ? `<div class="list" style="margin-top:8px">${saldadas.map(deudaItem).join("")}</div>` : ""}` : ""}`;
 }
 
+function nMovCuenta(c){
+  return movParcial ? movResumen.filter(r=>r.cuentaId===c.id).reduce((s,r)=>s+r.n,0) : movimientos.filter(m=>m.cuentaId===c.id).length;
+}
 function renderCuentas(){
-  const items = [...cuentas].sort(porOrden);
-  const total = items.reduce((s,c)=>s+saldoCuenta(c),0);
+  const items = cuentasActivas().sort(porOrden);
+  const archivadas = cuentas.filter(c=>c.archivada).sort(porOrden);
+  const total = sumaImportes(cuentas, saldoCuenta);
   const positivas = items.map((c,k)=>({c,k,saldo:saldoCuenta(c)})).filter(x=>x.saldo>0);
   const totalPos = positivas.reduce((s,x)=>s+x.saldo,0);
   const resumen = items.length ? `
@@ -1158,7 +1194,7 @@ function renderCuentas(){
   const tarjetas = items.map((c,k)=>{
     const saldo = saldoCuenta(c);
     const col = PALETTE[k%PALETTE.length];
-    const nMov = movimientos.filter(m=>m.cuentaId===c.id).length;
+    const nMov = nMovCuenta(c);
     return `
     <div class="sort-item" data-sort-id="${c.id}"><div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
@@ -1171,7 +1207,7 @@ function renderCuentas(){
       </div>
       <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
         ${ajustarSaldoId!==c.id?`<button class="btn gold" data-ajustar-saldo="${c.id}">Ajustar saldo</button>`:""}
-        <button class="btn ghost" data-del-cuenta="${c.id}">Borrar</button>
+        ${nMov ? `<button class="btn ghost" data-archivar-cuenta="${c.id}" style="color:var(--muted)">Archivar</button>` : `<button class="btn ghost" data-del-cuenta="${c.id}">Borrar</button>`}
       </div>
       ${ajustarSaldoId===c.id? `
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
@@ -1188,6 +1224,19 @@ function renderCuentas(){
   return `
   ${resumen}
   ${tarjetas ? `<div data-sortable="ordenar_cuentas">${tarjetas}</div>` : `<div class="card"><div class="empty" style="padding:20px 10px">Sin cuentas todavía. Crea la primera abajo.</div></div>`}
+  ${archivadas.length ? `
+  <div class="card">
+    <h2>Archivadas</h2>
+    <p class="meta" style="margin:-6px 0 10px">Siguen contando en tu patrimonio, pero no aparecen al apuntar movimientos.</p>
+    <div class="list">${archivadas.map(c=>`
+      <div class="item">
+        <div style="min-width:0"><strong>${esc(c.nombre)}</strong><div class="meta">${eur(saldoCuenta(c))}</div></div>
+        <div style="display:flex;gap:6px">
+          <button class="btn ghost" data-desarchivar-cuenta="${c.id}" style="color:var(--accent)">Reactivar</button>
+          ${nMovCuenta(c) ? "" : `<button class="btn ghost" data-del-cuenta="${c.id}">Borrar</button>`}
+        </div>
+      </div>`).join("")}</div>
+  </div>` : ""}
   <div class="card">
     <h2>Añadir cuenta</h2>
     <form id="fCuenta">
@@ -1293,22 +1342,22 @@ function invItem(inv, conGrip){
   ${aportarInvId===inv.id? `
   <div class="item" style="flex-direction:column;align-items:stretch;gap:8px">
     <label>Importe a aportar (€)</label>
-    <input type="number" step="0.01" min="0" id="aportarImporte" value="${inv.importePrevisto||''}">
+    <input type="number" step="0.01" min="0.01" id="aportarImporte" value="${inv.importePrevisto||''}">
     <label>Cuenta de origen</label>
-    ${cuentas.length? `<select id="aportarCuenta">${opcionesCuentas(inv.cuentaPrevistaId)}</select>` : `<div class="meta">Crea antes una cuenta en la pestaña "Cuentas".</div>`}
+    ${cuentasActivas().length? `<select id="aportarCuenta">${opcionesCuentas(inv.cuentaPrevistaId)}</select>` : `<div class="meta">Crea antes una cuenta en la pestaña "Cuentas".</div>`}
     <div style="display:flex;gap:8px">
-      <button class="btn" data-confirmar-aportar="${inv.id}" ${cuentas.length?"":"disabled"}>Confirmar</button>
+      <button class="btn" data-confirmar-aportar="${inv.id}" ${cuentasActivas().length?"":"disabled"}>Confirmar</button>
       <button class="btn ghost" data-cancelar-aportar="1">Cancelar</button>
     </div>
   </div>` : ""}
   ${rescatarInvId===inv.id? `
   <div class="item" style="flex-direction:column;align-items:stretch;gap:8px">
     <label>Importe a rescatar (€) — máximo ${eur(inv.valorActual)}</label>
-    <input type="number" step="0.01" min="0" max="${inv.valorActual}" id="rescatarImporte">
+    <input type="number" step="0.01" min="0.01" max="${inv.valorActual}" id="rescatarImporte">
     <label>Cuenta destino</label>
-    ${cuentas.length? `<select id="rescatarCuenta">${opcionesCuentas()}</select>` : `<div class="meta">Crea antes una cuenta en la pestaña "Cuentas".</div>`}
+    ${cuentasActivas().length? `<select id="rescatarCuenta">${opcionesCuentas()}</select>` : `<div class="meta">Crea antes una cuenta en la pestaña "Cuentas".</div>`}
     <div style="display:flex;gap:8px">
-      <button class="btn" data-confirmar-rescate="${inv.id}" ${cuentas.length?"":"disabled"}>Confirmar</button>
+      <button class="btn" data-confirmar-rescate="${inv.id}" ${cuentasActivas().length?"":"disabled"}>Confirmar</button>
       <button class="btn ghost" data-cancelar-rescate="1">Cancelar</button>
     </div>
   </div>` : ""}
@@ -1341,7 +1390,7 @@ function invItem(inv, conGrip){
     <label>Fecha prevista</label><input id="infoFechaPrevista" type="date" value="${inv.fechaPrevista||''}">
     <label>Importe previsto (€)</label><input id="infoImportePrevisto" type="number" step="0.01" min="0" value="${inv.importePrevisto??''}">
     <label>Cuenta prevista</label>
-    ${cuentas.length? `<select id="infoCuentaPrevista"><option value="">Sin elegir todavía</option>${cuentas.map(c=>`<option value="${c.id}" ${c.id===inv.cuentaPrevistaId?"selected":""}>${esc(c.nombre)}</option>`).join("")}</select>` : `<div class="meta">Crea una cuenta cuando quieras usarla.</div>`}
+    ${cuentasActivas().length? `<select id="infoCuentaPrevista"><option value="">Sin elegir todavía</option>${cuentas.filter(c=>!c.archivada || c.id===inv.cuentaPrevistaId).map(c=>`<option value="${c.id}" ${c.id===inv.cuentaPrevistaId?"selected":""}>${esc(c.nombre)}</option>`).join("")}</select>` : `<div class="meta">Crea una cuenta cuando quieras usarla.</div>`}
     ` : ""}
     <div style="display:flex;gap:8px">
       <button class="btn" data-confirmar-info="${inv.id}">Guardar</button>
@@ -1396,7 +1445,7 @@ function renderInversiones(){
           <div><label>Importe previsto (€)</label><input name="importePrevisto" type="number" step="0.01" min="0"></div>
         </div>
         <label>Cuenta prevista</label>
-        ${cuentas.length? `<select name="cuentaPrevista"><option value="">Sin elegir todavía</option>${opcionesCuentas(null, true)}</select>` : `<div class="meta">Crea una cuenta cuando quieras usarla.</div>`}
+        ${cuentasActivas().length? `<select name="cuentaPrevista"><option value="">Sin elegir todavía</option>${opcionesCuentas(null, true)}</select>` : `<div class="meta">Crea una cuenta cuando quieras usarla.</div>`}
       </div>
       <button class="btn" type="submit">Añadir</button>
     </form>
@@ -1553,7 +1602,7 @@ function wireEvents(){
     });
   };
   document.querySelectorAll("[data-lado-deuda]").forEach(b=>b.onclick=()=>{ deudaLado = b.dataset.ladoDeuda; saldarId = null; editarPresDeudaId = null; render(); });
-  document.querySelectorAll("[data-ver-abonos]").forEach(b=>b.onclick=()=>{ verAbonosDeudaId = verAbonosDeudaId===b.dataset.verAbonos ? null : b.dataset.verAbonos; render(); });
+  document.querySelectorAll("[data-ver-abonos]").forEach(b=>b.onclick=()=>{ verAbonosDeudaId = verAbonosDeudaId===b.dataset.verAbonos ? null : b.dataset.verAbonos; if(!asegurarMovimientosDesde(deudas.find(d=>d.id===verAbonosDeudaId)?.fecha)) render(); });
   document.querySelectorAll("[data-toggle-saldadas]").forEach(b=>b.onclick=()=>{ const k = b.dataset.toggleSaldadas; saldadasAbiertas[k] = !saldadasAbiertas[k]; render(); });
   const fDeuda = document.getElementById("fDeuda");
   const fDeudaDir = fDeuda ? fDeuda.querySelector('select[name="direccion"]') : null;
@@ -1593,8 +1642,22 @@ function wireEvents(){
       hideError(); await recargar(["deudas","movimientos"]);
     });
   });
+  const archivarCuenta = (b, id, archivada)=>conCarga(b, "Guardando…", async ()=>{
+    const {error} = await sb.from("cuentas").update({archivada}).eq("id", id);
+    if(error){ showError("No se pudo archivar. ¿Has ejecutado schema_cuentas_archivadas.sql en Supabase? ("+error.message+")"); return; }
+    if(archivada && cuentaDefecto===id) await guardarCuentaDefecto("");
+    hideError(); await recargar(["cuentas"]);
+  });
+  document.querySelectorAll("[data-archivar-cuenta]").forEach(b=>b.onclick=()=>{
+    const c = cuentas.find(x=>x.id===b.dataset.archivarCuenta);
+    const saldo = c ? saldoCuenta(c) : 0;
+    const aviso = saldo!==0 ? ` Todavía tiene ${eur(saldo)}, que seguirá contando en tu patrimonio.` : "";
+    if(!confirm("¿Archivar esta cuenta? Conservas su historial y dejará de salir al apuntar movimientos."+aviso)) return;
+    archivarCuenta(b, b.dataset.archivarCuenta, true);
+  });
+  document.querySelectorAll("[data-desarchivar-cuenta]").forEach(b=>b.onclick=()=>archivarCuenta(b, b.dataset.desarchivarCuenta, false));
   document.querySelectorAll("[data-del-cuenta]").forEach(b=>b.onclick=()=>{
-    if(!confirm("¿Borrar esta cuenta? Los movimientos ya registrados en ella no se borran.")) return;
+    if(!confirm("¿Borrar esta cuenta?")) return;
     conCarga(b, "Borrando…", async ()=>{
       const {error} = await sb.from("cuentas").delete().eq("id", b.dataset.delCuenta);
       if(error){ showError("No se pudo borrar: "+error.message); return; }
@@ -1875,14 +1938,25 @@ function wireEvents(){
     conCarga(fCategoria.querySelector('button[type="submit"]'), "Guardando…", async ()=>{
       const f = new FormData(fCategoria);
       const tipoVal = f.get("tipo");
-      const data = {tipo:tipoVal, padre: tipoVal==="gasto" ? (f.get("padre")||"Otros") : null, nombre:f.get("nombre")};
+      const data = {tipo:tipoVal, padre: tipoVal==="gasto" ? (f.get("padre")||"Otros") : null, nombre:(f.get("nombre")||"").trim()};
+      if(CATEGORIAS_ESPECIALES.includes(data.nombre)){ showError(`"${data.nombre}" es un nombre reservado por la app.`); return; }
+      if(categorias.some(c=>c.tipo===data.tipo && c.nombre===data.nombre)){ showError(`Ya existe una categoría llamada "${data.nombre}".`); return; }
       const {error} = await sb.from("categorias").insert(data);
       if(error){ showError("No se pudo guardar la categoría: "+error.message); return; }
       hideError(); fCategoria.reset(); await recargar(["categorias"]);
     });
   };
-  document.querySelectorAll("[data-del-cat]").forEach(b=>b.onclick=()=>{
-    if(!confirm("¿Borrar esta categoría?")) return;
+  document.querySelectorAll("[data-del-cat]").forEach(b=>b.onclick=async ()=>{
+    const cat = categorias.find(c=>String(c.id)===b.dataset.delCat);
+    let aviso = "¿Borrar esta categoría?";
+    if(cat){
+      const {count} = await sb.from("movimientos").select("id", {count:"exact", head:true}).eq("categoria", cat.nombre).eq("tipo", cat.tipo);
+      const nPres = presupuestos.filter(p=>cat.tipo==="gasto" && p.categoria===cat.nombre).length;
+      const nRec = recurrentes.filter(r=>r.tipo===cat.tipo && r.categoria===cat.nombre).length;
+      const usos = [count ? `${count} movimiento${count>1?"s":""}` : "", nPres ? `${nPres} presupuesto${nPres>1?"s":""}` : "", nRec ? `${nRec} recurrente${nRec>1?"s":""}` : ""].filter(Boolean);
+      if(usos.length) aviso = `"${cat.nombre}" está en uso en ${usos.join(", ")}. Si la borras, conservarán ese nombre pero ya no podrás elegirla. ¿Borrarla igualmente?`;
+    }
+    if(!confirm(aviso)) return;
     conCarga(b, "Borrando…", async ()=>{
       const {error} = await sb.from("categorias").delete().eq("id", b.dataset.delCat);
       if(error){ showError("No se pudo borrar: "+error.message); return; }
@@ -1895,7 +1969,12 @@ function wireEvents(){
     const catId = b.dataset.confirmarCat;
     const nuevo = document.getElementById("catNuevoNombre")?.value.trim();
     if(!nuevo) return;
-    const {error} = await sb.from("categorias").update({nombre:nuevo}).eq("id", catId);
+    const cat = categorias.find(c=>String(c.id)===catId);
+    if(!cat) return;
+    if(nuevo===cat.nombre){ editarCatId = null; render(); return; }
+    if(CATEGORIAS_ESPECIALES.includes(nuevo)){ showError(`"${nuevo}" es un nombre reservado por la app.`); return; }
+    if(categorias.some(c=>c.tipo===cat.tipo && c.nombre===nuevo)){ showError(`Ya existe una categoría llamada "${nuevo}".`); return; }
+    const {error} = await renombrarCategoria(cat, nuevo);
     if(error){ showError("No se pudo renombrar: "+error.message); return; }
     hideError(); editarCatId = null; await recargar(["categorias","movimientos","presupuestos","recurrentes"]);
   }));
@@ -1970,7 +2049,8 @@ function wireEvents(){
     });
   });
   const btnExportar = document.getElementById("btnExportar");
-  if(btnExportar) btnExportar.onclick = ()=>{
+  if(btnExportar) btnExportar.onclick = ()=>conCarga(btnExportar, "Preparando…", async ()=>{
+    await cargarHistoricoCompleto();
     const datos = {
       exportado_en: new Date().toISOString(),
       cuentas, movimientos, deudas, inversiones, aportaciones, retiros,
@@ -1982,7 +2062,7 @@ function wireEvents(){
     a.href = url; a.download = `finanzas-backup-${today()}.json`;
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
-  };
+  });
   const prefForms = document.getElementById("prefForms");
   if(prefForms) prefForms.onchange = ()=>{
     formsPorDefecto = prefForms.value === "cerrados" ? "cerrados" : "abiertos";
@@ -2137,7 +2217,7 @@ function wireEvents(){
         importe: guessAny([/importe/,/amount/,/cantidad/]) || headers[1] || headers[0] || "",
         nota: guessAny([/concepto/,/descripcion/,/detalle/,/movimiento/,/description/]),
         saldo: guessAny([/saldo/,/balance/]),
-        cuenta: cuentaPorDefecto() || (cuentas[0] ? cuentas[0].id : "")
+        cuenta: cuentaPorDefecto() || (cuentasActivas()[0] ? cuentasActivas()[0].id : "")
       };
       render();
     };
@@ -2150,7 +2230,7 @@ function wireEvents(){
   const csvCuentaEl = document.getElementById("csvCuenta");
   if(csvCuentaEl) csvCuentaEl.onchange = ()=>{ csvSel.cuenta = csvCuentaEl.value; if(csvPreview.length){ calcularPreview(); render(); } };
   const csvPrevisualizar = document.getElementById("csvPrevisualizar");
-  if(csvPrevisualizar) csvPrevisualizar.onclick = ()=>{ calcularPreview(); render(); };
+  if(csvPrevisualizar) csvPrevisualizar.onclick = ()=>conCarga(csvPrevisualizar, "Cargando…", async ()=>{ await cargarHistoricoCompleto(); calcularPreview(); render(); });
   const csvImportar = document.getElementById("csvImportar");
   document.querySelectorAll("[data-decision]").forEach(sel=>sel.onchange=()=>{ csvDecisiones[sel.dataset.decision] = sel.value; render(); });
   if(csvImportar) csvImportar.onclick = ()=>conCarga(csvImportar, "Guardando…", async ()=>{
