@@ -23,7 +23,19 @@ function esc(s){
   return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
 
-function today(){ const d = new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+// ── Fechas: siempre día local del usuario. Nunca new Date("YYYY-MM-DD") (se interpreta en UTC) ni toISOString().slice(0,10).
+function fechaLocal(d = new Date()){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+function today(){ return fechaLocal(); }
+function parseFecha(s){ const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d, 12); } // mediodía: inmune a cambios de hora
+function sumarDias(s, n){ const d = parseFecha(s); d.setDate(d.getDate()+n); return fechaLocal(d); }
+function diasEntre(a, b){ const [y1,m1,d1] = a.split("-").map(Number), [y2,m2,d2] = b.split("-").map(Number); return Math.round((Date.UTC(y2,m2-1,d2) - Date.UTC(y1,m1-1,d1))/86400000); }
+
+// ── Dinero: opera en céntimos enteros internamente, devuelve euros.
+function aCentimos(n){ const x = Number(n)||0; return (x<0?-1:1) * Math.round(Math.abs(x)*100 + 1e-6); }
+function redondearDinero(n){ return aCentimos(n)/100; }
+function sumarDinero(...ns){ return ns.reduce((c,n)=>c+aCentimos(n),0)/100; }
+function restarDinero(a, b){ return (aCentimos(a)-aCentimos(b))/100; }
+function sumaImportes(lista, campo = x=>x.importe){ return lista.reduce((c,x)=>c+aCentimos(campo(x)),0)/100; }
 
 function emojiObjetivo(nombre){
   const n = (nombre||"").toLowerCase();
