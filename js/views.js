@@ -2155,10 +2155,9 @@ function wireEvents(){
     const conciliar = csvPreview.filter(m=>!m.invalida && !m.dup && m.matchId && (csvDecisiones[m.posicion]||"igual")==="igual");
     const nuevas = csvPreview.filter(m=>!m.invalida && (!m.dup && (!m.matchId || (csvDecisiones[m.posicion]||"igual")==="distinto")));
     if(!csvSel.cuenta) return;
-    for(const m of conciliar){
-      const cambios = {conciliado:true};
-      if(m.saldo!=null) cambios.saldo_banco = m.saldo;
-      const {error} = await sb.from("movimientos").update(cambios).eq("id", m.matchId);
+       if(conciliar.length){
+      const items = conciliar.map(m=>({id:m.matchId, saldo:m.saldo??null}));
+      const {error} = await sb.rpc("conciliar_movimientos_lote", {p_items:items});
       if(error){ showError("No se pudo conciliar: "+error.message); return; }
     }
     if(nuevas.length){
