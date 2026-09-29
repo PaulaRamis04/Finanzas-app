@@ -178,6 +178,7 @@ let proyResultado = null;
 let cuentaDefecto = "";
 try{ cuentaDefecto = localStorage.getItem("cuentaDefecto") || ""; }catch(e){}
 let csvHeaders = [], csvFilas = [], csvPreview = [], csvSel = {}, csvPreviewCuentaId = "";
+let csvDecisiones = {};
 let pendientes = [], pendCats = {};
 let aportarInvId = null, editarValorInvId = null, editarCatId = null, verAportacionesId = null, ajustarSaldoId = null, rescatarInvId = null;
 let expandidaInvId = null, editarInfoInvId = null, resumenSel = null, resumenAhorroAbierto = false;
@@ -836,10 +837,13 @@ function calcularPreview(){
   const iNota = csvSel.nota ? csvHeaders.indexOf(csvSel.nota) : -1;
   const iSaldo = csvSel.saldo ? csvHeaders.indexOf(csvSel.saldo) : -1;
   const cuentaId = csvSel.cuenta;
-  const cntP = new Map(), cntM = new Map();
+  const cntP = new Map();
   const add = (mp,k)=>mp.set(k,(mp.get(k)||0)+1);
   pendientes.filter(p=>p.cuentaId===cuentaId).forEach(p=>add(cntP, `${p.fecha}|${p.tipo}|${p.importe.toFixed(2)}|${p.descripcion}|${p.saldo!=null?p.saldo.toFixed(2):""}`));
-  movimientos.filter(m=>m.cuentaId===cuentaId).forEach(m=>add(cntM, `${m.fecha}|${m.tipo}|${m.importe.toFixed(2)}|${m.nota||""}`));
+  const VENTANA_DIAS = 3;
+  const movsCuenta = movimientos.filter(m=>m.cuentaId===cuentaId);
+  const usados = new Set(); // ids de movimientos ya emparejados con otra línea del banco
+  csvDecisiones = {};
   csvPreview = csvFilas.map((fila,idx)=>{
     const imp = parseImporteCSV(fila[iImporte]);
     if(isNaN(imp) || imp===0) return null;
@@ -847,13 +851,22 @@ function calcularPreview(){
     const r = {
       fecha: parseFechaCSV(fila[iFecha]) || "", importe: Math.round(Math.abs(imp)*100)/100,
       tipo: imp<0 ? "gasto" : "ingreso", nota: iNota>=0 ? (fila[iNota]||"") : "",
-      saldo: isNaN(saldoRaw) ? null : saldoRaw, posicion: idx, dup:false, invalida:false
+      saldo: isNaN(saldoRaw) ? null : saldoRaw, posicion: idx,
+      dup:false, invalida:false, matchId:null
     };
     r.invalida = !/^\d{4}-\d{2}-\d{2}$/.test(r.fecha);
+    if(r.invalida) return r;
     const kP = `${r.fecha}|${r.tipo}|${r.importe.toFixed(2)}|${r.nota}|${r.saldo!=null?r.saldo.toFixed(2):""}`;
-    const kM = `${r.fecha}|${r.tipo}|${r.importe.toFixed(2)}|${r.nota}`;
-    if((cntP.get(kP)||0)>0){ cntP.set(kP, cntP.get(kP)-1); r.dup = true; }
-    else if((cntM.get(kM)||0)>0){ cntM.set(kM, cntM.get(kM)-1); r.dup = true; }
+    if((cntP.get(kP)||0)>0){ cntP.set(kP, cntP.get(kP)-1); r.dup = true; return r; }
+    // Conciliación: busca un movimiento ya apuntado con el mismo importe y tipo,
+    // en una fecha cercana (no hace falta que la descripción coincida).
+    let mejor = null, mejorDif = Infinity;
+    movsCuenta.forEach(m=>{
+      if(usados.has(m.id) || m.tipo!==r.tipo || Math.abs(m.importe-r.importe)>0.005) return;
+      const dif = Math.abs((new Date(m.fecha) - new Date(r.fecha)) / 86400000);
+      if(dif<=VENTANA_DIAS && dif<mejorDif){ mejor = m; mejorDif = dif; }
+    });
+    if(mejor){ r.matchId = mejor.id; usados.add(mejor.id); csvDecisiones[idx] = "igual"; }
     return r;
   }).filter(Boolean);
   csvPreviewCuentaId = cuentaId;
@@ -890,14 +903,40 @@ function renderPendientes(){
 }
 function renderImportar(){
   const sel = (id, actual, conNinguna)=>`<select id="${id}">${conNinguna?`<option value="">— Ninguna —</option>`:""}${csvHeaders.map(h=>`<option value="${esc(h)}"${h===actual?" selected":""}>${esc(h)}</option>`).join("")}</select>`;
-  const nuevos = csvPreview.filter(m=>!m.dup && !m.invalida);
-  const dups = csvPreview.filter(m=>m.dup).length;
-  const malas = csvPreview.filter(m=>m.invalida).length;
+  const invalidas = csvPreview.filter(m=>m.invalida);
+  const yaEnPendientes = csvPreview.filter(m=>!m.invalida && m.dup);
+  const conciliables = csvPreview.filter(m=>!m.invalida && !m.dup && m.matchId);
+  const nuevos = csvPreview.filter(m=>!m.invalida && !m.dup && !m.matchId);
+  const aImportar = nuevos.length + conciliables.filter((m,i)=>csvDecisiones[m.posicion]==="distinto").length;
+
+  let bloqueSinExtracto = "";
+  if(csvPreview.length && csvPreviewCuentaId){
+    const validas = csvPreview.filter(m=>!m.invalida);
+    if(validas.length){
+      const fechas = validas.map(m=>m.fecha).sort();
+      const desde = fechas[0], hasta = fechas[fechas.length-1];
+      const idsEmparejados = new Set(validas.filter(m=>m.matchId).map(m=>m.matchId));
+      const sinAparecer = movimientos.filter(m=>m.cuentaId===csvPreviewCuentaId && m.fecha>=desde && m.fecha<=hasta && !idsEmparejados.has(m.id) && m.categoria!=="Ajuste");
+      if(sinAparecer.length){
+        bloqueSinExtracto = `
+        <div class="card">
+          <h2>No aparecen en este extracto (${sinAparecer.length})</h2>
+          <p class="meta" style="margin:0 0 10px">Los tienes apuntados entre ${desde} y ${hasta}, pero ninguna línea del banco encaja con ellos. Puede que aún no se hayan cargado, o que estén mal apuntados.</p>
+          <div class="list">
+            ${sinAparecer.sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(m=>`
+              <div class="item"><div>${esc(m.nota||m.categoria)}<div class="meta">${m.fecha}</div></div><div class="amt ${m.tipo==='ingreso'?'pos':'neg'}">${eur(m.importe)}</div></div>
+            `).join("")}
+          </div>
+        </div>`;
+      }
+    }
+  }
+
   return `
   ${renderPendientes()}
   <div class="card">
-    <h2>Importar extracto del banco (CSV)</h2>
-    <p class="meta" style="margin:0 0 10px">Sube el CSV que descargas del banco. Los movimientos se guardan como pendientes de confirmar, con la misma descripción y el mismo saldo que en el banco, y no cuentan hasta que los confirmes.</p>
+    <h2>Importar y conciliar extracto del banco (CSV)</h2>
+    <p class="meta" style="margin:0 0 10px">Sube el CSV del banco. Cada línea se compara con lo que ya tienes apuntado (mismo importe, fecha cercana) para no duplicar nada. Lo nuevo se guarda como pendiente de confirmar hasta que le pongas categoría.</p>
     <input type="file" id="csvFile" accept=".csv,text/csv,text/plain">
   </div>
   ${csvHeaders.length? `
@@ -916,18 +955,49 @@ function renderImportar(){
   </div>` : ""}
   ${csvPreview.length? `
   <div class="card">
-    <h2>Previsualización</h2>
-    <p class="meta" style="margin:0 0 10px">${nuevos.length} nuevos${dups?` · ${dups} ya importados (se omiten)`:""}${malas?` · ${malas} con fecha no válida (se omiten)`:""}. Revisa que fechas e importes se hayan leído bien.</p>
+    <h2>Resultado de la conciliación</h2>
+    <p class="meta" style="margin:0 0 10px">${conciliables.length} ya los tenías apuntados · ${nuevos.length} son nuevos${yaEnPendientes.length?` · ${yaEnPendientes.length} ya estaban en pendientes`:""}${invalidas.length?` · ${invalidas.length} con fecha no válida`:""}.</p>
+  </div>
+  ${conciliables.length? `
+  <div class="card">
+    <h2>Ya los tenías apuntados (${conciliables.length})</h2>
+    <p class="meta" style="margin:0 0 10px">Misma cantidad y fecha cercana a un movimiento tuyo. Si es el mismo, se marca como conciliado y no se importa de nuevo. Si es otro distinto que coincidió por casualidad, dile que lo importe también.</p>
     <div class="list">
-      ${csvPreview.slice(0,15).map(m=>`
-        <div class="item" style="${m.dup||m.invalida?'opacity:.55':''}">
-          <div style="min-width:0;word-break:break-word">${esc(m.nota)||"(sin descripción)"}${m.dup?` <span class="tag">Ya importado</span>`:""}${m.invalida?` <span class="tag">Fecha no válida</span>`:""}<div class="meta">${esc(m.fecha)||"—"}${m.saldo!=null?` · Saldo ${eur(m.saldo)}`:""}</div></div>
+      ${conciliables.map(m=>{
+        const ex = movimientos.find(x=>x.id===m.matchId);
+        const decision = csvDecisiones[m.posicion] || "igual";
+        return `
+        <div class="item" style="flex-direction:column;align-items:stretch;gap:8px">
+          <div style="display:flex;justify-content:space-between;gap:10px">
+            <div style="min-width:0">
+              <div class="meta">Banco: ${esc(m.nota)||"(sin descripción)"} · ${m.fecha}</div>
+              <div class="meta">Tuyo: ${ex? esc(ex.nota||ex.categoria) : "—"} · ${ex?ex.fecha:""}</div>
+            </div>
+            <div class="amt ${m.tipo==='ingreso'?'pos':'neg'}">${eur(m.importe)}</div>
+          </div>
+          <select data-decision="${m.posicion}">
+            <option value="igual"${decision==="igual"?" selected":""}>Es el mismo movimiento</option>
+            <option value="distinto"${decision==="distinto"?" selected":""}>Es distinto, impórtalo también</option>
+          </select>
+        </div>`;
+      }).join("")}
+    </div>
+  </div>` : ""}
+  <div class="card">
+    <h2>Nuevos, se guardarán como pendientes (${aImportar})</h2>
+    <div class="list">
+      ${[...nuevos, ...conciliables.filter(m=>(csvDecisiones[m.posicion]||"igual")==="distinto")].slice(0,15).map(m=>`
+        <div class="item">
+          <div style="min-width:0;word-break:break-word">${esc(m.nota)||"(sin descripción)"}<div class="meta">${esc(m.fecha)||"—"}${m.saldo!=null?` · Saldo ${eur(m.saldo)}`:""}</div></div>
           <div class="amt ${m.tipo==='ingreso'?'pos':'neg'}">${m.tipo==='ingreso'?'+':'-'}${eur(m.importe)}</div>
         </div>`).join("")}
-      ${csvPreview.length>15? `<div class="empty">... y ${csvPreview.length-15} más</div>` : ""}
+      ${aImportar>15? `<div class="empty">... y ${aImportar-15} más</div>` : ""}
+      ${aImportar===0? `<div class="empty">Nada nuevo que importar.</div>` : ""}
     </div>
-    <button class="btn" id="csvImportar" style="margin-top:12px" ${nuevos.length?"":"disabled"}>Guardar ${nuevos.length} como pendientes</button>
-  </div>` : ""}`;
+    <button class="btn" id="csvImportar" style="margin-top:12px">Confirmar conciliación</button>
+  </div>
+  ` : ""}
+  ${bloqueSinExtracto}`;
 }
 
 function objetivoCompletado(o){ return o.meta>0 && progresoObjetivo(o)>=o.meta; }
@@ -1359,6 +1429,7 @@ function movItem(m, cubMov, pendMov){
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
         ${m.tipo==='gasto' && !m.reembolsoDe && m.categoria!=='Inversión' && m.categoria!=='Ajuste' && m.categoria!=='Transferencia' && meDebenMovId!==m.id? `<button class="tag" data-me-deben="${m.id}" style="cursor:pointer;border:none;font-family:inherit">Me deben…</button>` : ""}
         ${!protegido && editarMovId!==m.id? `<button class="tag" data-editar-mov="${m.id}" style="cursor:pointer;border:none;font-family:inherit">Editar</button>` : ""}
+        <button class="tag" data-toggle-conciliado="${m.id}" style="cursor:pointer;border:none;font-family:inherit;${m.conciliado?'background:var(--pos);color:#fff':''}">${m.conciliado?"✓ Conciliado":"Sin conciliar"}</button>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
@@ -2098,6 +2169,13 @@ function wireEvents(){
       if(error){ showError("No se pudo crear la deuda: "+error.message); return; }
       hideError(); meDebenMovId = null; await fetchAll();
     }));
+    document.querySelectorAll("[data-toggle-conciliado]").forEach(b=>b.onclick=()=>conCarga(b, "…", async ()=>{
+      const m = movimientos.find(x=>x.id===b.dataset.toggleConciliado);
+      if(!m) return;
+      const {error} = await sb.from("movimientos").update({conciliado: !m.conciliado}).eq("id", m.id);
+      if(error){ showError("No se pudo actualizar: "+error.message); return; }
+      hideError(); await fetchAll();
+    }));
     document.querySelectorAll("[data-editar-mov]").forEach(b=>b.onclick=()=>{ editarMovId = b.dataset.editarMov; meDebenMovId=null; render(); });
     document.querySelectorAll("[data-cancelar-editar-mov]").forEach(b=>b.onclick=()=>{ editarMovId = null; render(); });
     document.querySelectorAll("#movEditTipo").forEach(sel=>sel.onchange=()=>{
@@ -2534,14 +2612,25 @@ function wireEvents(){
   const csvPrevisualizar = document.getElementById("csvPrevisualizar");
   if(csvPrevisualizar) csvPrevisualizar.onclick = ()=>{ calcularPreview(); render(); };
   const csvImportar = document.getElementById("csvImportar");
-  if(csvImportar) csvImportar.onclick = ()=>conCarga(csvImportar, "Importando…", async ()=>{
-    const filas = csvPreview.filter(m=>!m.dup && !m.invalida).map(m=>({
-      cuenta_id: csvSel.cuenta, tipo:m.tipo, importe:m.importe, fecha:m.fecha, descripcion:m.nota||"", saldo:m.saldo, posicion:m.posicion
-    }));
-    if(!filas.length || !csvSel.cuenta) return;
-    const {error} = await sb.from("movimientos_pendientes").insert(filas);
-    if(error){ showError("No se pudo importar: "+error.message); return; }
-    hideError(); csvHeaders=[]; csvFilas=[]; csvPreview=[]; csvSel={}; await fetchAll();
+  document.querySelectorAll("[data-decision]").forEach(sel=>sel.onchange=()=>{ csvDecisiones[sel.dataset.decision] = sel.value; render(); });
+  if(csvImportar) csvImportar.onclick = ()=>conCarga(csvImportar, "Guardando…", async ()=>{
+    const conciliar = csvPreview.filter(m=>!m.invalida && !m.dup && m.matchId && (csvDecisiones[m.posicion]||"igual")==="igual");
+    const nuevas = csvPreview.filter(m=>!m.invalida && (!m.dup && (!m.matchId || (csvDecisiones[m.posicion]||"igual")==="distinto")));
+    if(!csvSel.cuenta) return;
+    for(const m of conciliar){
+      const cambios = {conciliado:true};
+      if(m.saldo!=null) cambios.saldo_banco = m.saldo;
+      const {error} = await sb.from("movimientos").update(cambios).eq("id", m.matchId);
+      if(error){ showError("No se pudo conciliar: "+error.message); return; }
+    }
+    if(nuevas.length){
+      const filas = nuevas.map(m=>({
+        cuenta_id: csvSel.cuenta, tipo:m.tipo, importe:m.importe, fecha:m.fecha, descripcion:m.nota||"", saldo:m.saldo, posicion:m.posicion
+      }));
+      const {error} = await sb.from("movimientos_pendientes").insert(filas);
+      if(error){ showError("No se pudo importar: "+error.message); return; }
+    }
+    hideError(); csvHeaders=[]; csvFilas=[]; csvPreview=[]; csvSel={}; csvDecisiones={}; await fetchAll();
   });
 
   document.querySelectorAll('select[id^="pendCat-"]').forEach(el=>el.onchange = ()=>{ pendCats[el.id.slice(8)] = el.value; });
@@ -2601,7 +2690,7 @@ async function fetchAll(){
     const err = e1||e2||e3||e4||e5||e6||e7||e8||e9||e10;
     if(err){ ready = true; render(); showError("No se pudieron cargar los datos: "+err.message); return; }
     cuentas = (cta||[]).map(c=>({id:c.id, nombre:c.nombre, saldoInicial:Number(c.saldo_inicial), orden:c.orden||0})).sort(porOrden);
-    movimientos = (mov||[]).map(m=>({id:m.id, tipo:m.tipo, categoria:m.categoria, importe:Number(m.importe), fecha:m.fecha, nota:m.nota, cuentaId:m.cuenta_id, saldoBanco:m.saldo_banco!=null?Number(m.saldo_banco):null, presupuesto:m.presupuesto||null, presupuestoFecha:m.presupuesto_fecha||null, reembolsoDe:m.reembolso_de||null, recurrenteId:m.recurrente_id||null, transferenciaId:m.transferencia_id||null}));
+    movimientos = (mov||[]).map(m=>({id:m.id, tipo:m.tipo, categoria:m.categoria, importe:Number(m.importe), fecha:m.fecha, nota:m.nota, cuentaId:m.cuenta_id, saldoBanco:m.saldo_banco!=null?Number(m.saldo_banco):null, presupuesto:m.presupuesto||null, presupuestoFecha:m.presupuesto_fecha||null, reembolsoDe:m.reembolso_de||null, recurrenteId:m.recurrente_id||null, transferenciaId:m.transferencia_id||null, conciliado:!!m.conciliado}));
     deudas = (deu||[]).map(d=>({id:d.id, persona:d.persona, importe:Number(d.importe), direccion:d.direccion, concepto:d.concepto, estado:d.estado, fecha:d.fecha, presupuesto:d.presupuesto||null, movimientoId:d.movimiento_id||null}));
     inversiones = (inv||[]).map(i=>({id:i.id, nombre:i.nombre, tipo:i.tipo, valorActual:Number(i.valor_actual), valorInicial:Number(i.valor_inicial), estado:i.estado||"activa", fechaPrevista:i.fecha_prevista, importePrevisto:i.importe_previsto!=null?Number(i.importe_previsto):null, cuentaPrevistaId:i.cuenta_prevista_id, padreId:i.padre_id||null, esGrupo:!!i.es_grupo, orden:i.orden||0, rentas:Number(i.rentas||0)}));
     aportaciones = (apo||[]).map(a=>({id:a.id, inversionId:a.inversion_id, importe:Number(a.importe), fecha:a.fecha, cuentaId:a.cuenta_id, movimientoId:a.movimiento_id}));
