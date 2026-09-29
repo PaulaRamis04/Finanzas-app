@@ -98,6 +98,38 @@ function pieStyle(desc){
   }).join(", ");
 }
 
+function anguloXY(cx,cy,r,deg){ const rad=(deg-90)*Math.PI/180; return [cx+r*Math.cos(rad), cy+r*Math.sin(rad)]; }
+function sectorDonut(cx,cy,rOut,rIn,a0,a1){
+  const [x1,y1]=anguloXY(cx,cy,rOut,a0), [x2,y2]=anguloXY(cx,cy,rOut,a1);
+  const [x3,y3]=anguloXY(cx,cy,rIn,a1), [x4,y4]=anguloXY(cx,cy,rIn,a0);
+  const large = (a1-a0)>180 ? 1 : 0;
+  return `M ${x1.toFixed(2)},${y1.toFixed(2)} A ${rOut},${rOut} 0 ${large} 1 ${x2.toFixed(2)},${y2.toFixed(2)} L ${x3.toFixed(2)},${y3.toFixed(2)} A ${rIn},${rIn} 0 ${large} 0 ${x4.toFixed(2)},${y4.toFixed(2)} Z`;
+}
+function donutClicable(desc, tipo, atributo){
+  const total = desc.reduce((s,d)=>s+d.total,0);
+  if(!total) return `<div style="width:130px;height:130px;border-radius:50%;background:var(--line);flex-shrink:0"></div>`;
+  const attr = atributo || "data-resumen-sel";
+  if(desc.length===1){
+    return `
+    <svg viewBox="0 0 130 130" width="130" height="130" style="flex-shrink:0">
+      <circle cx="65" cy="65" r="50" fill="none" stroke="${desc[0].color}" stroke-width="30" ${attr}="${tipo}|${esc(desc[0].categoria)}" style="cursor:pointer"/>
+      <circle cx="65" cy="65" r="34" fill="var(--card)"/>
+      <text x="65" y="65" text-anchor="middle" dominant-baseline="middle" font-size="12" font-weight="800" fill="var(--ink)">${esc(eur(total))}</text>
+    </svg>`;
+  }
+  let acc = 0;
+  const sectores = desc.map(d=>{
+    const a0 = acc/total*360; acc += d.total; const a1 = acc/total*360;
+    return `<path d="${sectorDonut(65,65,65,35,a0,a1)}" fill="${d.color}" ${attr}="${tipo}|${esc(d.categoria)}" style="cursor:pointer"><title>${esc(d.categoria)}</title></path>`;
+  }).join("");
+  return `
+  <svg viewBox="0 0 130 130" width="130" height="130" style="flex-shrink:0">
+    ${sectores}
+    <circle cx="65" cy="65" r="34" fill="var(--card)" style="pointer-events:none"/>
+    <text x="65" y="65" text-anchor="middle" dominant-baseline="middle" font-size="12" font-weight="800" fill="var(--ink)" style="pointer-events:none">${esc(eur(total))}</text>
+  </svg>`;
+}
+
 function parseCSV(texto){
   const lineas = texto.split(/\r?\n/).filter(l=>l.trim().length);
   const splitLinea = (linea, delim)=>{
