@@ -95,7 +95,7 @@ function renderInicio(){
 
   return `
   <div class="hola">
-    <h1><button class="hola-perfil" id="btnPerfiles" aria-haspopup="dialog" aria-label="Cambiar de perfil">Hola${nombre ? ", "+esc(nombre) : ""} 👋<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button></h1>
+    <h1><button class="hola-perfil" id="btnPerfiles" aria-haspopup="dialog" aria-label="Cambiar de perfil">Hola${nombre ? ", "+esc(nombre) : ""}${esPremium ? ESTRELLA_PREMIUM : ""} 👋<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button></h1>
     <span style="display:flex;gap:10px">${botonOjo("btnOjoInicio")}<button class="campana" id="btnAvisos" aria-label="Notificaciones"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>${avisos ? `<span class="punto"></span>` : ""}</button></span>
   </div>
   <div class="hero">

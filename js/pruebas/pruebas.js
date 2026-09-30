@@ -319,10 +319,27 @@ prueba("sin premium: Proyección bloqueada (Inversiones no), Personalización so
   assert.ok(await p.locator("[data-tema]").count() > 0);
   assert.strictEqual(await p.locator("[data-acento], #btnSubirFondo").count(), 0);
   assert.strictEqual(await p.locator(".marca-premium").count(), 2);
+  // Las secciones premium llevan su estrella; el saludo no, porque no es premium.
+  assert.strictEqual(await p.locator("#menuPanel .estrella-premium").count(), 2);
+  await p.evaluate(()=>{ tab = "Inicio"; render(); });
+  assert.strictEqual(await p.locator(".hola .estrella-premium").count(), 0);
   await p.evaluate(()=>{ tab = "Cuentas"; render(); });
   await p.click('[data-sort-id="c1"] [data-compartir-cuenta]');
   assert.match(await p.innerText("#app"), /Esto es de Premium/);
   assert.strictEqual(await p.locator("#compartirEmail").count(), 0);
+});
+prueba("premium: estrella junto al nombre en Inicio y en las secciones premium", async ()=>{
+  const p = await abrir("");
+  await p.waitForFunction(()=>esPremium);
+  await p.evaluate(()=>{ tab = "Inicio"; render(); });
+  assert.strictEqual(await p.locator(".hola h1 .estrella-premium").count(), 1);
+  assert.match(await p.innerText(".hola h1"), /Paula\s*⭐/);
+  assert.strictEqual(await p.locator("#menuPanel .estrella-premium").count(), 2);
+  assert.strictEqual(await p.locator(".marca-premium").count(), 0);
+  await p.evaluate(()=>{ tab = "Proyección"; render(); });
+  assert.strictEqual(await p.locator("#tabActual .estrella-premium").count(), 1);
+  await p.evaluate(()=>{ tab = "Inversiones"; render(); });
+  assert.strictEqual(await p.locator("#tabActual .estrella-premium").count(), 0);
 });
 prueba("Comunidad: supporter, idea y fallo se guardan y dan las gracias", async ()=>{
   const pp = await abrir("", {width:1280, height:900});

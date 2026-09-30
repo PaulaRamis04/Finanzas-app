@@ -175,6 +175,10 @@ const TEXTO_PREMIUM = {
   "Personalización":"Elige tu color, un fondo a tu gusto o una foto tuya.",
   "compartir":"Lleva una cuenta a medias con tu pareja o tu piso: los dos veis y apuntáis sus movimientos."
 };
+// Estrella de premium: junto al nombre en Inicio y junto al nombre de las secciones premium.
+const ESTRELLA_PREMIUM = `<span class="estrella-premium" title="Premium" aria-label="Premium">⭐</span>`;
+const esTabPremium = t=> TABS_PREMIUM.includes(t) || t==="Personalización";
+
 function avisoPremium(que){
   return `
   <div class="card premium-aviso">
@@ -186,10 +190,10 @@ function avisoPremium(que){
 }
 
 function renderTabs(){
-  document.getElementById("tabActual").textContent = TITULOS_TAB[tab] || tab;
+  document.getElementById("tabActual").innerHTML = esc(TITULOS_TAB[tab] || tab) + (esTabPremium(tab) ? ESTRELLA_PREMIUM : "");
   document.getElementById("ojoCab").innerHTML = botonOjo("btnOjo");
   document.getElementById("btnOjo").onclick = alternarPrivacidad;
-  const item = t=>`<button class="menu-item ${t===tab?"active":""}" data-tab="${t}"><span class="mi">${ICONOS_MENU[t]||"•"}</span>${TITULOS_TAB[t]||t}${!esPremium && (TABS_PREMIUM.includes(t) || t==="Personalización") ? `<span class="marca-premium">Premium</span>` : ""}</button>`;
+  const item = t=>`<button class="menu-item ${t===tab?"active":""}" data-tab="${t}"><span class="mi">${ICONOS_MENU[t]||"•"}</span>${TITULOS_TAB[t]||t}${esTabPremium(t) ? ESTRELLA_PREMIUM : ""}${!esPremium && esTabPremium(t) ? `<span class="marca-premium">Premium</span>` : ""}</button>`;
   document.getElementById("menuPanel").innerHTML =
     `<div class="menu-marca">${LOGO_HUCHA}Mis finanzas</div>` + item("Inicio") +
     GRUPOS_MENU.map(g=>`<div class="menu-group-title">${g.nombre}</div>${g.tabs.map(item).join("")}`).join("") +
