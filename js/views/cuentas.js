@@ -60,7 +60,7 @@ function renderCuentas(){
         ${ajustarSaldoId!==c.id?`<button class="chip" data-ajustar-saldo="${c.id}">Ajustar saldo</button>`:""}
         ${c.propia && compartirCuentaId!==c.id ? `<button class="chip lav" data-compartir-cuenta="${c.id}">Compartir</button>` : ""}
         ${!c.propia ? `<button class="chip peligro" data-salir-cuenta="${c.id}">Salir</button>`
-          : nMov ? `<button class="chip" data-archivar-cuenta="${c.id}" style="background:var(--line);color:var(--muted)">Archivar</button>` : `<button class="chip peligro" data-del-cuenta="${c.id}">Borrar</button>`}
+          : `${nMov ? `<button class="chip" data-archivar-cuenta="${c.id}" style="background:var(--line);color:var(--muted)">Archivar</button>` : ""}<button class="chip peligro" data-del-cuenta="${c.id}">Borrar</button>`}
       </div>
       ${compartirCuentaId===c.id && c.propia ? `
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">${panelCompartir(c)}</div>` : ""}
@@ -77,8 +77,18 @@ function renderCuentas(){
     </div></div>`;
   }).join("");
   return `
+  <div class="card">
+    <h2>Añadir cuenta</h2>
+    <form id="fCuenta">
+      <div class="row2">
+        <div><label>Nombre</label><input name="nombre" placeholder="ej. Trade Republic" required></div>
+        <div><label>Saldo inicial (€)</label><input name="saldoInicial" type="number" step="0.01" value="0" required></div>
+      </div>
+      <button class="btn" type="submit">Añadir</button>
+    </form>
+  </div>
   ${resumen}
-  ${tarjetas ? `<div data-sortable="ordenar_cuentas">${tarjetas}</div>` : `<div class="card">${vacio("hucha","Tu hucha está vacía","Crea tu primera cuenta abajo para empezar a llenarla.")}</div>`}
+  ${tarjetas ? `<div data-sortable="ordenar_cuentas">${tarjetas}</div>` : `<div class="card">${vacio("hucha","Tu hucha está vacía","Crea tu primera cuenta arriba para empezar a llenarla.")}</div>`}
   ${archivadas.length ? `
   <div class="card">
     <h2>Archivadas</h2>
@@ -89,20 +99,10 @@ function renderCuentas(){
         <div style="display:flex;gap:6px">
           ${!c.propia ? `<button class="btn ghost" data-salir-cuenta="${c.id}">Salir</button>` : `
           <button class="btn ghost" data-desarchivar-cuenta="${c.id}" style="color:var(--accent)">Reactivar</button>
-          ${nMovCuenta(c) ? "" : `<button class="btn ghost" data-del-cuenta="${c.id}">Borrar</button>`}`}
+          <button class="btn ghost" data-del-cuenta="${c.id}">Borrar</button>`}
         </div>
       </div>`).join("")}</div>
-  </div>` : ""}
-  <div class="card">
-    <h2>Añadir cuenta</h2>
-    <form id="fCuenta">
-      <div class="row2">
-        <div><label>Nombre</label><input name="nombre" placeholder="ej. Trade Republic" required></div>
-        <div><label>Saldo inicial (€)</label><input name="saldoInicial" type="number" step="0.01" value="0" required></div>
-      </div>
-      <button class="btn" type="submit">Añadir</button>
-    </form>
-  </div>`;
+  </div>` : ""}`;
 }
 
 function wireEventosCuentas(){
@@ -131,11 +131,21 @@ function wireEventosCuentas(){
     archivarCuenta(b, b.dataset.archivarCuenta, true);
   });
   document.querySelectorAll("[data-desarchivar-cuenta]").forEach(b=>b.onclick=()=>archivarCuenta(b, b.dataset.desarchivarCuenta, false));
+  // Borrar una cuenta borra también sus movimientos y recurrentes (la base de datos solo los dejaría sin cuenta).
   document.querySelectorAll("[data-del-cuenta]").forEach(b=>b.onclick=async ()=>{
-    if(!(await confirmar("¿Borrar esta cuenta?"))) return;
+    const id = b.dataset.delCuenta;
+    const c = cuentas.find(x=>x.id===id);
+    const n = c ? nMovCuenta(c) : 0;
+    const aviso = n ? `Se borrará${n===1?" también su movimiento":`n también sus ${n} movimientos`} y no se puede deshacer. Si quieres conservar el historial, archívala.` : "No se puede deshacer.";
+    if(!(await confirmar(`¿Borrar la cuenta ${c?.nombre || ""}? ${aviso}`, {ok:"Sí, borrar", icono:"🗑️"}))) return;
     conCarga(b, "Borrando…", async ()=>{
-      const {error} = await sb.from("cuentas").delete().eq("id", b.dataset.delCuenta);
+      for(const tabla of ["movimientos","recurrentes"]){
+        const {error} = await sb.from(tabla).delete().eq("cuenta_id", id);
+        if(error){ showError("No se pudo borrar: "+error.message); return; }
+      }
+      const {error} = await sb.from("cuentas").delete().eq("id", id);
       if(error){ showError("No se pudo borrar: "+error.message); return; }
+      if(cuentaDefecto===id) await guardarCuentaDefecto("");
       hideError(); await recargar(["cuentas","movimientos","recurrentes","objetivos"]);
     });
   });
