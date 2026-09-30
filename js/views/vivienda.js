@@ -23,7 +23,7 @@ function calcularVivienda({precio, entrada, gastos, ahorro, mensual}){
   return {pEntrada, pGastos, necesario, faltan, meses, hipoteca: Math.max(restarDinero(precio, pEntrada), 0)};
 }
 
-function textoMeses(m){
+function textoMesesViv(m){
   if(m===null) return "Sin ahorro mensual no se llega";
   if(m===0) return "Ya lo tienes";
   const a = Math.floor(m/12), r = m%12;
@@ -33,7 +33,7 @@ function textoMeses(m){
   return partes.join(" y ");
 }
 
-function fechaDentroDe(m){
+function fechaDentroDeViv(m){
   if(!m) return "";
   const d = new Date(); d.setDate(1); d.setMonth(d.getMonth()+m);
   return d.toLocaleDateString("es-ES", {month:"long", year:"numeric"});
@@ -48,7 +48,7 @@ function htmlResultadoVivienda(){
     <div class="balance" style="margin-top:6px">
       <div><div class="num" id="vivNecesario">${eur(solo.necesario)}</div><div class="lbl">Necesitas aproximadamente</div></div>
       <div><div class="num" id="vivFaltan">${eur(solo.faltan)}</div><div class="lbl">Te faltan</div></div>
-      <div><div class="num" id="vivTiempo" style="font-size:18px">${textoMeses(solo.meses)}</div><div class="lbl">Con tu ritmo actual${solo.meses? ` (hacia ${fechaDentroDe(solo.meses)})` : ""}</div></div>
+      <div><div class="num" id="vivTiempo" style="font-size:18px">${textoMesesViv(solo.meses)}</div><div class="lbl">Con tu ritmo actual${solo.meses? ` (hacia ${fechaDentroDeViv(solo.meses)})` : ""}</div></div>
     </div>
     <div class="list" style="margin-top:12px">
       <div class="item"><div>Entrada (${base.entrada} %)</div><div class="amt">${eur(solo.pEntrada)}</div></div>
@@ -69,7 +69,7 @@ function htmlResultadoVivienda(){
       ${fila("Ahorro mensual", eur(viv.mensual||0), eur(sumarDinero(viv.mensual||0, viv.otraMensual||0)))}
       ${fila("Necesitas", eur(solo.necesario), eur(juntos.necesario))}
       ${fila("Faltan", eur(solo.faltan), eur(juntos.faltan))}
-      ${fila("Tiempo", textoMeses(solo.meses), textoMeses(juntos.meses))}
+      ${fila("Tiempo", textoMesesViv(solo.meses), textoMesesViv(juntos.meses))}
     </div>
   </div>`;
 }
