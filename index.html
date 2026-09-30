@@ -151,10 +151,24 @@ h2{font-size:16px; margin:0 0 12px; font-weight:800}
 .errbar button{background:rgba(255,255,255,.22); color:#fff; border:none; padding:6px 12px; border-radius:999px; font-size:12px; cursor:pointer; white-space:nowrap}
 [hidden]{display:none!important}
 /* Acceso */
-.auth{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:32px 20px;
-  background:radial-gradient(circle at 15% 10%, var(--accent-soft), transparent 45%), radial-gradient(circle at 90% 85%, var(--mint-soft), transparent 45%), var(--paper)}
+.auth{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:32px 20px; position:relative; overflow:hidden;
+  --cielo-1:#7cc3f2; --cielo-2:#b9e0fb; --cielo-3:#fde7ee; --nube:#ffffff; --auth-suave:#6b5a58;
+  background:radial-gradient(circle at 82% 12%, rgba(255,246,214,.9) 0 5%, rgba(255,240,200,.35) 12%, transparent 28%), linear-gradient(180deg, var(--cielo-1) 0%, var(--cielo-2) 48%, var(--cielo-3) 100%)}
+:root[data-theme="dark"] .auth{--cielo-1:#1d2d57; --cielo-2:#4a5a92; --cielo-3:#a98bb0; --nube:#e9e4f5; --auth-suave:#ddd6ee}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .auth{--cielo-1:#1d2d57; --cielo-2:#4a5a92; --cielo-3:#a98bb0; --nube:#e9e4f5; --auth-suave:#ddd6ee} }
+.auth-box{position:relative; z-index:1}
+.nubes{position:absolute; inset:0; pointer-events:none; z-index:0}
+.nube{position:absolute; left:0; filter:drop-shadow(0 6px 10px rgba(80,120,170,.12)); animation:nube linear infinite}
+.nube use{fill:var(--nube)}
+@keyframes nube{from{transform:translateX(-45vw)} to{transform:translateX(115vw)}}
+@media (prefers-reduced-motion: reduce){.nube{animation:none; transform:translateX(var(--x,20vw))}}
+.auth .auth-sub, .auth .auth-pie{color:var(--auth-suave)}
 .auth-box{width:100%; max-width:380px}
-.auth-logo{font-size:64px; text-align:center; line-height:1}
+.auth-logo{text-align:center; line-height:0}
+.auth-logo svg{overflow:visible; filter:drop-shadow(0 8px 14px rgba(240,127,118,.25))}
+.auth-logo .moneda{animation:moneda 2.4s ease-in infinite}
+@keyframes moneda{0%{transform:translateY(-10px); opacity:0} 20%{opacity:1} 60%{transform:translateY(14px); opacity:1} 75%,100%{transform:translateY(18px); opacity:0}}
+@media (prefers-reduced-motion: reduce){.auth-logo .moneda{animation:none}}
 .auth-marca{text-align:center; font-weight:800; font-size:20px; color:var(--accent); margin:6px 0 22px}
 .auth h1{text-align:center; margin:0; font-size:28px; font-weight:800}
 .auth-sub{text-align:center; margin:4px 0 24px; color:var(--muted)}
@@ -196,11 +210,63 @@ h2{font-size:16px; margin:0 0 12px; font-weight:800}
 .accion i{font-style:normal; width:54px; height:54px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:24px}
 .tit-fila{display:flex; justify-content:space-between; align-items:baseline; margin:0 0 10px}
 .tit-fila h2{margin:0}
+/* Ojito de privacidad */
+.icono-btn.ojo{background:var(--lav-soft); color:#7a6cc9; box-shadow:none}
+.icono-btn.ojo.activo{background:#7a6cc9; color:#fff}
+/* Hoja inferior de confirmación */
+#hoja{position:fixed; inset:0; z-index:80}
+.hoja-fondo{position:absolute; inset:0; background:rgba(40,28,30,.38); opacity:0; transition:opacity .25s ease}
+.hoja{position:absolute; left:0; right:0; bottom:0; max-width:520px; margin:0 auto; background:var(--hoja,#fffaf4); color:var(--ink);
+  border-radius:28px 28px 0 0; padding:10px 22px calc(22px + env(safe-area-inset-bottom,0px)); text-align:center;
+  box-shadow:0 -10px 40px rgba(40,28,30,.18); transform:translateY(105%); transition:transform .34s cubic-bezier(.32,1.25,.5,1)}
+:root[data-theme="dark"] .hoja{--hoja:var(--card)}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .hoja{--hoja:var(--card)} }
+#hoja.abierta .hoja-fondo{opacity:1}
+#hoja.abierta .hoja{transform:translateY(0)}
+.hoja-asa{width:42px; height:5px; border-radius:999px; background:var(--line); margin:0 auto 16px}
+.hoja-ico{width:62px; height:62px; border-radius:50%; background:var(--peach-soft); margin:0 auto 12px; display:flex; align-items:center; justify-content:center; font-size:28px}
+.hoja h2{font-size:19px; margin:0 0 6px}
+.hoja p{margin:0 0 4px; color:var(--muted); font-size:14px; line-height:1.45}
+.hoja-btns{display:flex; gap:10px; margin-top:20px}
+.hoja-btns button{flex:1; border:none; border-radius:999px; padding:14px 12px; font-family:inherit; font-size:15px; font-weight:800; cursor:pointer}
+.hoja-no{background:#eeeae8; color:#6f6461}
+.hoja-si{background:#f9c7a8; color:#7a3f1d}
+:root[data-theme="dark"] .hoja-no{background:#3a3334; color:#d8cfcd}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .hoja-no{background:#3a3334; color:#d8cfcd} }
+@media (prefers-reduced-motion: reduce){ .hoja, .hoja-fondo{transition:none} }
+/* Estados vacíos */
+.vacio{display:flex; flex-direction:column; align-items:center; text-align:center; gap:4px; padding:22px 16px 26px}
+.vacio svg{margin-bottom:8px; animation:flotar 3.6s ease-in-out infinite}
+.vacio b{font-size:16px; font-weight:800}
+.vacio span{font-size:13.5px; color:var(--muted); max-width:280px; line-height:1.4}
+@keyframes flotar{50%{transform:translateY(-5px)}}
+@media (prefers-reduced-motion: reduce){ .vacio svg{animation:none} }
+/* Gráficas: al tocar o pasar el ratón se ve el importe de ese punto */
+.graf-int{position:relative; touch-action:pan-y; -webkit-user-select:none; user-select:none; cursor:crosshair}
+.graf-linea{position:absolute; top:0; bottom:13%; width:0; border-left:1.5px dashed var(--muted); opacity:0; pointer-events:none; transition:opacity .15s}
+.graf-punto{position:absolute; width:12px; height:12px; margin:-6px 0 0 -6px; border-radius:50%; background:var(--card); border:2.5px solid; pointer-events:none; transition:left .08s, top .08s}
+.graf-tip{position:absolute; top:0; transform:translate(-50%,-45%); background:var(--ink); color:var(--paper); border-radius:12px; padding:6px 10px; font-size:12px; line-height:1.35; white-space:nowrap; pointer-events:none; opacity:0; transition:opacity .15s; z-index:3; box-shadow:0 6px 16px rgba(0,0,0,.18)}
+.graf-tip b{display:block; font-size:14px; font-variant-numeric:tabular-nums}
+.graf-tip i{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; font-style:normal}
+.graf-tip span{opacity:.75}
+.graf-int.activa .graf-linea, .graf-int.activa .graf-tip{opacity:1}
+/* Notificaciones */
+.aviso{position:relative}
+.fila.aviso .ico{border-radius:50%}
+.fila.aviso .txt .meta{white-space:normal}
+.fila.aviso .txt b{white-space:normal}
+.aviso .flecha{color:var(--muted); flex-shrink:0}
+.aviso.nuevo{border-color:var(--accent)}
+.aviso.nuevo::after{content:""; position:absolute; top:10px; right:10px; width:8px; height:8px; border-radius:50%; background:var(--accent)}
+/* Cifras que se adaptan al ancho (importes largos en pantallas estrechas) */
+.cifra-adapt{font-size:clamp(22px,7.5vw,30px); font-weight:800; letter-spacing:-0.02em; font-variant-numeric:tabular-nums; line-height:1.15; margin:4px 0 2px; overflow-wrap:anywhere; min-width:0}
+.mini.ajustable{flex-wrap:wrap; overflow:visible}
+.mini.ajustable div{flex:1 1 auto; min-width:0}
+.mini.ajustable b{overflow-wrap:anywhere}
 /* Imagen de fondo personalizada, con un velo del color de fondo para que se lea bien */
 html.con-imagen body::before{content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
   background:linear-gradient(color-mix(in srgb, var(--paper) var(--velo,55%), transparent), color-mix(in srgb, var(--paper) var(--velo,55%), transparent)), var(--fondo-img) center/cover no-repeat}
 html.con-imagen body{background:var(--paper)}
-html.con-imagen .auth{background:transparent}
 /* Personalización */
 .opciones{display:flex; gap:8px; flex-wrap:wrap}
 .opcion{flex:1; min-width:84px; border:2px solid var(--line); background:var(--card); color:var(--ink); border-radius:16px; padding:10px 8px; cursor:pointer; font-family:inherit; font-size:13px; font-weight:700; display:flex; flex-direction:column; align-items:center; gap:6px}
@@ -263,12 +329,53 @@ button.fila{cursor:pointer; -webkit-tap-highlight-color:transparent}
 .cat-fila .txt{flex:1; min-width:0}
 .cat-fila .top{display:flex; justify-content:space-between; gap:8px; font-size:14.5px; font-weight:700; margin-bottom:6px}
 .cat-fila .barra{height:6px}
+/* Respuesta táctil «esponjosa»: todo lo que se pulsa se encoge un poco y rebota al soltar */
+button, .fila, .cat-fila, .color-propio, .pleg-cab, .item[data-expandir-inv], .item[data-toggle-grupo], [data-resumen-sel]{
+  transition:transform .22s cubic-bezier(.34,1.56,.64,1), background .15s ease, box-shadow .15s ease, filter .15s ease;
+  -webkit-tap-highlight-color:transparent; touch-action:manipulation;
+}
+button:not(:disabled):active, .fila:active, .cat-fila:active, .color-propio:active, .item[data-expandir-inv]:active, .item[data-toggle-grupo]:active{
+  transform:scale(.97); transition-duration:.08s;
+}
+.pleg-cab:active{transform:scale(.98); transition-duration:.08s}
+.nav-item:not(:disabled):active, .accion:not(:disabled):active, .color:not(:disabled):active, .icono-btn:not(:disabled):active, .campana:not(:disabled):active{transform:scale(.92)}
+@media (hover:hover){
+  .fila:is(button):hover, .cat-fila:hover, .opcion:hover, .item[data-expandir-inv]:hover{box-shadow:0 6px 18px rgba(74,59,59,.09)}
+  .chip:hover, .accion:hover i, .color:hover{filter:brightness(.97)}
+}
+@media (prefers-reduced-motion: reduce){
+  button, .fila, .cat-fila, .color-propio, .pleg-cab, .item{transition:none!important}
+  button:active, .fila:active, .cat-fila:active, .pleg-cab:active, .item:active, .color-propio:active{transform:none!important}
+}
 </style>
 </head>
 <body>
 <div class="auth" id="authScreen" style="display:none">
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <symbol id="nubeForma" viewBox="0 0 200 100"><path d="M40 92a28 28 0 0 1-3-55.8A38 38 0 0 1 108 24a30 30 0 0 1 50 17 26 26 0 0 1 4 51Z"/></symbol>
+  </defs></svg>
+  <div class="nubes" aria-hidden="true">
+    <svg class="nube" style="top:6%;width:170px;animation-duration:70s;animation-delay:-20s;--x:5vw"><use href="#nubeForma"/></svg>
+    <svg class="nube" style="top:18%;width:110px;animation-duration:95s;animation-delay:-60s;opacity:.85;--x:60vw"><use href="#nubeForma"/></svg>
+    <svg class="nube" style="top:44%;width:230px;animation-duration:120s;animation-delay:-35s;opacity:.7;--x:40vw"><use href="#nubeForma"/></svg>
+    <svg class="nube" style="top:70%;width:150px;animation-duration:85s;animation-delay:-70s;opacity:.9;--x:10vw"><use href="#nubeForma"/></svg>
+    <svg class="nube" style="top:84%;width:260px;animation-duration:110s;animation-delay:-5s;--x:55vw"><use href="#nubeForma"/></svg>
+  </div>
   <div class="auth-box">
-    <div class="auth-logo">🐷</div>
+    <div class="auth-logo" aria-hidden="true"><svg viewBox="0 0 124 104" width="120" height="100">
+      <g class="moneda"><circle cx="63" cy="13" r="10" fill="#f6c453" stroke="#e0a82e" stroke-width="2"/><text x="63" y="17.5" text-anchor="middle" font-size="12" font-weight="800" fill="#b9831c" font-family="Nunito,sans-serif">€</text></g>
+      <rect x="34" y="78" width="11" height="16" rx="4" fill="#ef95a8"/><rect x="78" y="78" width="11" height="16" rx="4" fill="#ef95a8"/>
+      <path d="M104 56c9-2 11-11 5-13s-7 6-1 7" fill="none" stroke="#ef95a8" stroke-width="3" stroke-linecap="round"/>
+      <path d="M36 38 42 18 56 32Z" fill="#ef95a8" stroke="#ef95a8" stroke-width="3" stroke-linejoin="round"/>
+      <ellipse cx="64" cy="58" rx="42" ry="31" fill="#f8b6c3"/>
+      <rect x="44" y="84" width="11" height="12" rx="4" fill="#f8b6c3"/><rect x="70" y="84" width="11" height="12" rx="4" fill="#f8b6c3"/>
+      <ellipse cx="78" cy="45" rx="12" ry="6" fill="#fff" opacity=".35"/>
+      <rect x="53" y="29" width="22" height="5" rx="2.5" fill="#d9788d"/>
+      <ellipse cx="22" cy="61" rx="10" ry="12" fill="#ef95a8"/>
+      <ellipse cx="19" cy="57" rx="2" ry="3" fill="#c9667c"/><ellipse cx="19" cy="65" rx="2" ry="3" fill="#c9667c"/>
+      <circle cx="39" cy="50" r="3.4" fill="#4a3b3b"/><circle cx="40" cy="49" r="1" fill="#fff"/>
+      <ellipse cx="45" cy="64" rx="5.5" ry="3.2" fill="#f28ba0" opacity=".6"/>
+    </svg></div>
     <div class="auth-marca">Mis cuentas</div>
     <h1 id="authTitulo">¡Hola de nuevo!</h1>
     <p class="auth-sub" id="authSub">Entra para ver tus cuentas</p>
@@ -300,7 +407,7 @@ button.fila{cursor:pointer; -webkit-tap-highlight-color:transparent}
   <header>
     <div class="cab-fila">
       <h1 id="tabActual"></h1>
-      <button class="icono-btn" id="btnRefrescar" aria-label="Actualizar" title="Actualizar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 4v5h-5"/></svg></button>
+      <span style="display:flex;gap:10px"><span id="ojoCab" style="display:contents"></span><button class="icono-btn" id="btnRefrescar" aria-label="Actualizar" title="Actualizar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 4v5h-5"/></svg></button></span>
     </div>
     <div class="periodo" id="periodoBox"></div>
     <div class="mini" id="balanceBox"></div>
@@ -329,7 +436,6 @@ button.fila{cursor:pointer; -webkit-tap-highlight-color:transparent}
 <script src="js/views/movimientos.js"></script>
 <script src="js/views/cuentas.js"></script>
 <script src="js/views/deudas.js"></script>
-<script src="js/views/importar.js"></script>
 <script src="js/views/inversiones.js"></script>
 <script src="js/views/objetivos.js"></script>
 <script src="js/views/proyeccion.js"></script>
@@ -337,6 +443,7 @@ button.fila{cursor:pointer; -webkit-tap-highlight-color:transparent}
 <script src="js/views/categorias.js"></script>
 <script src="js/views/preferencias.js"></script>
 <script src="js/views/personalizacion.js"></script>
+<script src="js/views/notificaciones.js"></script>
 <script src="js/views/app.js"></script>
 </body>
 </html>

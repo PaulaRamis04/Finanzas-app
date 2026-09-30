@@ -54,7 +54,7 @@ function renderCuentas(){
   }).join("");
   return `
   ${resumen}
-  ${tarjetas ? `<div data-sortable="ordenar_cuentas">${tarjetas}</div>` : `<div class="card"><div class="empty" style="padding:20px 10px">Sin cuentas todavía. Crea la primera abajo.</div></div>`}
+  ${tarjetas ? `<div data-sortable="ordenar_cuentas">${tarjetas}</div>` : `<div class="card">${vacio("hucha","Tu hucha está vacía","Crea tu primera cuenta abajo para empezar a llenarla.")}</div>`}
   ${archivadas.length ? `
   <div class="card">
     <h2>Archivadas</h2>
@@ -98,16 +98,16 @@ function wireEventosCuentas(){
     if(archivada && cuentaDefecto===id) await guardarCuentaDefecto("");
     hideError(); await recargar(["cuentas"]);
   });
-  document.querySelectorAll("[data-archivar-cuenta]").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll("[data-archivar-cuenta]").forEach(b=>b.onclick=async ()=>{
     const c = cuentas.find(x=>x.id===b.dataset.archivarCuenta);
     const saldo = c ? saldoCuenta(c) : 0;
     const aviso = saldo!==0 ? ` Todavía tiene ${eur(saldo)}, que seguirá contando en tu patrimonio.` : "";
-    if(!confirm("¿Archivar esta cuenta? Conservas su historial y dejará de salir al apuntar movimientos."+aviso)) return;
+    if(!(await confirmar("¿Archivar esta cuenta? Conservas su historial y dejará de salir al apuntar movimientos."+aviso))) return;
     archivarCuenta(b, b.dataset.archivarCuenta, true);
   });
   document.querySelectorAll("[data-desarchivar-cuenta]").forEach(b=>b.onclick=()=>archivarCuenta(b, b.dataset.desarchivarCuenta, false));
-  document.querySelectorAll("[data-del-cuenta]").forEach(b=>b.onclick=()=>{
-    if(!confirm("¿Borrar esta cuenta?")) return;
+  document.querySelectorAll("[data-del-cuenta]").forEach(b=>b.onclick=async ()=>{
+    if(!(await confirmar("¿Borrar esta cuenta?"))) return;
     conCarga(b, "Borrando…", async ()=>{
       const {error} = await sb.from("cuentas").delete().eq("id", b.dataset.delCuenta);
       if(error){ showError("No se pudo borrar: "+error.message); return; }

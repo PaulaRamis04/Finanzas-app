@@ -6,7 +6,7 @@ function render(){
   const y0 = window.scrollY, ae = document.activeElement;
   const focoId = tab===tabPintada && ae && ae.id && document.getElementById("app").contains(ae) ? ae.id : null;
   const sel = focoId && typeof ae.selectionStart==="number" ? [ae.selectionStart, ae.selectionEnd] : null;
-  document.getElementById("appShell").classList.toggle("en-inicio", tab==="Inicio");
+  document.getElementById("appShell").classList.toggle("en-inicio", tab==="Inicio" || tab==="Notificaciones");
   renderTabs();
   renderBalance();
   renderPeriodo();
@@ -19,12 +19,12 @@ function render(){
   else if(tab==="Movimientos") app.innerHTML = renderMovimientos();
   else if(tab==="Deudas") app.innerHTML = renderDeudas();
   else if(tab==="Cuentas") app.innerHTML = renderCuentas();
-  else if(tab==="Importar") app.innerHTML = renderImportar();
   else if(tab==="Inversiones") app.innerHTML = renderInversiones();
   else if(tab==="Objetivos") app.innerHTML = renderObjetivos();
   else if(tab==="Proyección") app.innerHTML = renderProyeccion();
   else if(tab==="Recurrentes") app.innerHTML = renderRecurrentes();
   else if(tab==="Preferencias") app.innerHTML = renderPreferencias();
+  else if(tab==="Notificaciones") app.innerHTML = renderNotificaciones();
   else if(tab==="Personalización") app.innerHTML = renderPersonalizacion();
   else app.innerHTML = renderCategorias();
   wireEvents();
@@ -56,9 +56,9 @@ function wireEvents(){
   wireEventosRecurrentes();
   wireEventosPreferencias();
   wireEventosPersonalizacion();
+  wireEventosNotificaciones();
   wireEventosPresupuestos();
   wireEventosObjetivos();
-  wireEventosImportar();
 }
 
 init();

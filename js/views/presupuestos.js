@@ -77,7 +77,7 @@ function renderPresupuestos(){
           <button class="btn ghost" data-cancelar-presupuesto="1">Cancelar</button>
         </div>
       </div>` : ""}`;
-    }).join("") : `<div class="empty">Sin presupuestos todavía. Crea el primero arriba.</div>`}
+    }).join("") : `<div class="card">${vacio("nube","Sin presupuestos todavía","Ponle un límite a una categoría arriba y te avisaré antes de pasarte.")}</div>`}
   </div>`;
 }
 
@@ -93,8 +93,8 @@ function wireEventosPresupuestos(){
       hideError(); fPresupuesto.reset(); await recargar(["presupuestos"]);
     });
   };
-  document.querySelectorAll("[data-del-presupuesto]").forEach(b=>b.onclick=()=>{
-    if(!confirm("¿Borrar este presupuesto?")) return;
+  document.querySelectorAll("[data-del-presupuesto]").forEach(b=>b.onclick=async ()=>{
+    if(!(await confirmar("¿Borrar este presupuesto?"))) return;
     conCarga(b, "Borrando…", async ()=>{
       const {error} = await sb.from("presupuestos").delete().eq("id", b.dataset.delPresupuesto);
       if(error){ showError("No se pudo borrar: "+error.message); return; }

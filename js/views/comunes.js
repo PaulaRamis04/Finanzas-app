@@ -168,11 +168,13 @@ const TITULOS_TAB = {"Resumen del mes":"Análisis"};
 
 function renderTabs(){
   document.getElementById("tabActual").textContent = TITULOS_TAB[tab] || tab;
+  document.getElementById("ojoCab").innerHTML = botonOjo("btnOjo");
+  document.getElementById("btnOjo").onclick = alternarPrivacidad;
   document.getElementById("menuPanel").innerHTML =
     `<button class="menu-item ${tab==="Inicio"?"active":""}" data-tab="Inicio" style="margin-bottom:16px">🏠 Inicio</button>` +
     GRUPOS_MENU.map(g=>`
     <div class="menu-group-title">${g.nombre}</div>
-    ${g.tabs.map(t=>`<button class="menu-item ${t===tab?'active':''}" data-tab="${t}">${t}${t==="Importar" && pendientes.length? ` (${pendientes.length})` : ""}</button>`).join("")}
+    ${g.tabs.map(t=>`<button class="menu-item ${t===tab?'active':''}" data-tab="${t}">${t}</button>`).join("")}
   `).join("") +
     `<button class="menu-item" id="menuLogout" style="margin-top:18px;color:var(--neg)">Cerrar sesión</button>`;
   document.querySelectorAll(".menu-item[data-tab]").forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; closeMenu(); render(); });
@@ -182,7 +184,7 @@ function renderTabs(){
     b.onclick = ()=>{ tab = b.dataset.nav; closeMenu(); render(); window.scrollTo(0,0); };
   });
   const enNav = [...document.querySelectorAll("[data-nav]")].some(b=>b.dataset.nav===tab);
-  document.getElementById("navMas").classList.toggle("active", !enNav);
+  document.getElementById("navMas").classList.toggle("active", !enNav && tab!=="Notificaciones");
   const menuBtn = document.getElementById("menuBtn");
   const overlay = document.getElementById("menuOverlay");
   const abrirMenu = ()=>{
@@ -287,4 +289,148 @@ function listaPorDias(lista, pintar){
     html += pintar(m);
   });
   return dia===null ? "" : html + `</div>`;
+}
+
+// Gráficas interactivas (ver graficoInteractivo en helpers.js). Un único manejador para todas,
+// porque las gráficas se vuelven a pintar con cada render.
+function mostrarPuntoGrafico(g, clientX){
+  let puntos = g._puntos;
+  if(!puntos){ try{ puntos = g._puntos = JSON.parse(g.dataset.puntos); }catch(e){ return; } }
+  if(!puntos.length) return;
+  const r = g.getBoundingClientRect();
+  const px = (clientX - r.left) / r.width * 100;
+  const p = puntos.reduce((a,b)=>Math.abs(b.x-px) < Math.abs(a.x-px) ? b : a);
+  if(g._actual===p) return;
+  g._actual = p;
+  g.querySelector(".graf-linea").style.left = p.x+"%";
+  g.querySelectorAll(".graf-punto").forEach(d=>d.remove());
+  p.s.forEach(s=>{
+    const d = document.createElement("div");
+    d.className = "graf-punto";
+    d.style.cssText = `left:${p.x}%;top:${s.y}%;border-color:${s.c}`;
+    g.appendChild(d);
+  });
+  const tip = g.querySelector(".graf-tip");
+  tip.innerHTML = p.s.length===1
+    ? `<b>${esc(p.s[0].v)}</b><span>${esc(p.t)}</span>`
+    : `<span>${esc(p.t)}</span>` + p.s.map(s=>`<div><i style="background:${s.c}"></i>${esc(s.n)}: <b style="display:inline">${esc(s.v)}</b></div>`).join("");
+  g.classList.add("activa");
+  // Que el globo no se salga de la tarjeta por los lados.
+  const mitad = tip.offsetWidth/2/r.width*100;
+  tip.style.left = Math.min(Math.max(p.x, mitad), 100-mitad)+"%";
+}
+
+function ocultarGraficos(excepto){
+  document.querySelectorAll(".graf-int.activa").forEach(g=>{
+    if(g===excepto) return;
+    g.classList.remove("activa"); g._actual = null;
+    g.querySelectorAll(".graf-punto").forEach(d=>d.remove());
+  });
+}
+
+document.addEventListener("pointerdown", e=>{
+  const g = e.target.closest && e.target.closest(".graf-int");
+  ocultarGraficos(g);
+  if(g) mostrarPuntoGrafico(g, e.clientX);
+});
+document.addEventListener("pointermove", e=>{
+  const g = e.target.closest && e.target.closest(".graf-int");
+  if(g && (e.pointerType==="mouse" || e.buttons || g.classList.contains("activa"))) mostrarPuntoGrafico(g, e.clientX);
+  else if(!g && e.pointerType==="mouse") ocultarGraficos();
+});
+
+// Confirmación en hoja inferior (sustituye a confirm()). Devuelve una promesa con true/false.
+// El texto se parte solo: la primera pregunta «¿…?» es el título y el resto la explicación.
+function confirmar(texto, opciones = {}){
+  let titulo = opciones.titulo, cuerpo = texto;
+  if(!titulo){
+    const m = texto.match(/^(¿[^?]*\?)\s*([\s\S]*)$/) || texto.match(/^([\s\S]*?)\s*(¿[^?]*\?)\s*$/);
+    if(m && m[1].startsWith("¿")){ titulo = m[1]; cuerpo = m[2]; }
+    else if(m){ titulo = m[2]; cuerpo = m[1]; }
+    else { titulo = "¿Seguro?"; }
+  }
+  const verbo = (titulo.match(/^¿\s*(\p{L}+)/u) || [])[1] || "";
+  const base = verbo.replace(/(la|lo|las|los)$/i, "").toLowerCase();
+  const ok = opciones.ok || (base ? `Sí, ${base}` : "Confirmar");
+  const ICONOS = {borrar:"🗑️", archivar:"📦", deshacer:"↩️", restaurar:"💾", volver:"🎨"};
+  const icono = opciones.icono || ICONOS[base] || "🐷";
+  document.getElementById("hoja")?.remove();
+  const cont = document.createElement("div");
+  cont.id = "hoja";
+  cont.innerHTML = `
+    <div class="hoja-fondo"></div>
+    <div class="hoja" role="dialog" aria-modal="true" aria-labelledby="hojaTitulo">
+      <div class="hoja-asa"></div>
+      <div class="hoja-ico">${icono}</div>
+      <h2 id="hojaTitulo">${esc(titulo)}</h2>
+      ${cuerpo ? `<p>${esc(cuerpo)}</p>` : ""}
+      <div class="hoja-btns">
+        <button class="hoja-no" id="hojaNo">Cancelar</button>
+        <button class="hoja-si" id="hojaOk">${esc(ok)}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(cont);
+  const previo = document.activeElement;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>cont.classList.add("abierta")));
+  return new Promise(resolver=>{
+    const cerrar = valor=>{
+      document.removeEventListener("keydown", tecla);
+      cont.classList.remove("abierta");
+      setTimeout(()=>cont.remove(), 260);
+      try{ previo && previo.focus && previo.focus({preventScroll:true}); }catch(e){}
+      resolver(valor);
+    };
+    const tecla = e=>{ if(e.key==="Escape") cerrar(false); };
+    document.addEventListener("keydown", tecla);
+    cont.querySelector(".hoja-fondo").onclick = ()=>cerrar(false);
+    cont.querySelector("#hojaNo").onclick = ()=>cerrar(false);
+    cont.querySelector("#hojaOk").onclick = ()=>cerrar(true);
+    setTimeout(()=>{ try{ cont.querySelector("#hojaOk").focus({preventScroll:true}); }catch(e){} }, 60);
+  });
+}
+
+// Estados vacíos con ilustración: la hucha dormida o una nube sonriente con monedas.
+const DIBUJOS_VACIO = {
+  hucha: `<svg viewBox="0 0 124 96" width="112" height="87" aria-hidden="true">
+    <text x="92" y="22" font-size="13" font-weight="800" fill="var(--muted)" font-family="Nunito,sans-serif" opacity=".7">z</text>
+    <text x="102" y="12" font-size="10" font-weight="800" fill="var(--muted)" font-family="Nunito,sans-serif" opacity=".5">z</text>
+    <rect x="34" y="72" width="11" height="14" rx="4" fill="#ef95a8"/><rect x="78" y="72" width="11" height="14" rx="4" fill="#ef95a8"/>
+    <path d="M104 52c9-2 11-11 5-13s-7 6-1 7" fill="none" stroke="#ef95a8" stroke-width="3" stroke-linecap="round"/>
+    <path d="M36 34 42 16 56 29Z" fill="#ef95a8" stroke="#ef95a8" stroke-width="3" stroke-linejoin="round"/>
+    <ellipse cx="64" cy="54" rx="42" ry="29" fill="#f8b6c3"/>
+    <rect x="44" y="77" width="11" height="11" rx="4" fill="#f8b6c3"/><rect x="70" y="77" width="11" height="11" rx="4" fill="#f8b6c3"/>
+    <ellipse cx="78" cy="42" rx="12" ry="6" fill="#fff" opacity=".35"/>
+    <rect x="53" y="27" width="22" height="5" rx="2.5" fill="#d9788d"/>
+    <ellipse cx="22" cy="57" rx="10" ry="12" fill="#ef95a8"/>
+    <ellipse cx="19" cy="53" rx="2" ry="3" fill="#c9667c"/><ellipse cx="19" cy="61" rx="2" ry="3" fill="#c9667c"/>
+    <path d="M34 47q5 4 10 0" fill="none" stroke="#4a3b3b" stroke-width="2.2" stroke-linecap="round"/>
+    <ellipse cx="45" cy="60" rx="5.5" ry="3.2" fill="#f28ba0" opacity=".6"/>
+  </svg>`,
+  nube: `<svg viewBox="0 0 140 96" width="124" height="86" aria-hidden="true">
+    <circle cx="22" cy="80" r="9" fill="#f6c453" stroke="#e0a82e" stroke-width="2"/><text x="22" y="84" text-anchor="middle" font-size="10" font-weight="800" fill="#b9831c" font-family="Nunito,sans-serif">€</text>
+    <circle cx="108" cy="74" r="7" fill="#f6c453" stroke="#e0a82e" stroke-width="2"/><text x="108" y="77.5" text-anchor="middle" font-size="8" font-weight="800" fill="#b9831c" font-family="Nunito,sans-serif">€</text>
+    <circle cx="96" cy="88" r="5" fill="#f6c453" stroke="#e0a82e" stroke-width="1.6"/>
+    <path d="M32 66a18 18 0 0 1-2-35.9A26 26 0 0 1 80 20a21 21 0 0 1 34 12 17 17 0 0 1 0 34Z" fill="var(--card)" stroke="#bfe0f7" stroke-width="3" stroke-linejoin="round"/>
+    <circle cx="58" cy="42" r="3" fill="#4a3b3b"/><circle cx="80" cy="42" r="3" fill="#4a3b3b"/>
+    <path d="M62 51q7 6 14 0" fill="none" stroke="#4a3b3b" stroke-width="2.4" stroke-linecap="round"/>
+    <ellipse cx="51" cy="50" rx="5" ry="3" fill="#f7a8b8" opacity=".7"/><ellipse cx="87" cy="50" rx="5" ry="3" fill="#f7a8b8" opacity=".7"/>
+  </svg>`
+};
+
+function vacio(dibujo, titulo, texto){
+  return `<div class="vacio">${DIBUJOS_VACIO[dibujo] || DIBUJOS_VACIO.nube}<b>${titulo}</b>${texto ? `<span>${texto}</span>` : ""}</div>`;
+}
+
+// Modo privacidad: eur() devuelve «•••• €» y todo se vuelve a pintar. Se recuerda en este dispositivo.
+function alternarPrivacidad(){
+  ocultarSaldos = !ocultarSaldos;
+  try{ localStorage.setItem("ocultarSaldos", ocultarSaldos ? "1" : ""); }catch(e){}
+  render();
+}
+
+function botonOjo(id){
+  const ojo = ocultarSaldos
+    ? `<path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c6 0 10 7 10 7a17 17 0 0 1-3.2 3.9M6.3 6.3A17 17 0 0 0 2 12s4 7 10 7a9.7 9.7 0 0 0 5.2-1.5"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>`
+    : `<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>`;
+  return `<button class="icono-btn ojo ${ocultarSaldos?"activo":""}" id="${id}" aria-label="${ocultarSaldos?"Mostrar importes":"Ocultar importes"}" aria-pressed="${ocultarSaldos}" title="${ocultarSaldos?"Mostrar importes":"Ocultar importes"}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ojo}</svg></button>`;
 }

@@ -50,7 +50,7 @@ function renderCategorias(){
         <span class="meta" style="font-weight:400">${porPadre[p].length} categoría${porPadre[p].length===1?"":"s"}</span>
       </div>
       ${cerrado? "" : porPadre[p].map(catItem).join("")}`;
-    }).join("") : `<div class="empty">Sin categorías de gasto todavía.</div>`}
+    }).join("") : vacio("nube","Sin categorías de gasto","Crea la primera para ordenar tus compras.")}
   </div>
   <div class="section-title">Ingresos</div>
   <div class="list">
@@ -59,7 +59,7 @@ function renderCategorias(){
         <span>${catsContraidas["__ingresos__"]?"▸":"▾"} Ingresos</span>
         <span class="meta" style="font-weight:400">${ingresoList.length} categoría${ingresoList.length===1?"":"s"}</span>
       </div>
-      ${catsContraidas["__ingresos__"]? "" : ingresoList.map(catItem).join("")}` : `<div class="empty">Sin categorías de ingreso todavía.</div>`}
+      ${catsContraidas["__ingresos__"]? "" : ingresoList.map(catItem).join("")}` : vacio("hucha","Sin categorías de ingreso","Por ejemplo: nómina, regalos o ventas.")}
   </div>`;
 }
 
@@ -94,7 +94,7 @@ function wireEventosCategorias(){
       const usos = [count ? `${count} movimiento${count>1?"s":""}` : "", nPres ? `${nPres} presupuesto${nPres>1?"s":""}` : "", nRec ? `${nRec} recurrente${nRec>1?"s":""}` : ""].filter(Boolean);
       if(usos.length) aviso = `"${cat.nombre}" está en uso en ${usos.join(", ")}. Si la borras, conservarán ese nombre pero ya no podrás elegirla. ¿Borrarla igualmente?`;
     }
-    if(!confirm(aviso)) return;
+    if(!(await confirmar(aviso))) return;
     conCarga(b, "Borrando…", async ()=>{
       const {error} = await sb.from("categorias").delete().eq("id", b.dataset.delCat);
       if(error){ showError("No se pudo borrar: "+error.message); return; }

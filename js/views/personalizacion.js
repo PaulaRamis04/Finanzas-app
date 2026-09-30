@@ -114,8 +114,8 @@ function wireEventosPersonalizacion(){
   const quitar = document.getElementById("btnQuitarFondo");
   if(quitar) quitar.onclick = ()=>repintar({imagen:null});
   const reset = document.getElementById("btnRestablecerAspecto");
-  if(reset) reset.onclick = ()=>{
-    if(!confirm("¿Volver al aspecto original? Se quitan el tema, los colores y la imagen elegidos.")) return;
+  if(reset) reset.onclick = async ()=>{
+    if(!(await confirmar("¿Volver al aspecto original? Se quitan el tema, los colores y la imagen elegidos."))) return;
     try{ localStorage.removeItem("personalizacion"); localStorage.removeItem("fondoImagen"); }catch(e){}
     aplicarPersonalizacion(); render();
   };

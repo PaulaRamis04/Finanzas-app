@@ -213,11 +213,11 @@ function renderInversiones(){
     <span>Activas · Valor ${eur(totalValor)} · Beneficio ${eur(totalBeneficio)}${totalRentas>0?` · Rentas ${eur(totalRentas)}`:""}</span>
   </div>
   <div class="list" data-sortable="ordenar_inversiones">
-    ${topActivos.length? topActivos.map(x=>sortItem(x.id, invItem(x, topActivos.length>1))).join("") : `<div class="empty">Sin inversiones activas todavía.</div>`}
+    ${topActivos.length? topActivos.map(x=>sortItem(x.id, invItem(x, topActivos.length>1))).join("") : `<div class="card">${vacio("nube","Tu dinero aún no está sembrado 🌱","Cuando añadas una inversión activa, la verás crecer aquí.")}</div>`}
   </div>
   <div class="section-title">Planificadas · no cuentan en tu patrimonio</div>
   <div class="list" data-sortable="ordenar_inversiones">
-    ${topPlan.length? topPlan.map(x=>sortItem(x.id, invItem(x, topPlan.length>1))).join("") : `<div class="empty">Sin inversiones planificadas.</div>`}
+    ${topPlan.length? topPlan.map(x=>sortItem(x.id, invItem(x, topPlan.length>1))).join("") : `<div class="card">${vacio("hucha","Sin planes a la vista","Apunta aquí lo que quieras invertir más adelante.")}</div>`}
   </div>`;
 }
 
@@ -255,9 +255,9 @@ function wireEventosInversiones(){
       hideError(); fInversion.reset(); await recargar(["inversiones"]);
     });
   };
-  document.querySelectorAll("[data-del-inv]").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll("[data-del-inv]").forEach(b=>b.onclick=async ()=>{
     const esG = inversiones.find(i=>i.id===b.dataset.delInv)?.esGrupo;
-    if(!confirm(esG ? "¿Borrar este grupo? Las inversiones de dentro no se borran, quedarán sueltas." : "¿Borrar esta inversión? También se borrarán sus aportaciones y los gastos que generó.")) return;
+    if(!(await confirmar(esG ? "¿Borrar este grupo? Las inversiones de dentro no se borran, quedarán sueltas." : "¿Borrar esta inversión? También se borrarán sus aportaciones y los gastos que generó."))) return;
     conCarga(b, "Borrando…", async ()=>{
       const {error} = await sb.rpc("eliminar_inversion", {p_inversion_id: b.dataset.delInv});
       if(error){ showError("No se pudo borrar: "+error.message); return; }
@@ -316,8 +316,8 @@ function wireEventosInversiones(){
     if(error){ showError("No se pudo rescatar: "+error.message); return; }
     hideError(); rescatarInvId = null; await recargar(["inversiones","retiros_inversion","movimientos"]);
   }));
-  document.querySelectorAll("[data-del-retiro]").forEach(b=>b.onclick=()=>{
-    if(!confirm("¿Deshacer este rescate? Se borrará el ingreso asociado y volverá a la inversión.")) return;
+  document.querySelectorAll("[data-del-retiro]").forEach(b=>b.onclick=async ()=>{
+    if(!(await confirmar("¿Deshacer este rescate? Se borrará el ingreso asociado y volverá a la inversión."))) return;
     conCarga(b, "Borrando…", async ()=>{
       const {error} = await sb.rpc("eliminar_retiro", {p_retiro_id: b.dataset.delRetiro});
       if(error){ showError("No se pudo deshacer: "+error.message); return; }
@@ -328,8 +328,8 @@ function wireEventosInversiones(){
     verAportacionesId = verAportacionesId===b.dataset.verAportaciones ? null : b.dataset.verAportaciones;
     render();
   });
-  document.querySelectorAll("[data-del-aportacion]").forEach(b=>b.onclick=()=>{
-    if(!confirm("¿Borrar esta aportación? También se borrará el gasto asociado y se restará del valor de la inversión.")) return;
+  document.querySelectorAll("[data-del-aportacion]").forEach(b=>b.onclick=async ()=>{
+    if(!(await confirmar("¿Borrar esta aportación? También se borrará el gasto asociado y se restará del valor de la inversión."))) return;
     conCarga(b, "Borrando…", async ()=>{
       const {error} = await sb.rpc("eliminar_aportacion", {p_aportacion_id: b.dataset.delAportacion});
       if(error){ showError("No se pudo borrar la aportación: "+error.message); return; }

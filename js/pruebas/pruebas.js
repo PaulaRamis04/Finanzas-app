@@ -8,7 +8,7 @@ const assert = require("assert");
 
 const RAIZ = path.join(__dirname, "..");
 const HTML_PRUEBA = path.join(RAIZ, "index.pruebas.html");
-const PESTANAS = ["Inicio","Gastos","Resumen del mes","Presupuestos","Movimientos","Cuentas","Deudas","Importar","Inversiones","Objetivos","Proyección","Recurrentes","Categorías","Preferencias","Personalización"];
+const PESTANAS = ["Inicio","Gastos","Resumen del mes","Presupuestos","Movimientos","Cuentas","Deudas","Inversiones","Objetivos","Proyección","Recurrentes","Categorías","Preferencias","Personalización","Notificaciones"];
 
 const pruebas = [];
 const prueba = (nombre, fn)=>pruebas.push({nombre, fn});
@@ -16,17 +16,9 @@ const prueba = (nombre, fn)=>pruebas.push({nombre, fn});
 // ── Funciones puras (sin navegador) ──
 function cargarHelpers(){
   const ctx = {};
-  new Function("ctx", fs.readFileSync(path.join(RAIZ, "js/helpers.js"), "utf8") + "\nctx.h = {parseImporteCSV, sumaImportes, sumarDinero, restarDinero, parseFechaCSV, diasEntre};")(ctx);
+  new Function("ctx", fs.readFileSync(path.join(RAIZ, "js/helpers.js"), "utf8") + "\nctx.h = {sumaImportes, sumarDinero, restarDinero, diasEntre};")(ctx);
   return ctx.h;
 }
-prueba("importes del CSV en formatos español, inglés y bancario", ()=>{
-  const {parseImporteCSV} = cargarHelpers();
-  const casos = {"1.234,56":1234.56, "1,234.56":1234.56, "1.234":1234, "-12,50":-12.5, "12,50-":-12.5, "(12,50)":-12.5,
-    "+12,50 €":12.5, "0.123":0.123, "12.5":12.5, "-1.234.567,89":-1234567.89, "1,234,567":1234567, "45":45, "45,5":45.5,
-    "-0,99":-0.99, "1 234,56 €":1234.56, "12,34 EUR":12.34};
-  for(const [txt, esperado] of Object.entries(casos)) assert.strictEqual(parseImporteCSV(txt), esperado, txt);
-  assert.ok(isNaN(parseImporteCSV("abc")) && isNaN(parseImporteCSV("")));
-});
 prueba("las sumas de dinero no arrastran decimales", ()=>{
   const {sumaImportes, sumarDinero, restarDinero} = cargarHelpers();
   assert.strictEqual(sumarDinero(0.1, 0.2), 0.3);
@@ -50,6 +42,8 @@ const saldosEsperados = p=>p.evaluate(()=>Object.fromEntries(__db.cuentas.map(c=
   -sumaImportes(__db.movimientos.filter(m=>m.cuenta_id===c.id && m.tipo==="gasto")))])));
 const saldosApp = p=>p.evaluate(()=>Object.fromEntries(cuentas.map(c=>[c.nombre, saldoCuenta(c)])));
 const textoError = p=>p.evaluate(()=>document.getElementById("errBar").classList.contains("show") ? document.getElementById("errMsg").textContent : "");
+// Pulsa «Sí, …» en la hoja de confirmación si aparece (no aparece cuando antes hay un error).
+const aceptarHoja = p=>p.waitForSelector("#hojaOk", {timeout:3000}).then(()=>p.click("#hojaOk")).catch(()=>{});
 async function descargarCopia(p){
   await p.evaluate(()=>{ tab = "Preferencias"; render(); });
   const [dl] = await Promise.all([p.waitForEvent("download"), p.click("#btnExportar")]);
@@ -61,6 +55,7 @@ async function restaurar(p, ruta){
   await p.evaluate(()=>{ tab = "Preferencias"; render(); });
   const [fc] = await Promise.all([p.waitForEvent("filechooser"), p.click("#btnRestaurar")]);
   await fc.setFiles(ruta);
+  await aceptarHoja(p);
   await p.waitForFunction(()=>!document.getElementById("btnRestaurar") || !document.getElementById("btnRestaurar").disabled, null, {timeout:30000});
   await p.waitForTimeout(200);
 }
@@ -109,6 +104,7 @@ prueba("archivar una cuenta la quita de los selects pero no del patrimonio", asy
   await p.evaluate(()=>{ tab = "Cuentas"; render(); });
   assert.strictEqual(await p.$('[data-del-cuenta="c2"]'), null, "una cuenta con movimientos no se puede borrar");
   await p.click('[data-archivar-cuenta="c2"]');
+  await aceptarHoja(p);
   await p.waitForFunction(()=>cuentas.find(c=>c.id==="c2").archivada);
   assert.ok(!(await p.evaluate(()=>opcionesCuentas())).includes('value="c2"'));
   assert.strictEqual(await p.evaluate(()=>patrimonioActual()), patrimonio);
@@ -160,6 +156,58 @@ prueba("Inicio muestra saldo, gráfico de gasto, acciones y recientes", async ()
   assert.ok(await p.isVisible("header"));
   await p.click('[data-nav="Inicio"]');
   assert.strictEqual(await p.evaluate(()=>tab), "Inicio");
+});
+prueba("al tocar una gráfica se ve el importe de ese punto", async ()=>{
+  const p = await abrir();
+  const g = await p.$(".card.grafico .graf-int");
+  const bb = await g.boundingBox();
+  await p.mouse.click(bb.x + bb.width*0.3, bb.y + bb.height/2);
+  const tip = await p.evaluate(()=>document.querySelector(".graf-int.activa .graf-tip").innerText);
+  assert.match(tip, /€[\d.,]+ de €400,00/);
+  assert.match(tip, /\d+ sep/);
+  await p.mouse.click(5, 5);
+  assert.strictEqual(await p.$(".graf-int.activa"), null, "al tocar fuera se oculta");
+});
+prueba("borrar pide confirmación en una hoja inferior y cancelar no borra nada", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>{ tab = "Presupuestos"; render(); });
+  const antes = await p.evaluate(()=>__db.presupuestos.length);
+  await p.click("[data-del-presupuesto]");
+  await p.waitForSelector("#hoja.abierta");
+  assert.match(await p.textContent("#hojaTitulo"), /¿Borrar este presupuesto\?/);
+  assert.strictEqual(await p.textContent("#hojaOk"), "Sí, borrar");
+  await p.click("#hojaNo");
+  await p.waitForSelector("#hoja", {state:"detached"});
+  assert.strictEqual(await p.evaluate(()=>__db.presupuestos.length), antes);
+  await p.click("[data-del-presupuesto]");
+  await p.click("#hojaOk");
+  await p.waitForFunction(n=>__db.presupuestos.length===n-1, antes);
+});
+prueba("el ojito oculta todos los importes y se recuerda", async ()=>{
+  const p = await abrir();
+  await p.click("#btnOjoInicio");
+  const txt = await p.evaluate(()=>document.getElementById("app").innerText);
+  assert.ok(!/€\d/.test(txt), "no queda ningún importe visible");
+  assert.match(txt, /•••• €/);
+  await p.reload(); await p.waitForFunction(()=>typeof ready!=="undefined" && ready);
+  await p.evaluate(()=>{ tab = "Cuentas"; render(); });
+  assert.ok(!/€\d/.test(await p.evaluate(()=>document.body.innerText)));
+  await p.click("#btnOjo");
+  assert.match(await p.evaluate(()=>document.getElementById("app").innerText), /€\d/);
+});
+prueba("la campana abre la pantalla de notificaciones y solo al tocar un aviso va a su pestaña", async ()=>{
+  const p = await abrir();
+  assert.ok(await p.isVisible("#btnAvisos .punto"), "hay avisos nuevos");
+  await p.click("#btnAvisos");
+  assert.strictEqual(await p.evaluate(()=>tab), "Notificaciones");
+  assert.ok(await p.isHidden("header"));
+  assert.match(await p.evaluate(()=>document.getElementById("app").innerText), /Te has pasado en Ocio/);
+  await p.click("#btnVolverAvisos");
+  assert.strictEqual(await p.evaluate(()=>tab), "Inicio");
+  assert.ok(await p.isHidden("#btnAvisos .punto"), "ya vistos: sin punto");
+  await p.click("#btnAvisos");
+  await p.click('[data-ir-aviso="Presupuestos"]');
+  assert.strictEqual(await p.evaluate(()=>tab), "Presupuestos");
 });
 prueba("personalización: tema, color, fondo e imagen se aplican, se recuerdan y se borran al salir", async ()=>{
   const p = await abrir();

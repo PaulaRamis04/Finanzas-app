@@ -36,15 +36,15 @@ function renderGastos(){
           <div class="barra"><div style="width:${maxCat? total/maxCat*100 : 0}%;background:var(--accent)"></div></div>
         </div>
       </button>
-    `).join("") : `<div class="empty">Sin gastos en este periodo.</div>`}
+    `).join("") : `<div class="card">${vacio("nube","¡Todo tranquilo por aquí!","Aún no hay compras registradas este periodo.")}</div>`}
   </div>
-  <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+  ${gastosReales.length ? `<div class="section-title" style="display:flex;justify-content:space-between;align-items:center;gap:10px">
     <span>Gastos${gastosCatSel? ` · ${esc(gastosCatSel)}` : ""} <span class="meta" style="font-size:13px">(${gastosMostrados.length})</span></span>
     ${gastosCatSel? `<button class="btn ghost" data-gastos-cat="" style="color:var(--accent)">Ver todos</button>` : ""}
   </div>
   ${gastosMostrados.length? listaPorDias([...gastosMostrados].sort((a,b)=>b.fecha.localeCompare(a.fecha)), m=>filaMov(m, {fecha:false,
       extra: m.cubierto ? `De ${eur(m.importeOriginal)}; ${eur(m.cubierto)} ya cobrados` : (m.nota ? m.categoria : cuentaNombre(m.cuentaId))}))
-    : `<div class="empty">${gastosCatSel? "Sin movimientos en esta categoría." : "Sin movimientos de gasto en este periodo."}</div>`}`;
+    : `<div class="card">${gastosCatSel? vacio("hucha","Nada en esta categoría","Tu hucha lo agradece.") : vacio("nube","¡Todo tranquilo por aquí!","Aún no hay compras registradas este periodo.")}</div>`}` : ""}`;
 }
 
 function wireEventosGastos(){

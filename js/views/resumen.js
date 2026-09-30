@@ -1,22 +1,20 @@
 // Pestaña «Resumen del mes»: su render y sus eventos.
 
 function bloqueGraficaCategoria(titulo, desc, tipo){
-  if(!desc.length) return `<div class="card"><p class="meta" style="margin:0">Sin movimientos en este periodo.</p></div>`;
+  if(!desc.length) return `<div class="card"><h2 style="margin:0">${titulo}</h2>${tipo==="ingreso" ? vacio("hucha","La hucha espera su primer ingreso","Cuando entre dinero este mes, lo verás repartido aquí.") : vacio("nube","¡Todo tranquilo por aquí!","Aún no hay gastos registrados en este periodo.")}</div>`;
   const totalGrafica = desc.reduce((sum,d)=>sumarDinero(sum, d.total),0);
   return `
   <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
-      <h2 style="margin:0">${titulo}</h2>
-      <strong style="font-size:15px;font-variant-numeric:tabular-nums">${eur(totalGrafica)}</strong>
-    </div>
+    <h2 style="margin:0">${titulo}</h2>
+    <div class="cifra-adapt">${eur(totalGrafica)}</div>
     <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;margin-top:10px">
-      ${donutClicable(desc, tipo)}
-      <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:180px">
+      ${donutClicable(desc, tipo, null, resumenSel && resumenSel.tipo===tipo ? resumenSel.categoria : null)}
+      <div style="display:flex;flex-direction:column;gap:2px;flex:1 1 180px;min-width:0">
         ${desc.map(d=>`
           <button data-resumen-sel="${tipo}|${esc(d.categoria)}" style="display:flex;align-items:center;gap:8px;background:${resumenSel&&resumenSel.tipo===tipo&&resumenSel.categoria===d.categoria?'var(--accent-soft)':'none'};border:none;border-radius:10px;padding:6px 8px;margin:0 -8px;cursor:pointer;text-align:left;color:var(--ink);font-family:inherit;font-size:14px;font-weight:600;width:calc(100% + 16px)">
             <span style="width:12px;height:12px;border-radius:50%;background:${d.color};flex-shrink:0"></span>
-            <span style="flex:1">${esc(d.categoria)}</span>
-            <span class="meta" style="white-space:nowrap">${eur(d.total)} · ${d.pct.toFixed(0)}%</span>
+            <span style="flex:1 1 90px;min-width:0;overflow-wrap:anywhere">${esc(d.categoria)}</span>
+            <span class="meta" style="text-align:right;font-variant-numeric:tabular-nums"><span style="white-space:nowrap">${eur(d.total)}</span> <span style="white-space:nowrap">· ${d.pct.toFixed(0)}%</span></span>
           </button>`).join("")}
       </div>
     </div>
@@ -41,7 +39,7 @@ function renderResumen(){
       detalle = `
       <div class="card">
         <h2>${esc(resumenSel.categoria)}</h2>
-        <div class="mini" style="margin:10px 0 12px">
+        <div class="mini ajustable" style="margin:10px 0 12px">
           <div><b>${eur(info.total)}</b><span>Total</span></div>
           <div><b>${lista.length}</b><span>Movimientos</span></div>
           <div><b>${info.pct.toFixed(1).replace(".",",")} %</b><span>Del total</span></div>
@@ -55,10 +53,10 @@ function renderResumen(){
 
   const bloqueAhorro = ahorroList.length ? `
   <div class="card">
-    <div class="pleg-cab ${resumenAhorroAbierto?'abierto':''}" data-toggle-ahorro="1">
+    <div class="pleg-cab ${resumenAhorroAbierto?'abierto':''}" data-toggle-ahorro="1" style="flex-wrap:wrap">
       <i style="background:var(--mint-soft)">🌱</i>
-      <div style="flex:1;min-width:0"><strong style="font-size:16px">Ahorro / Inversión</strong><div class="meta">${ahorroList.length} movimiento${ahorroList.length>1?"s":""} · no cuenta como consumo</div></div>
-      <div class="amt" style="font-weight:800;font-variant-numeric:tabular-nums">${eur(totalAhorro)}</div>
+      <div style="flex:1 1 150px;min-width:0"><strong style="font-size:16px">Ahorro / Inversión</strong><div class="meta">${ahorroList.length} movimiento${ahorroList.length>1?"s":""} · no cuenta como consumo</div></div>
+      <div class="cifra-adapt" style="margin:0 0 0 auto;font-size:clamp(17px,5.5vw,20px)">${eur(totalAhorro)}</div>
     </div>
     ${resumenAhorroAbierto? `
     <div class="list" style="margin-top:12px">
