@@ -287,7 +287,7 @@ function etiquetaGasto(id){ const m = movimientos.find(x=>x.id===id); return m ?
 function cubiertoPorMovimiento(){
   const c = {};
   movimientos.filter(m=>m.reembolsoDe && m.tipo==="ingreso")
-    .forEach(m=>{ c[m.reembolsoDe] = (c[m.reembolsoDe]||0) + m.importe; });
+    .forEach(m=>{ c[m.reembolsoDe] = sumarDinero(c[m.reembolsoDe]||0, m.importe); });
   return c;
 }
 // Lo que te deben todavía de cada gasto (solo informativo)
@@ -295,7 +295,7 @@ function cubiertoPorMovimiento(){
 function pendientePorMovimiento(){
   const c = {};
   deudas.filter(d=>d.estado==="pendiente" && d.movimientoId && d.direccion==="me_deben")
-    .forEach(d=>{ c[d.movimientoId] = (c[d.movimientoId]||0) + d.importe; });
+    .forEach(d=>{ c[d.movimientoId] = sumarDinero(c[d.movimientoId]||0, d.importe); });
   return c;
 }
 // Movimientos del periodo tal y como cuentan para TU gasto/ingreso: sin ajustes, sin
