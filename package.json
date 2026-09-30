@@ -1,0 +1,11 @@
+{
+  "name": "app-finanzas",
+  "private": true,
+  "description": "Solo para las pruebas; la app no necesita instalar nada.",
+  "scripts": {
+    "test": "node pruebas/pruebas.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.1"
+  }
+}
