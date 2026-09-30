@@ -38,7 +38,7 @@ function presupuestoMesActual(categoria){
   return {limite, gastado, queda:restarDinero(limite, gastado)};
 }
 
-function textoMeses(n){
+function textoMesesPermitir(n){
   if(n<1){ const dias = Math.max(1, Math.round(n*30)); return `${dias} día${dias===1?"":"s"}`; }
   const r = Math.round(n*10)/10;
   return `${String(r).replace(".",",")} ${r===1?"mes":"meses"}`;
@@ -108,7 +108,7 @@ function resultadoPermitir(){
     r.patrimonio.despues<0 ? "var(--neg)" : ""));
 
   if(r.fondo){
-    const cubre = v=> v!=null ? ` · cubre ${textoMeses(v)} de gastos` : "";
+    const cubre = v=> v!=null ? ` · cubre ${textoMesesPermitir(v)} de gastos` : "";
     const pie = r.fondo.toca
       ? `Sale de ${r.fondo.cuenta}, donde está tu fondo${cubre(r.fondo.mesesDespues)}`
       : `No lo toca: pagas desde otra cuenta${cubre(r.fondo.mesesDespues)}`;
@@ -121,12 +121,12 @@ function resultadoPermitir(){
     filas.push(filaPermitir("🐷", "Objetivos", null, "Sin huchas", "Cuando tengas una hucha te diré cuánto la retrasa."));
   } else {
     const conCuota = r.objetivos.huchas.filter(h=>h.cuota);
-    const titulo = r.objetivos.retraso!=null ? `${textoMeses(r.objetivos.retraso)} de retraso`
+    const titulo = r.objetivos.retraso!=null ? `${textoMesesPermitir(r.objetivos.retraso)} de retraso`
       : conCuota.length ? "Retraso por hucha" : "No lo puedo calcular";
     const pie = r.objetivos.retraso!=null ? `Es lo que tardas en ahorrar ${eur(importe)} (ahorras ${eur(r.objetivos.ritmo)} al mes de media)`
       : r.medias ? "Estos últimos meses no te ha sobrado dinero para ahorrar" : "Aún no hay meses completos para saber cuánto ahorras";
     const detalle = r.objetivos.huchas.filter(h=>h.meses!=null).slice(0,4).map(h=>
-      `<div class="permitir-hucha"><span>${h.icono} ${esc(h.nombre)}</span><b>+${textoMeses(h.meses)}</b>${h.cuota ? `<span class="meta">a ${eur(h.cuota)}/mes</span>` : ""}</div>`).join("");
+      `<div class="permitir-hucha"><span>${h.icono} ${esc(h.nombre)}</span><b>+${textoMesesPermitir(h.meses)}</b>${h.cuota ? `<span class="meta">a ${eur(h.cuota)}/mes</span>` : ""}</div>`).join("");
     filas.push(filaPermitir("🐷", "Objetivos", null, titulo, pie) + (detalle ? `<div class="permitir-huchas">${detalle}</div>` : ""));
   }
 

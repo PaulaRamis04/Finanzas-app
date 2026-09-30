@@ -8,7 +8,7 @@ const assert = require("assert");
 
 const RAIZ = path.join(__dirname, "..");
 const HTML_PRUEBA = path.join(RAIZ, "index.pruebas.html");
-const PESTANAS = ["Inicio","Gastos","Resumen del mes","Presupuestos","Permitir","Movimientos","Cuentas","Deudas","Inversiones","Objetivos","Hitos","Proyección","Recurrentes","Categorías","Preferencias","Personalización","Notificaciones","Comunidad"];
+const PESTANAS = ["Inicio","Gastos","Resumen del mes","Presupuestos","Permitir","Movimientos","Cuentas","Deudas","Inversiones","Objetivos","Hitos","Proyección","Simulador","Recurrentes","Categorías","Preferencias","Personalización","Notificaciones","Comunidad"];
 
 const pruebas = [];
 const prueba = (nombre, fn)=>pruebas.push({nombre, fn});
@@ -623,6 +623,54 @@ prueba("¿me lo puedo permitir?: enseña cómo quedaría todo después de la com
   await p.evaluate(()=>{ tab = "Inicio"; render(); tab = "Permitir"; render(); });
   assert.strictEqual(await p.$eval("#permImporte", i=>i.value), "650");
   assert.ok((await p.innerText("#permResultado")).includes("Después de Móvil"));
+});
+
+prueba("¿qué pasaría si…?: compara patrimonio a 1, 3, 5 y 10 años y las huchas", async ()=>{
+  const p = await abrir("?premium=0");
+  // Cálculo: lo ahorrado de más se queda en cuentas; pausar la inversión cuesta rentabilidad pero no dinero.
+  const r = await p.evaluate(()=>{
+    const base = {ingresos:2000, gastos:1500, inversion:300, cuentas:1000, invertido:0, tasa:0};
+    return {
+      igual: simularPatrimonio(base, [], 1),
+      ahorro: simularPatrimonio(base, [{tipo:"ahorro", valor:100}], 3),
+      sueldo: simularPatrimonio(base, [{tipo:"sueldo", valor:1800}], 1),
+      gasto: simularPatrimonio(base, [{tipo:"gasto", valor:100}], 1),
+      pausaSinRenta: simularPatrimonio(base, [{tipo:"pausa", valor:12}], 10)[10],
+      conRenta: simularPatrimonio({...base, tasa:5}, [], 10)[10],
+      pausaConRenta: simularPatrimonio({...base, tasa:5}, [{tipo:"pausa", valor:12}], 10)[10],
+      invertirMas: simularPatrimonio({...base, tasa:5}, [{tipo:"invertir", valor:500}], 10)[10]
+    };
+  });
+  assert.deepStrictEqual(r.igual, [1000, 7000]);
+  assert.strictEqual(r.ahorro[3] - 1000 - 500*36, 100*36);
+  assert.strictEqual(r.sueldo[1], 1000 + (1800-1500)*12);
+  assert.strictEqual(r.gasto[1], 7000 + 1200);
+  assert.strictEqual(r.pausaSinRenta, 1000 + 500*120);
+  assert.ok(r.pausaConRenta < r.conRenta && r.invertirMas > r.conRenta);
+  // Sin premium también se ve y parte de tus datos.
+  await p.evaluate(()=>{ tab = "Simulador"; render(); });
+  assert.ok(await p.isVisible("#simAnadir"));
+  assert.strictEqual(await p.evaluate(()=>sim.base.cuentas), await p.evaluate(()=>sumaImportes(cuentas, saldoCuenta)));
+  // Base fija para que no dependa de la fecha: 500 €/mes de ahorro; a la hucha «Colchón» le faltan 5000 − saldo.
+  await p.evaluate(()=>{ sim.base = {...sim.base, ingresos:2000, gastos:1500, inversion:0, tasa:0}; render(); });
+  await p.click('[data-sim-ejemplo="0"]');
+  assert.ok((await p.textContent('[data-sim-anio="1"]')).includes("+€1200,00"));
+  assert.ok((await p.textContent('[data-sim-anio="10"]')).includes("+€12000,00"));
+  const hucha = await p.evaluate(()=>{ const falta = Math.max(5000 - progresoObjetivo(objetivos[0]), 0); return {antes:Math.ceil(falta/500), despues:Math.ceil(falta/600)}; });
+  const txtHucha = await p.textContent('[data-sim-hucha="o1"]');
+  if(hucha.antes>hucha.despues) assert.ok(txtHucha.includes("antes"), txtHucha);
+  // Un cambio del mismo tipo sustituye al anterior; quitar lo deja como estaba.
+  await p.selectOption("#simTipo", "ahorro");
+  await p.fill("#simValor", "50");
+  await p.click("#simAnadir");
+  assert.deepStrictEqual(await p.evaluate(()=>sim.cambios), [{tipo:"ahorro", valor:50}]);
+  await p.selectOption("#simTipo", "pausa");
+  await p.fill("#simValor", "0");
+  await p.click("#simAnadir");
+  assert.ok((await textoError(p)).includes("meses"));
+  await p.click('[data-sim-quitar="ahorro"]');
+  assert.strictEqual(await p.evaluate(()=>sim.cambios.length), 0);
+  assert.ok(!(await p.textContent('[data-sim-anio="1"]')).includes("+"));
 });
 
 (async ()=>{

@@ -25,6 +25,7 @@ function render(){
   else if(tab==="Objetivos") app.innerHTML = renderObjetivos();
   else if(tab==="Hitos") app.innerHTML = renderHitos();
   else if(tab==="Proyección") app.innerHTML = renderProyeccion();
+  else if(tab==="Simulador") app.innerHTML = renderSimulador();
   else if(tab==="Recurrentes") app.innerHTML = renderRecurrentes();
   else if(tab==="Preferencias") app.innerHTML = renderPreferencias();
   else if(tab==="Notificaciones") app.innerHTML = renderNotificaciones();
@@ -57,6 +58,7 @@ function wireEvents(){
   wireEventosInversiones();
   wireEventosCategorias();
   wireEventosProyeccion();
+  wireEventosSimulador();
   wireEventosRecurrentes();
   wireEventosPreferencias();
   wireEventosPersonalizacion();
