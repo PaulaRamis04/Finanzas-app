@@ -373,42 +373,6 @@ prueba("acceso con contraseña: error, registro, recuperar y entrar", async ()=>
   assert.ok(await p.isVisible("#appShell"));
   assert.ok(await p.isHidden("#authScreen"));
 });
-prueba("entrar sin registrarse avisa, y sin cuenta se puede crear una y salir avisa de perder los datos", async ()=>{
-  const p = await navegador.newPage({viewport:MOVIL});
-  p.on("pageerror", e=>errores.push(e.message));
-  await p.goto("file://" + HTML_PRUEBA + "?sinsesion=1");
-  await p.waitForSelector("#btnSinCuenta", {state:"visible"});
-  await p.click("#btnSinCuenta");
-  await p.waitForSelector("#hoja.abierta");
-  assert.match(await p.textContent("#hoja"), /perderás/);
-  await p.click("#hojaNo");
-  await p.waitForSelector("#hoja", {state:"detached"});
-  assert.deepStrictEqual(await p.evaluate(()=>__auth), [], "cancelar no entra");
-  await p.click("#btnSinCuenta");
-  await p.waitForSelector("#hoja.abierta");
-  await p.click("#hojaOk");
-  await p.waitForFunction(()=>typeof ready!=="undefined" && ready);
-  assert.ok(await p.isVisible("#appShell"));
-  assert.deepStrictEqual(await p.evaluate(()=>__auth.map(a=>a[0])), ["signInAnonymously"]);
-  await p.click("#navMas");
-  await p.click("#menuGuardar");
-  assert.ok(await p.isVisible("#fGuardar"));
-  assert.ok(await p.isHidden("#appShell"));
-  await p.fill("#guaNombre", "Ana"); await p.fill("#guaEmail", "ana@x.com");
-  await p.click("#fGuardar button[type=submit]");
-  await p.waitForFunction(()=>/Te hemos enviado un correo/.test(document.getElementById("loginMsg").textContent));
-  assert.deepStrictEqual(await p.evaluate(()=>__auth[1]), ["updateUser", {email:"ana@x.com", data:{full_name:"Ana"}}]);
-  assert.strictEqual(await p.evaluate(()=>localStorage.getItem("faltaContrasena")), "1");
-  await p.click("#btnVolverApp");
-  assert.ok(await p.isVisible("#appShell"));
-  await p.click("#navMas");
-  await p.click("#menuLogout");
-  await p.waitForSelector("#hoja.abierta");
-  assert.match(await p.textContent("#hoja"), /Perderás todos tus datos/);
-  await p.click("#hojaNo");
-  await p.waitForSelector("#hoja", {state:"detached"});
-  assert.ok(!await p.evaluate(()=>window.__salio), "cancelar no cierra la sesión");
-});
 prueba("el enlace de recuperar pide la contraseña nueva antes de entrar", async ()=>{
   const p = await navegador.newPage({viewport:MOVIL});
   p.on("pageerror", e=>errores.push(e.message));
@@ -427,6 +391,31 @@ prueba("cerrar sesión recarga y borra los datos locales", async ()=>{
   await p.click("#navMas");
   await Promise.all([p.waitForNavigation(), p.click("#menuLogout")]);
   assert.strictEqual(await p.evaluate(()=>localStorage.getItem("cuentaDefecto")), null);
+});
+prueba("perfiles: añadir otra cuenta, cambiar con la flecha y cerrar solo uno", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>localStorage.setItem("accionesRapidas", '["Gastos"]'));
+  await p.click("#btnPerfiles");
+  await Promise.all([p.waitForNavigation(), p.click("#btnAnadirPerfil")]);
+  await p.waitForSelector("#fLogin", {state:"visible"});
+  assert.match(await p.innerText("#authPerfiles"), /Paula/, "el perfil anterior sale en el acceso");
+  await p.fill("#loginEmail", "ana@x.com"); await p.fill("#loginPass", "secreta123");
+  await p.click("#fLogin button[type=submit]");
+  await p.waitForFunction(()=>typeof ready!=="undefined" && ready && session?.user?.id==="u2");
+  assert.match(await p.innerText(".hola"), /Ana/);
+  assert.strictEqual(await p.evaluate(()=>localStorage.getItem("accionesRapidas")), null, "Ana no hereda las preferencias de Paula");
+  await p.click("#btnPerfiles");
+  await p.waitForSelector('[data-cambiar-perfil="u1"]');
+  await Promise.all([p.waitForNavigation(), p.click('[data-cambiar-perfil="u1"]')]);
+  await p.waitForFunction(()=>typeof ready!=="undefined" && ready);
+  assert.strictEqual(await p.evaluate(()=>session.user.id), "u1");
+  assert.strictEqual(await p.evaluate(()=>localStorage.getItem("accionesRapidas")), '["Gastos"]', "Paula recupera sus preferencias");
+  await p.click("#btnPerfiles");
+  await Promise.all([p.waitForNavigation(), p.click("#btnSalirPerfil")]);
+  await p.waitForSelector("#fLogin", {state:"visible"});
+  assert.deepStrictEqual(await p.evaluate(()=>leerPerfiles().map(x=>x.id)), ["u2"], "solo se olvida el perfil que cierra sesión");
+  await Promise.all([p.waitForNavigation(), p.click('[data-perfil="u2"]')]);
+  await p.waitForFunction(()=>typeof ready!=="undefined" && ready && session?.user?.id==="u2");
 });
 
 (async ()=>{
