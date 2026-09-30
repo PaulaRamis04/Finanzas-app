@@ -320,6 +320,24 @@ h2{font-size:16px; margin:0 0 12px; font-weight:800}
 :root[data-theme="dark"] .hoja-no{background:#3a3334; color:#d8cfcd}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .hoja-no{background:#3a3334; color:#d8cfcd} }
 @media (prefers-reduced-motion: reduce){ .hoja, .hoja-fondo{transition:none} }
+/* Cierre del mes: banner y ventana con la tarjeta descargable */
+.cierre-banner{display:flex; align-items:center; gap:14px; flex-wrap:wrap; background:linear-gradient(135deg, var(--accent-soft), var(--card) 70%)}
+.cierre-banner-ico{width:48px; height:48px; border-radius:50%; background:var(--card); display:flex; align-items:center; justify-content:center; font-size:24px; flex-shrink:0}
+.cierre-banner .btn{margin-left:auto}
+.cierre-banner .btn:disabled{opacity:.5; cursor:default}
+#cierre{position:fixed; inset:0; z-index:80; display:flex; align-items:center; justify-content:center; padding:16px}
+.cierre-fondo{position:absolute; inset:0; background:rgba(40,28,30,.55); opacity:0; transition:opacity .25s ease}
+.cierre-panel{position:relative; width:100%; max-width:440px; max-height:100%; overflow:auto; background:var(--card); color:var(--ink); border-radius:28px;
+  padding:16px; box-shadow:0 10px 40px rgba(40,28,30,.25); transform:scale(.94); opacity:0; transition:transform .3s cubic-bezier(.32,1.25,.5,1), opacity .2s ease}
+#cierre.abierta .cierre-fondo{opacity:1}
+#cierre.abierta .cierre-panel{transform:scale(1); opacity:1}
+.cierre-panel img{display:block; width:100%; height:auto; max-height:62vh; object-fit:contain; border-radius:18px}
+.cierre-x{position:absolute; top:24px; right:24px; width:36px; height:36px; border-radius:50%; border:none; background:rgba(255,255,255,.85); color:#4a3b3b; font-size:16px; cursor:pointer}
+.cierre-ocultar{display:flex; align-items:center; gap:8px; margin:12px 4px 0; font-size:13.5px; color:var(--ink); cursor:pointer}
+.cierre-ocultar input{width:auto; margin:0}
+.cierre-btns{display:flex; gap:8px; margin-top:12px; flex-wrap:wrap}
+.cierre-btns .btn{flex:1 1 110px}
+@media (prefers-reduced-motion: reduce){ .cierre-panel, .cierre-fondo{transition:none} }
 /* Estados vacíos */
 .vacio{display:flex; flex-direction:column; align-items:center; text-align:center; gap:4px; padding:22px 16px 26px}
 .vacio svg{margin-bottom:8px; animation:flotar 3.6s ease-in-out infinite}
@@ -519,6 +537,7 @@ button:not(:disabled):active, .fila:active, .cat-fila:active, .color-propio:acti
 <script src="js/views/inicio.js"></script>
 <script src="js/views/gastos.js"></script>
 <script src="js/views/resumen.js"></script>
+<script src="js/views/cierre.js"></script>
 <script src="js/views/presupuestos.js"></script>
 <script src="js/views/movimientos.js"></script>
 <script src="js/views/cuentas.js"></script>
