@@ -51,7 +51,7 @@ function renderInicio(){
   const enCurso = objetivos.filter(o=>!objetivoCompletado(o)).sort(porOrden);
   const bloqueObjetivos = objetivos.length ? `
   <div class="card">
-    <h2>🎯 Mis objetivos</h2>
+    <h2>🐷 Mis huchas</h2>
     ${enCurso.length? `
     <div class="list" style="margin-top:8px">
       ${enCurso.slice(0,4).map(o=>{
@@ -60,21 +60,19 @@ function renderInicio(){
         return `
         <div>
           <div style="display:flex;justify-content:space-between;font-size:14px;margin-bottom:5px">
-            <span>${emojiObjetivo(o.nombre)} ${esc(o.nombre)}</span>
+            <span>${emojiObjetivo(o)} ${esc(o.nombre)}</span>
             <strong>${pct.toFixed(0)}%</strong>
           </div>
-          <div style="height:7px;background:var(--line);border-radius:999px;overflow:hidden">
-            <div style="height:100%;width:${pct}%;background:var(--accent);border-radius:999px"></div>
-          </div>
+          ${barraHucha(o, pct, true)}
         </div>`;
       }).join("")}
-    </div>` : `<p class="meta" style="margin:8px 0 0">Todos tus objetivos están conseguidos 🎉</p>`}
-    <button class="btn ghost" data-ir-tab="Objetivos" style="margin-top:14px">Ver todos los objetivos</button>
+    </div>` : `<p class="meta" style="margin:8px 0 0">Todas tus huchas están llenas 🎉</p>`}
+    <button class="btn ghost" data-ir-tab="Objetivos" style="margin-top:14px">Ver todas las huchas</button>
   </div>` : `
   <div class="card">
-    <h2>🎯 Mis objetivos</h2>
+    <h2>🐷 Mis huchas</h2>
     ${vacio("hucha","Tu hucha sueña con algo","Ponle una meta: un viaje, un colchón o un capricho.")}
-    <button class="btn" data-ir-tab="Objetivos">Crear un objetivo</button>
+    <button class="btn" data-ir-tab="Objetivos">Crear una hucha</button>
   </div>`;
 
   const porMes = periodoMes!=="todos";

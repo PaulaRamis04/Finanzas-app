@@ -42,16 +42,34 @@ function sumarDinero(...ns){ return ns.reduce((c,n)=>c+aCentimos(n),0)/100; }
 function restarDinero(a, b){ return (aCentimos(a)-aCentimos(b))/100; }
 function sumaImportes(lista, campo = x=>x.importe){ return lista.reduce((c,x)=>c+aCentimos(campo(x)),0)/100; }
 
-function emojiObjetivo(nombre){
+// Temas de las huchas de ahorro: el icono que va rellenando la barra y su color de fondo.
+const TEMAS_HUCHA = {
+  hucha:{icono:"🐷", nombre:"Hucha", fondo:"var(--accent-soft)"},
+  viaje:{icono:"✈️", nombre:"Viaje", fondo:"var(--lav-soft)"},
+  playa:{icono:"🏖️", nombre:"Playa", fondo:"var(--peach-soft)"},
+  concierto:{icono:"🎤", nombre:"Concierto", fondo:"var(--lav-soft)"},
+  emergencia:{icono:"☂️", nombre:"Emergencias", fondo:"var(--mint-soft)"},
+  casa:{icono:"🏠", nombre:"Casa", fondo:"var(--peach-soft)"},
+  coche:{icono:"🚗", nombre:"Coche", fondo:"var(--accent-soft)"},
+  regalo:{icono:"🎁", nombre:"Regalos", fondo:"var(--accent-soft)"},
+  estudios:{icono:"🎓", nombre:"Estudios", fondo:"var(--lav-soft)"},
+  mascota:{icono:"🐾", nombre:"Mascota", fondo:"var(--peach-soft)"},
+  caprichos:{icono:"🛍️", nombre:"Caprichos", fondo:"var(--accent-soft)"},
+  boda:{icono:"💍", nombre:"Boda", fondo:"var(--mint-soft)"}
+};
+
+// Tema que encaja con el nombre, para cuando no se ha elegido ninguno.
+function temaPorNombre(nombre){
   const n = (nombre||"").toLowerCase();
-  if(/vivienda|casa|piso|hipoteca/.test(n)) return "🏠";
-  if(/emergencia|colch[oó]n/.test(n)) return "🛡️";
-  if(/viaje|vacacion/.test(n)) return "✈️";
-  if(/coche|auto|carro|moto/.test(n)) return "🚗";
-  if(/boda/.test(n)) return "💍";
-  if(/estudio|carrera|master|máster/.test(n)) return "🎓";
-  return "🎯";
+  const reglas = [[/viaje|vacacion|jap[oó]n|escapada|vuelo/,"viaje"],[/playa|verano|piscina/,"playa"],[/concierto|festival|entrada|m[uú]sica/,"concierto"],
+    [/emergencia|colch[oó]n|imprevist/,"emergencia"],[/vivienda|casa|piso|hipoteca|mudanza/,"casa"],[/coche|auto|carro|moto/,"coche"],
+    [/regalo|navidad|cumple|reyes/,"regalo"],[/estudio|carrera|m[aá]ster|curso|universidad/,"estudios"],[/perro|gato|mascota|veterinari/,"mascota"],
+    [/ropa|capricho|compras|bolso|zapat/,"caprichos"],[/boda/,"boda"]];
+  const r = reglas.find(([re])=>re.test(n));
+  return r ? r[1] : "hucha";
 }
+function temaObjetivo(o){ return TEMAS_HUCHA[o.tema] ? o.tema : temaPorNombre(o.nombre); }
+function emojiObjetivo(o){ return TEMAS_HUCHA[temaObjetivo(o)].icono; }
 
 function emojiCategoria(categoria, tipo){
   const n = (categoria||"").toLowerCase();

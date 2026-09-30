@@ -232,7 +232,46 @@ prueba("Objetivos: el resumen de arriba suma lo ahorrado, no la meta", async ()=
   const ahorrado = await p.evaluate(()=>saldoCuenta(cuentas.find(c=>c.id==="c2")));
   assert.ok(ahorrado < 1000);
   assert.match(txt, new RegExp(`${Math.round(ahorrado/4000*100)}% de la meta`));
-  assert.ok(!/Todos tus objetivos están conseguidos/.test(txt));
+  assert.ok(!/Todas tus huchas están llenas/.test(txt));
+});
+prueba("huchas: la barra de iconos se rellena, se echa y se saca dinero y se elige el icono", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>{ __db.objetivos.push({id:"o2", nombre:"Viaje a Japón", meta:1000, tipo_vinculo:"ninguno", vinculo_id:null, orden:2, ahorrado:250}); });
+  await p.evaluate(()=>recargar(["objetivos"]));
+  await p.evaluate(()=>{ tab = "Objetivos"; render(); });
+  const tarjeta = '[data-sort-id="o2"]';
+  const barra = ()=>p.$$eval(`${tarjeta} .hucha-barra .hucha-lleno`, els=>els.map(e=>e.textContent + "|" + e.style.clipPath));
+  let llenos = await barra();
+  assert.strictEqual(llenos.length, 3, "250 de 1000: dos iconos llenos y medio");
+  assert.ok(llenos.every(t=>t.startsWith("✈️")), "el nombre elige el tema de viaje");
+  assert.match(llenos[2], /inset\(0(px)? 50%/);
+  await p.click(`${tarjeta} [data-meter-hucha]`);
+  await p.fill("#huchaImporte", "250");
+  await p.click(`${tarjeta} [data-hucha-mover][data-signo="1"]`);
+  await p.waitForFunction(()=>objetivos.find(o=>o.id==="o2").ahorrado===500);
+  assert.strictEqual((await barra()).length, 5);
+  await p.click(`${tarjeta} [data-meter-hucha]`);
+  await p.fill("#huchaImporte", "600");
+  await p.click(`${tarjeta} [data-hucha-mover][data-signo="-1"]`);
+  assert.match(await textoError(p), /solo hay/);
+  assert.strictEqual(await p.evaluate(()=>__db.objetivos.find(o=>o.id==="o2").ahorrado), 500);
+  await p.click(`${tarjeta} [data-tema-hucha]`);
+  await p.click(`${tarjeta} [data-elegir-tema="concierto"]`);
+  await p.waitForFunction(()=>objetivos.find(o=>o.id==="o2").tema==="concierto");
+  assert.ok((await barra()).every(t=>t.startsWith("🎤")));
+  // Hucha nueva: el icono elegido se guarda; sin elegir, sale del nombre.
+  await p.evaluate(()=>{ formsEstado.objetivo = true; render(); });
+  await p.fill('#fObjetivo [name="nombre"]', "Fondo de emergencia");
+  await p.fill('#fObjetivo [name="meta"]', "3000");
+  await p.click('#fObjetivo button[type="submit"]');
+  await p.waitForFunction(()=>__db.objetivos.some(o=>o.nombre==="Fondo de emergencia"));
+  assert.strictEqual(await p.evaluate(()=>__db.objetivos.find(o=>o.nombre==="Fondo de emergencia").tema), "emergencia");
+  await p.fill('#fObjetivo [name="nombre"]', "Ahorro");
+  await p.fill('#fObjetivo [name="meta"]', "100");
+  await p.click('#fObjetivo .temas-hucha label[title="Mascota"]');
+  await p.click('#fObjetivo button[type="submit"]');
+  await p.waitForFunction(()=>__db.objetivos.some(o=>o.nombre==="Ahorro"));
+  assert.strictEqual(await p.evaluate(()=>__db.objetivos.find(o=>o.nombre==="Ahorro").tema), "mascota");
 });
 prueba("la campana abre la pantalla de notificaciones y solo al tocar un aviso va a su pestaña", async ()=>{
   const p = await abrir();
