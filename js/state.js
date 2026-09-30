@@ -49,6 +49,7 @@ let verAbonosDeudaId = null;
 let movPlantilla = null; // {tipo, categoria, importe, cuentaId, nota} para precargar "Añadir movimiento"
 
 let gruposAbiertos = {}, modoOrdenInv = false, rentasInvId = null, modoOrdenCuentas = false, modoOrdenObjetivos = false;
+let huchaMeterId = null, huchaTemaId = null;
 
 let session = null, appStarted = false;
 
@@ -224,7 +225,7 @@ function detectarObjetivosCompletados(){
 function progresoObjetivo(o){
   if(o.tipoVinculo==="cuenta"){ const c=cuentas.find(x=>x.id===o.vinculoId); return c? saldoCuenta(c) : 0; }
   if(o.tipoVinculo==="inversion"){ const i=inversiones.find(x=>x.id===o.vinculoId); return i? (i.esGrupo? valorGrupo(i) : i.valorActual) : 0; }
-  return 0;
+  return o.ahorrado||0;
 }
 
 function nombreVinculo(o){
