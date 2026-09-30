@@ -219,7 +219,6 @@ h2{font-size:16px; margin:0 0 12px; font-weight:800}
 .auth-msg{text-align:center; font-size:14px; margin-top:14px; min-height:20px}
 .auth-msg.error{color:var(--neg)}
 .auth-pie{text-align:center; color:var(--muted); font-size:14px; margin-top:34px}
-.auth-sin-cuenta{color:var(--auth-suave, var(--muted)); font-weight:600; margin-top:12px; text-decoration:underline}
 /* Navegación inferior */
 .nav-inf{position:fixed; left:0; right:0; bottom:0; z-index:15; display:flex; justify-content:space-around;
   background:var(--card); border-top:1px solid var(--line); padding:8px 6px calc(8px + env(safe-area-inset-bottom,0px)); box-shadow:0 -4px 18px rgba(74,59,59,.06)}
@@ -239,6 +238,23 @@ h2{font-size:16px; margin:0 0 12px; font-weight:800}
 /* Inicio */
 .hola{display:flex; justify-content:space-between; align-items:center; margin:4px 0 18px}
 .hola h1{margin:0; font-size:26px; font-weight:800}
+.hola-perfil{display:inline-flex; align-items:center; gap:6px; background:none; border:none; padding:0; font:inherit; color:inherit; cursor:pointer; text-align:left}
+.hola-perfil svg{flex:none; color:var(--muted); transition:transform .2s ease}
+.perfil-av{flex:none; width:40px; height:40px; border-radius:50%; background:var(--accent-soft); color:var(--accent-2); display:flex; align-items:center; justify-content:center; font-style:normal; font-weight:800; font-size:17px}
+.perfil-fila{display:flex; align-items:center; gap:6px}
+.perfil-btn{flex:1; display:flex; align-items:center; gap:12px; background:var(--card); border:1px solid var(--line); border-radius:18px; padding:10px 12px; margin:0 0 8px; font:inherit; color:var(--ink); cursor:pointer; text-align:left; min-width:0}
+.perfil-btn span{display:flex; flex-direction:column; min-width:0}
+.perfil-btn b, .perfil-btn small{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.perfil-btn small{color:var(--muted); font-size:13px}
+.perfil-btn.actual{border-color:var(--accent); cursor:default}
+.perfil-btn .check{margin-left:auto; color:var(--accent-2); font-weight:800}
+.perfil-olvidar{flex:none; width:34px; height:34px; margin-bottom:8px; border-radius:50%; border:none; background:none; color:var(--muted); font-size:22px; cursor:pointer}
+.perfiles-tit{font-size:13px; font-weight:800; color:var(--auth-suave,var(--muted)); margin:4px 2px 8px}
+.auth-perfiles{margin-bottom:10px; text-align:left}
+.perfiles-lista{margin-top:14px}
+.perfiles-lista .perfil-btn{width:100%}
+.perfil-accion{display:block; width:100%; background:none; border:none; padding:12px 4px; font:inherit; font-weight:700; font-size:15px; color:var(--mint); text-align:left; cursor:pointer}
+.perfil-accion.salir{color:var(--neg,#d9534f)}
 .campana{position:relative; width:42px; height:42px; border-radius:50%; border:none; background:var(--card); box-shadow:0 2px 10px rgba(74,59,59,.1); cursor:pointer; color:var(--ink); display:flex; align-items:center; justify-content:center}
 .campana .punto{position:absolute; top:9px; right:10px; width:8px; height:8px; border-radius:50%; background:var(--accent)}
 .saldo-lbl{font-size:16px; font-weight:600}
@@ -449,6 +465,7 @@ button:not(:disabled):active, .fila:active, .cat-fila:active, .color-propio:acti
     <div class="auth-marca">Mis cuentas</div>
     <h1 id="authTitulo">¡Hola de nuevo!</h1>
     <p class="auth-sub" id="authSub">Entra para ver tus cuentas</p>
+    <div class="auth-perfiles" id="authPerfiles" hidden></div>
     <form id="fLogin">
       <div><label for="loginEmail">Email</label><div class="campo"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></span><input type="email" id="loginEmail" required placeholder="tu@email.com" autocomplete="username"></div></div>
       <div><label for="loginPass">Contraseña</label><div class="campo"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span><input type="password" id="loginPass" required placeholder="••••••••" autocomplete="current-password"><button type="button" class="ver" data-ver>Ver</button></div></div>
@@ -468,11 +485,6 @@ button:not(:disabled):active, .fila:active, .cat-fila:active, .color-propio:acti
     <form id="fNuevaPass" hidden>
       <div><label for="nuevaPass">Nueva contraseña</label><div class="campo"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span><input type="password" id="nuevaPass" required placeholder="Mínimo 8 caracteres" autocomplete="new-password" minlength="8"><button type="button" class="ver" data-ver>Ver</button></div></div>
       <button class="btn" type="submit">Guardar contraseña</button>
-    </form>
-    <form id="fGuardar" hidden>
-      <div><label for="guaNombre">Tu nombre</label><div class="campo"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span><input type="text" id="guaNombre" required placeholder="ej. Paula" autocomplete="given-name"></div></div>
-      <div><label for="guaEmail">Email</label><div class="campo"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></span><input type="email" id="guaEmail" required placeholder="tu@email.com" autocomplete="username"></div></div>
-      <button class="btn" type="submit">Crear cuenta</button>
     </form>
     <div class="auth-msg" id="loginMsg" role="status"></div>
     <p class="auth-pie" id="authPie"></p>

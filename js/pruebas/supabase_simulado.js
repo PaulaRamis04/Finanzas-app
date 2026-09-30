@@ -81,8 +81,17 @@
     }
   }
   const listeners = [];
-  const usuario = {id:"u1", email:"p@x.com", user_metadata:{full_name:"Paula"}};
-  let session = url.searchParams.get("sinsesion")==="1" ? null : {user:usuario};
+  const USUARIOS = {"p@x.com":{id:"u1", email:"p@x.com", user_metadata:{full_name:"Paula"}}, "ana@x.com":{id:"u2", email:"ana@x.com", user_metadata:{full_name:"Ana"}}};
+  const usuario = USUARIOS["p@x.com"];
+  // La sesión se guarda en localStorage como hace supabase-js, para poder cambiar de perfil y recargar.
+  const CLAVE = "sb-simulado-auth-token";
+  const sesionDe = u=>({user:u, access_token:"at-"+u.id, refresh_token:"rt-"+u.id+"-"+Date.now(), expires_at:9999999999});
+  const persistir = ()=>{ if(session) localStorage.setItem(CLAVE, JSON.stringify(session)); else localStorage.removeItem(CLAVE); };
+  let session = null;
+  try{ session = JSON.parse(localStorage.getItem(CLAVE)); }catch(e){}
+  if(!session && url.searchParams.get("sinsesion")!=="1" && !localStorage.getItem("__visto")) session = sesionDe(usuario);
+  localStorage.setItem("__visto", "1");
+  persistir();
   const auth = window.__auth = [];
   const avisar = ev=>listeners.forEach(fn=>fn(ev, session));
   window.supabase = { createClient(){ return {
@@ -115,16 +124,13 @@
     auth:{
       getSession: async ()=>({data:{session}}),
       onAuthStateChange: fn=>{ listeners.push(fn); },
-      signOut: async ()=>{ session = null; window.__salio = true; listeners.forEach(fn=>fn("SIGNED_OUT", null)); },
+      storageKey: CLAVE,
+      signOut: async ()=>{ session = null; persistir(); window.__salio = true; listeners.forEach(fn=>fn("SIGNED_OUT", null)); },
       updateUser: async (d)=>{ auth.push(["updateUser", d]); return {data:{user:session.user}, error:null}; },
       signInWithPassword: async ({email, password})=>{
         auth.push(["signInWithPassword", email]);
-        if(password!=="secreta123") return {data:{}, error:{message:"Invalid login credentials"}};
-        session = {user:usuario}; avisar("SIGNED_IN"); return {data:{session}, error:null};
-      },
-      signInAnonymously: async ()=>{
-        auth.push(["signInAnonymously"]);
-        session = {user:{id:"u1", email:"", is_anonymous:true, user_metadata:{}}}; avisar("SIGNED_IN"); return {data:{session}, error:null};
+        if(password!=="secreta123" || !USUARIOS[email]) return {data:{}, error:{message:"Invalid login credentials"}};
+        session = sesionDe(USUARIOS[email]); persistir(); avisar("SIGNED_IN"); return {data:{session}, error:null};
       },
       signUp: async (d)=>{ auth.push(["signUp", d]); return {data:{user:{id:"u2", identities:[{}]}, session:null}, error:null}; },
       resetPasswordForEmail: async (email, o)=>{ auth.push(["resetPasswordForEmail", email, o]); return {error:null}; }

@@ -4,7 +4,6 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 // Se mira antes de crear el cliente, que limpia el # de la URL al leer la sesión.
 let recuperando = /type=recovery/.test(location.hash);
-let guardandoCuenta = false; // alguien sin cuenta está creando una para no perder sus datos
 const errorEnlace = new URLSearchParams(location.hash.slice(1)).get("error_description");
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -261,20 +260,14 @@ async function recargar(tablas = Object.keys(TABLAS), {procesar=false} = {}){
 
 function fetchAll(){ return recargar(undefined, {procesar:true}); }
 
-const sinCuenta = ()=>!!session?.user?.is_anonymous;
-
 function applyAuthUI(){
-  // Quien creó su cuenta desde el modo sin registro vuelve del enlace del correo sin contraseña: se la pedimos.
-  if(session && !sinCuenta() && localStorage.getItem("faltaContrasena")) recuperando = true;
-  if(!sinCuenta()) guardandoCuenta = false;
-  const fuera = !session || recuperando || guardandoCuenta;
+  const fuera = !session || recuperando;
   document.getElementById("authScreen").style.display = fuera ? "flex" : "none";
   document.getElementById("appShell").style.display = fuera ? "none" : "block";
   if(recuperando) authModo("nueva");
-  else if(guardandoCuenta) authModo("guardar");
   if(session){
     const nombre = session.user.user_metadata?.full_name;
-    document.getElementById("sesionInfo").textContent = sinCuenta() ? "Sin cuenta" : nombre ? `Hola, ${nombre}` : session.user.email;
+    document.getElementById("sesionInfo").textContent = nombre ? `Hola, ${nombre}` : session.user.email;
   }
 }
 
@@ -283,20 +276,18 @@ const AUTH_TEXTOS = {
   login:["¡Hola de nuevo!","Entra para ver tus cuentas","fLogin"],
   registro:["Crea tu cuenta","Solo necesitas un email y una contraseña","fRegistro"],
   olvido:["¿Olvidaste tu contraseña?","Te enviamos un enlace para crear una nueva","fOlvido"],
-  nueva:["Nueva contraseña","Elige la contraseña con la que entrarás a partir de ahora","fNuevaPass"],
-  guardar:["Guarda tus datos","Crea tu cuenta y conservarás todo lo que ya has apuntado","fGuardar"]
+  nueva:["Nueva contraseña","Elige la contraseña con la que entrarás a partir de ahora","fNuevaPass"]
 };
 function authModo(modo, msg = "", error = false){
   const [titulo, sub, form] = AUTH_TEXTOS[modo];
   document.getElementById("authTitulo").textContent = titulo;
   document.getElementById("authSub").textContent = sub;
-  ["fLogin","fRegistro","fOlvido","fNuevaPass","fGuardar"].forEach(id=>{ document.getElementById(id).hidden = id!==form; });
+  ["fLogin","fRegistro","fOlvido","fNuevaPass"].forEach(id=>{ document.getElementById(id).hidden = id!==form; });
   authMsg(msg, error);
+  pintarPerfilesAcceso(modo);
   document.getElementById("authPie").innerHTML =
-    modo==="login" ? `¿No tienes cuenta? <button type="button" class="auth-link" data-auth="registro">Regístrate</button>
-      <br><button type="button" class="auth-link auth-sin-cuenta" id="btnSinCuenta">Entrar sin registrarme</button>`
+    modo==="login" ? `¿No tienes cuenta? <button type="button" class="auth-link" data-auth="registro">Regístrate</button>`
     : modo==="nueva" ? ""
-    : modo==="guardar" ? `<button type="button" class="auth-link" id="btnVolverApp">Volver a la app</button>`
     : `¿Ya tienes cuenta? <button type="button" class="auth-link" data-auth="login">Entra</button>`;
 }
 function authMsg(texto, error = false){
@@ -310,7 +301,6 @@ function traducirErrorAuth(e){
   if(/email not confirmed/i.test(t)) return "Aún no has confirmado tu email. Revisa tu correo.";
   if(/already registered|already exists/i.test(t)) return "Ese email ya tiene cuenta. Entra o recupera la contraseña.";
   if(/password should be|at least/i.test(t)) return "La contraseña es demasiado corta o débil.";
-  if(/anonymous sign-ins are disabled/i.test(t)) return "Ahora mismo no se puede entrar sin cuenta. Regístrate o inténtalo más tarde.";
   if(/rate limit|security purposes/i.test(t)) return "Demasiados intentos. Espera un minuto y vuelve a probar.";
   return "Error: " + t;
 }
@@ -326,8 +316,10 @@ function wireAuth(){
       if(destino && email && !destino.value) destino.value = email;
       return;
     }
-    if(e.target.closest("#btnSinCuenta")){ entrarSinCuenta(); return; }
-    if(e.target.closest("#btnVolverApp")){ guardandoCuenta = false; authMsg(""); applyAuthUI(); return; }
+    const pf = e.target.closest("[data-perfil]");
+    if(pf) return cambiarAPerfil(pf.dataset.perfil);
+    const ol = e.target.closest("[data-olvidar-perfil]");
+    if(ol){ quitarPerfil(ol.dataset.olvidarPerfil); return pintarPerfilesAcceso("login"); }
     const v = e.target.closest("[data-ver]");
     if(v){
       const inp = v.parentElement.querySelector("input");
@@ -368,36 +360,12 @@ function wireAuth(){
     authMsg("");
     const {error} = await sb.auth.updateUser({password: document.getElementById("nuevaPass").value});
     if(error) return authMsg(traducirErrorAuth(error), true);
-    localStorage.removeItem("faltaContrasena");
     recuperando = false;
     applyAuthUI();
     if(session) startApp();
   });
-  // La cuenta anónima pasa a tener email: mismo usuario, así que sus datos se quedan. Supabase pide
-  // confirmar el email antes de poner contraseña; al volver del enlace se pide (ver applyAuthUI).
-  enviar("fGuardar", async ()=>{
-    authMsg("");
-    const email = document.getElementById("guaEmail").value.trim();
-    const {error} = await sb.auth.updateUser({email, data:{full_name: document.getElementById("guaNombre").value.trim()}}, {emailRedirectTo: urlApp()});
-    if(error) return authMsg(traducirErrorAuth(error), true);
-    localStorage.setItem("faltaContrasena", "1");
-    authMsg("Te hemos enviado un correo. Pulsa el enlace desde este dispositivo y elige tu contraseña. Mientras tanto puedes seguir usando la app.");
-  });
   if(errorEnlace) authModo("olvido", "El enlace no es válido o ha caducado. Pide otro.", true);
   else authModo("login");
-}
-
-async function entrarSinCuenta(){
-  const ok = await confirmar("¿Entrar sin registrarte? Tus datos se guardarán solo en este dispositivo. Si cierras sesión, borras los datos del navegador o cambias de móvil, los perderás. Puedes crear una cuenta más tarde desde el menú para no perderlos.", {ok:"Entrar sin cuenta", icono:"⚠️"});
-  if(!ok) return;
-  authMsg("");
-  const {error} = await sb.auth.signInAnonymously();
-  if(error) authMsg(traducirErrorAuth(error), true);
-}
-function guardarCuenta(){ guardandoCuenta = true; applyAuthUI(); }
-async function cerrarSesion(){
-  if(sinCuenta() && !await confirmar("¿Cerrar sesión sin cuenta? Perderás todos tus datos y no se podrán recuperar. Si quieres conservarlos, crea una cuenta desde el menú.", {ok:"Sí, cerrar y perder datos", icono:"⚠️"})) return;
-  sb.auth.signOut();
 }
 
 function refrescar(){ if(!session) return; refrescoSilencioso = true; fetchAll(); }
@@ -434,30 +402,90 @@ async function startApp(){
   window.addEventListener("online", refrescar);
 }
 
+// ── Perfiles: varias cuentas recordadas en este dispositivo ──
+// Cada perfil guarda su sesión de Supabase y sus preferencias locales. Para cambiar se escribe
+// su sesión donde la lee supabase-js y se recarga (sin cerrar la de las demás en el servidor).
+const PREFS_PERFIL = ["cuentaDefecto","objCompletados","catsContraidas","formsPorDefecto","personalizacion","fondoImagen","avisosVistos","accionesRapidas"];
+const claveSesionSb = ()=> sb.auth.storageKey || `sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`;
+function leerPerfiles(){ try{ const a = JSON.parse(localStorage.getItem("perfiles")||"[]"); return Array.isArray(a) ? a : []; }catch(e){ return []; } }
+function escribirPerfiles(l){ try{ localStorage.setItem("perfiles", JSON.stringify(l)); }catch(e){} }
+function guardarPerfil(s){
+  if(!s?.user?.id || !s.refresh_token) return;
+  const l = leerPerfiles(), i = l.findIndex(p=>p.id===s.user.id);
+  const datos = {id:s.user.id, email:s.user.email, nombre:(s.user.user_metadata?.full_name||"").trim(), sesion:s};
+  if(i>=0) l[i] = {...l[i], ...datos}; else l.push(datos);
+  escribirPerfiles(l);
+}
+function quitarPerfil(id){ escribirPerfiles(leerPerfiles().filter(p=>p.id!==id)); }
+// Guarda las preferencias locales del perfil activo y deja las del siguiente (o ninguna).
+function soltarPerfilActual(siguiente){
+  const l = leerPerfiles(), yo = l.find(p=>p.id===session?.user?.id);
+  if(yo){
+    yo.prefs = {};
+    PREFS_PERFIL.forEach(k=>{ try{ const v = localStorage.getItem(k); if(v!==null) yo.prefs[k] = v; }catch(e){} });
+    try{ const v = JSON.parse(localStorage.getItem(claveSesionSb())); if(v?.refresh_token) yo.sesion = v; }catch(e){}
+  }
+  escribirPerfiles(l);
+  PREFS_PERFIL.forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
+  Object.entries(siguiente?.prefs||{}).forEach(([k,v])=>{ try{ localStorage.setItem(k, v); }catch(e){} });
+}
+function cambiarAPerfil(id){
+  const destino = leerPerfiles().find(p=>p.id===id);
+  if(!destino || id===session?.user?.id) return;
+  soltarPerfilActual(destino);
+  try{ localStorage.setItem(claveSesionSb(), JSON.stringify(destino.sesion)); sessionStorage.setItem("perfilDestino", id); }catch(e){}
+  location.reload();
+}
+function anadirPerfil(){
+  soltarPerfilActual(null);
+  try{ localStorage.removeItem(claveSesionSb()); }catch(e){}
+  location.reload();
+}
+function pintarPerfilesAcceso(modo){
+  const cont = document.getElementById("authPerfiles");
+  const l = modo==="login" ? leerPerfiles() : [];
+  cont.hidden = !l.length;
+  cont.innerHTML = l.length ? `<div class="perfiles-tit">Perfiles en este dispositivo</div>` + l.map(p=>`
+    <div class="perfil-fila"><button type="button" class="perfil-btn" data-perfil="${esc(p.id)}">${avatarPerfil(p)}<span><b>${esc(p.nombre||p.email)}</b>${p.nombre?`<small>${esc(p.email)}</small>`:""}</span></button><button type="button" class="perfil-olvidar" data-olvidar-perfil="${esc(p.id)}" aria-label="Quitar ${esc(p.nombre||p.email)} de este dispositivo">×</button></div>`).join("")
+    + `<div class="perfiles-tit">O entra con otra cuenta</div>` : "";
+}
+const avatarPerfil = p=>`<i class="perfil-av">${esc(((p.nombre||p.email||"?").trim()[0]||"?").toUpperCase())}</i>`;
+
 async function init(){
   if(!SUPABASE_URL.startsWith("http")){
     document.body.innerHTML = `<div class="status">Falta configurar SUPABASE_URL y SUPABASE_ANON_KEY en el código.</div>`;
     return;
   }
   wireAuth();
-  document.getElementById("btnLogout").onclick = cerrarSesion;
+  document.getElementById("btnLogout").onclick = ()=> sb.auth.signOut();
   // Al cerrar sesión o cambiar de usuario no puede quedar nada del anterior: ni datos
   // en memoria, ni el canal realtime, ni preferencias locales.
-  const cambiarDeUsuario = ()=>{
-    ["faltaContrasena","cuentaDefecto","objCompletados","catsContraidas","formsPorDefecto","personalizacion","fondoImagen","avisosVistos","accionesRapidas"].forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
+  const cambiarDeUsuario = (salio)=>{
+    if(salio) quitarPerfil(session.user.id);
+    PREFS_PERFIL.forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
     location.reload();
   };
 
   const {data:{session:s}} = await sb.auth.getSession();
   session = s;
+  // Si se cambió a un perfil cuya sesión ya no vale, se olvida y se pide entrar de nuevo.
+  let destino = null; try{ destino = sessionStorage.getItem("perfilDestino"); sessionStorage.removeItem("perfilDestino"); }catch(e){}
+  if(destino && !session){
+    const p = leerPerfiles().find(x=>x.id===destino);
+    quitarPerfil(destino);
+    authModo("login", "La sesión de ese perfil ha caducado. Entra de nuevo.", true);
+    if(p) document.getElementById("loginEmail").value = p.email;
+  }
+  guardarPerfil(session);
   await syncPendingName();
   applyAuthUI();
   if(session && !recuperando) startApp();
 
   sb.auth.onAuthStateChange(async (event, s2)=>{
-    if(appStarted && session && s2?.user?.id!==session.user.id){ cambiarDeUsuario(); return; }
+    if(appStarted && session && s2?.user?.id!==session.user.id){ cambiarDeUsuario(!s2); return; }
     if(event==="PASSWORD_RECOVERY") recuperando = true;
     session = s2;
+    guardarPerfil(session);
     await syncPendingName();
     applyAuthUI();
     if(session && !recuperando) startApp();
