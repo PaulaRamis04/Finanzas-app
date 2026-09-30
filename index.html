@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cuentas</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%AA%99%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"></script>
+<style>
+:root{
+  --ink:#4a3b3b; --paper:#fdf7f2; --line:#f0e4dc;
+  --accent:#f07f76; --accent-2:#e66b62; --accent-soft:#fde6e3;
+  --mint:#3fae92; --mint-soft:#e1f4ed; --lav-soft:#ece8fb; --peach-soft:#fdebd8;
+  --pos:#2f9e7a; --neg:#e0556a; --muted:#9a8a86; --card:#ffffff; --on-accent:#fff;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  box-sizing:border-box;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ink:#f5ecea; --paper:#1c1718; --line:#3a3132;
+    --accent:#f59a92; --accent-2:#f8aea7; --accent-soft:#3d2826;
+    --mint:#7fd6bb; --mint-soft:#1f3530; --lav-soft:#2b2740; --peach-soft:#3a2d20;
+    --pos:#6fd3ad; --neg:#ff8a9a; --muted:#b3a4a1; --card:#262021; --on-accent:#2b1917;
+  }
+}
+:root[data-theme="dark"]{
+  --ink:#f5ecea; --paper:#1c1718; --line:#3a3132;
+  --accent:#f59a92; --accent-2:#f8aea7; --accent-soft:#3d2826;
+  --mint:#7fd6bb; --mint-soft:#1f3530; --lav-soft:#2b2740; --peach-soft:#3a2d20;
+  --pos:#6fd3ad; --neg:#ff8a9a; --muted:#b3a4a1; --card:#262021; --on-accent:#2b1917;
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:"Nunito",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  min-height:100%; -webkit-font-smoothing:antialiased;
+}
+header{
+  padding:26px 20px 18px; border-bottom:1px solid var(--line);
+  position:sticky; top:env(safe-area-inset-top,0px); background:var(--paper); z-index:5;
+}
+header h1{margin:0 0 3px; font-size:24px; font-weight:800; letter-spacing:-0.02em}
+header p{margin:0; color:var(--muted); font-size:13px}
+.periodo{display:flex; gap:8px; margin-top:14px}
+.periodo select{width:auto; padding:7px 12px; font-size:13px; border-radius:999px}
+.balance{display:flex; gap:24px; margin-top:18px; flex-wrap:wrap}
+.balance div{min-width:98px}
+.balance .num{font-size:22px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-0.01em}
+.balance .lbl{font-size:11.5px; color:var(--muted); margin-top:3px}
+.pos{color:var(--pos)} .neg{color:var(--neg)}
+.topbar{display:flex; align-items:center; gap:12px; padding:10px 16px; border-bottom:1px solid var(--line)}
+.menu-btn{background:none; border:none; cursor:pointer; padding:6px; display:flex; flex-direction:column; gap:4px}
+.menu-btn span{display:block; width:20px; height:2px; background:var(--ink); border-radius:2px}
+.tab-actual{font-weight:800; font-size:14px}
+.menu-overlay{
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:20;
+}
+.menu-overlay.open{display:block}
+.menu-panel{
+  position:fixed; top:0; bottom:0; left:0; width:78%; max-width:300px; background:var(--card);
+  z-index:21; padding:22px 16px; overflow-y:auto; transform:translateX(-100%); transition:transform .2s ease;
+  padding-top:calc(22px + env(safe-area-inset-top,0px));
+}
+.menu-panel.open{transform:translateX(0)}
+.menu-group-title{font-size:12px; font-weight:800; color:var(--muted); margin:18px 0 8px}
+.menu-group-title:first-child{margin-top:0}
+.menu-item{
+  display:block; width:100%; text-align:left; background:none; border:none; padding:10px 8px;
+  border-radius:10px; font-size:15px; font-weight:600; color:var(--ink); cursor:pointer;
+}
+.menu-item.active{background:var(--accent-soft); color:var(--accent)}
+main{padding:20px 16px calc(100px + env(safe-area-inset-bottom,0px)); max-width:640px; margin:0 auto}
+.card{
+  background:var(--card); border:1px solid var(--line); border-radius:22px; padding:18px;
+  margin-bottom:16px; box-shadow:0 2px 10px rgba(20,20,30,.04);
+}
+form{display:grid; gap:11px}
+.row2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+label{font-size:12px; color:var(--muted); display:block; margin-bottom:4px; font-weight:600}
+input,select{
+  width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:12px;
+  background:var(--paper); color:var(--ink); font-size:14px; font-family:inherit;
+}
+input:focus,select:focus{outline:2px solid var(--accent); outline-offset:1px}
+.btn{
+  background:var(--accent); color:var(--on-accent); border:none; padding:11px 18px;
+  border-radius:999px; font-size:14px; font-weight:700; cursor:pointer; transition:background .15s ease;
+}
+.btn:hover{background:var(--accent-2)}
+.btn.ghost{background:transparent; color:var(--neg); border:1px solid var(--line); padding:6px 13px; font-size:12.5px; border-radius:999px}
+.btn.ghost:hover{background:var(--paper)}
+.btn.gold{background:var(--accent-soft); color:var(--accent)}
+.btn.gold:hover{filter:brightness(1.04)}
+.list{display:flex; flex-direction:column; gap:8px}
+.item{
+  display:flex; justify-content:space-between; align-items:center; gap:10px;
+  padding:13px 14px; border:1px solid var(--line); border-radius:16px; background:var(--card);
+}
+.item .meta{font-size:12px; color:var(--muted); margin-top:2px}
+.meta{font-size:12px; color:var(--muted)}
+.lado{background:var(--card); border:1.5px solid var(--line); border-radius:18px; padding:14px; cursor:pointer; text-align:left; -webkit-tap-highlight-color:transparent}
+.lado .cifra{font-size:22px; font-weight:800; font-variant-numeric:tabular-nums; margin:3px 0 1px; letter-spacing:-0.01em}
+.lado.activo.pos{border-color:var(--pos); box-shadow:0 0 0 3px rgba(22,163,74,.16)}
+.lado.activo.neg{border-color:var(--neg); box-shadow:0 0 0 3px rgba(225,29,72,.14)}
+.grip{display:inline-flex; flex-direction:column; justify-content:center; gap:3px; padding:10px 8px; margin:-10px 0 -10px -8px; cursor:grab; touch-action:none; flex-shrink:0; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none}
+.grip i{display:block; width:16px; height:2px; border-radius:2px; background:var(--muted)}
+.grip:active{cursor:grabbing}
+.sort-item{display:flex; flex-direction:column; gap:8px}
+.sort-arrastrando{opacity:.35}
+.sort-ghost{position:fixed; z-index:70; pointer-events:none; margin:0; box-shadow:0 14px 34px rgba(0,0,0,.3); border-radius:18px; background:var(--card); opacity:.97}
+.item .amt{font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; font-size:15px}
+.tag{font-size:11px; padding:3px 10px; border-radius:999px; background:var(--accent-soft); border:none; color:var(--accent); font-weight:600}
+.empty{color:var(--muted); font-size:13px; text-align:center; padding:32px 10px}
+h2{font-size:16px; margin:0 0 12px; font-weight:800}
+.section-title{font-size:13px; font-weight:800; color:var(--accent); letter-spacing:.01em; margin:22px 0 9px}
+.status{font-size:12px; color:var(--muted); text-align:center; padding:6px}
+.errbar{
+  display:none; position:fixed; left:12px; right:12px; bottom:calc(84px + env(safe-area-inset-bottom,0px)); z-index:40;
+  background:var(--neg); color:#fff; padding:12px 14px; font-size:13px; line-height:1.35;
+  align-items:center; justify-content:space-between; gap:10px; border-radius:16px; box-shadow:0 6px 24px rgba(0,0,0,.28);
+}
+.errbar.show{display:flex}
+.errbar .errbtns{display:flex; gap:6px; flex-shrink:0}
+.errbar button{background:rgba(255,255,255,.22); color:#fff; border:none; padding:6px 12px; border-radius:999px; font-size:12px; cursor:pointer; white-space:nowrap}
+[hidden]{display:none!important}
+/* Acceso */
+.auth{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:32px 20px;
+  background:radial-gradient(circle at 15% 10%, var(--accent-soft), transparent 45%), radial-gradient(circle at 90% 85%, var(--mint-soft), transparent 45%), var(--paper)}
+.auth-box{width:100%; max-width:380px}
+.auth-logo{font-size:64px; text-align:center; line-height:1}
+.auth-marca{text-align:center; font-weight:800; font-size:20px; color:var(--accent); margin:6px 0 22px}
+.auth h1{text-align:center; margin:0; font-size:28px; font-weight:800}
+.auth-sub{text-align:center; margin:4px 0 24px; color:var(--muted)}
+.auth form{gap:14px}
+.auth label{font-size:14px; color:var(--ink); font-weight:600}
+.campo{position:relative}
+.campo input{padding:14px 44px 14px 42px; border:2px solid var(--mint-soft); border-radius:16px; font-size:16px; background:var(--card)}
+.campo input:focus{outline:none; border-color:var(--mint)}
+.campo .ico{position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--muted); pointer-events:none; display:flex}
+.campo .ver{position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; color:var(--muted); cursor:pointer; padding:6px; font-size:12px; font-weight:700; font-family:inherit}
+.auth-link{background:none; border:none; padding:0; color:var(--mint); font-weight:700; font-size:14px; cursor:pointer; font-family:inherit}
+.auth .btn{padding:15px; font-size:16px; box-shadow:0 6px 18px rgba(240,127,118,.35)}
+.auth-msg{text-align:center; font-size:14px; margin-top:14px; min-height:20px}
+.auth-msg.error{color:var(--neg)}
+.auth-pie{text-align:center; color:var(--muted); font-size:14px; margin-top:34px}
+/* Navegación inferior */
+.nav-inf{position:fixed; left:0; right:0; bottom:0; z-index:15; display:flex; justify-content:space-around;
+  background:var(--card); border-top:1px solid var(--line); padding:8px 6px calc(8px + env(safe-area-inset-bottom,0px)); box-shadow:0 -4px 18px rgba(74,59,59,.06)}
+.nav-item{flex:1; max-width:110px; background:none; border:none; cursor:pointer; color:var(--muted); display:flex; flex-direction:column; align-items:center; gap:3px; font-size:11.5px; font-weight:700; font-family:inherit; padding:4px 0}
+.nav-item svg{width:24px; height:24px}
+.nav-item.active{color:var(--accent)}
+#appShell.en-inicio header, #appShell.en-inicio .topbar{display:none}
+/* Inicio */
+.hola{display:flex; justify-content:space-between; align-items:center; margin:4px 0 18px}
+.hola h1{margin:0; font-size:26px; font-weight:800}
+.campana{position:relative; width:42px; height:42px; border-radius:50%; border:none; background:var(--card); box-shadow:0 2px 10px rgba(74,59,59,.1); cursor:pointer; color:var(--ink); display:flex; align-items:center; justify-content:center}
+.campana .punto{position:absolute; top:9px; right:10px; width:8px; height:8px; border-radius:50%; background:var(--accent)}
+.saldo-lbl{font-size:16px; font-weight:600}
+.saldo{display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap; margin:2px 0 14px}
+.saldo .cifra{font-size:40px; font-weight:800; letter-spacing:-0.02em; color:var(--mint); font-variant-numeric:tabular-nums; line-height:1.1}
+.saldo .var{font-size:14px; font-weight:700; padding-bottom:6px}
+.mini{display:flex; gap:8px; overflow-x:auto; margin-bottom:16px; scrollbar-width:none}
+.mini div{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:8px 12px; white-space:nowrap}
+.mini b{display:block; font-size:14px; font-variant-numeric:tabular-nums}
+.mini span{font-size:11px; color:var(--muted)}
+.card.grafico{border:2px solid var(--mint-soft)}
+.acciones{display:flex; justify-content:space-between; gap:6px; margin:4px 0 22px}
+.accion{flex:1; background:none; border:none; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px; color:var(--ink); font-size:13px; font-weight:600; font-family:inherit}
+.accion i{font-style:normal; width:54px; height:54px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:24px}
+.reciente{display:flex; align-items:center; gap:12px; padding:10px 12px; background:var(--card); border:1px solid var(--line); border-radius:16px}
+.reciente .ico{width:40px; height:40px; border-radius:12px; background:var(--peach-soft); display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0}
+.reciente .txt{flex:1; min-width:0}
+.reciente .txt b{display:block; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.reciente .der{text-align:right}
+.reciente .der b{font-size:15px; font-variant-numeric:tabular-nums; white-space:nowrap}
+.tit-fila{display:flex; justify-content:space-between; align-items:baseline; margin:0 0 10px}
+.tit-fila h2{margin:0}
+</style>
+</head>
+<body>
+<div class="auth" id="authScreen" style="display:none">
+  <div class="auth-box">
+    <div class="auth-logo">🐷</div>
+    <div class="auth-marca">Mis cuentas</div>
+    <h1 id="authTitulo">¡Hola de nuevo!</h1>
+    <p class="auth-sub" id="authSub">Entra para ver tus cuentas</p>
+    <form id="fLogin">
+      <div><label for="loginEmail">Email</label><div class="campo"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></span><input type="email" id="loginEmail" required placeholder="tu@email.com" autocomplete="username"></div></div>
+      <div><label for="loginPass">Contraseña</label><div class="campo"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span><input type="password" id="loginPass" required placeholder="••••••••" autocomplete="current-password"><button type="button" class="ver" data-ver>Ver</button></div></div>
+      <div style="text-align:right;margin-top:-6px"><button type="button" class="auth-link" data-auth="olvido">¿Olvidaste tu contraseña?</button></div>
+      <button class="btn" type="submit">Entrar</button>
+    </form>
+    <form id="fRegistro" hidden>
+      <div><label for="regNombre">Tu nombre</label><div class="campo"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span><input type="text" id="regNombre" required placeholder="ej. Paula" autocomplete="given-name"></div></div>
+      <div><label for="regEmail">Email</label><div class="campo"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></span><input type="email" id="regEmail" required placeholder="tu@email.com" autocomplete="username"></div></div>
+      <div><label for="regPass">Contraseña</label><div class="campo"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span><input type="password" id="regPass" required placeholder="Mínimo 8 caracteres" autocomplete="new-password" minlength="8"><button type="button" class="ver" data-ver>Ver</button></div></div>
+      <button class="btn" type="submit">Crear cuenta</button>
+    </form>
+    <form id="fOlvido" hidden>
+      <div><label for="olvEmail">Email</label><div class="campo"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></span><input type="email" id="olvEmail" required placeholder="tu@email.com" autocomplete="username"></div></div>
+      <button class="btn" type="submit">Enviar enlace</button>
+    </form>
+    <form id="fNuevaPass" hidden>
+      <div><label for="nuevaPass">Nueva contraseña</label><div class="campo"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span><input type="password" id="nuevaPass" required placeholder="Mínimo 8 caracteres" autocomplete="new-password" minlength="8"><button type="button" class="ver" data-ver>Ver</button></div></div>
+      <button class="btn" type="submit">Guardar contraseña</button>
+    </form>
+    <div class="auth-msg" id="loginMsg" role="status"></div>
+    <p class="auth-pie" id="authPie"></p>
+  </div>
+</div>
+<div id="appShell" style="display:none">
+  <header>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div><h1>Tus cuentas</h1><p id="sesionInfo" style="margin:0;color:var(--muted);font-size:12px"></p></div>
+      <button class="btn ghost" id="btnLogout">Cerrar sesión</button>
+    </div>
+    <div class="balance" id="balanceBox"></div>
+    <div class="periodo" id="periodoBox"></div>
+  </header>
+  <div class="errbar" id="errBar"><span id="errMsg"></span><span class="errbtns"><button id="errRetry">Reintentar</button><button id="errClose">Cerrar</button></span></div>
+  <div class="topbar">
+    <button class="menu-btn" id="menuBtn" aria-label="Menú"><span></span><span></span><span></span></button>
+    <span class="tab-actual" id="tabActual"></span>
+    <button class="btn ghost" id="btnRefrescar" style="margin-left:auto;color:var(--accent)">Actualizar</button>
+  </div>
+  <div class="menu-overlay" id="menuOverlay"></div>
+  <div class="menu-panel" id="menuPanel"></div>
+  <main id="app"></main>
+  <nav class="nav-inf" id="navInf">
+    <button class="nav-item" data-nav="Inicio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>Inicio</button>
+    <button class="nav-item" data-nav="Movimientos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/></svg>Movimientos</button>
+    <button class="nav-item" data-nav="Cuentas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a1 1 0 0 1-1-1V6a2 2 0 0 1 2-2h11v3"/><circle cx="16" cy="13.5" r="1.2"/></svg>Cuentas</button>
+    <button class="nav-item" data-nav="Resumen del mes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 20v-6M12 20V5M19 20v-9"/></svg>Análisis</button>
+    <button class="nav-item" id="navMas"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>Más</button>
+  </nav>
+</div>
+<script src="js/helpers.js"></script>
+<script src="js/state.js"></script>
+<script src="js/db.js"></script>
+<script src="js/views/comunes.js"></script>
+<script src="js/views/inicio.js"></script>
+<script src="js/views/gastos.js"></script>
+<script src="js/views/resumen.js"></script>
+<script src="js/views/presupuestos.js"></script>
+<script src="js/views/movimientos.js"></script>
+<script src="js/views/cuentas.js"></script>
+<script src="js/views/deudas.js"></script>
+<script src="js/views/importar.js"></script>
+<script src="js/views/inversiones.js"></script>
+<script src="js/views/objetivos.js"></script>
+<script src="js/views/proyeccion.js"></script>
+<script src="js/views/recurrentes.js"></script>
+<script src="js/views/categorias.js"></script>
+<script src="js/views/preferencias.js"></script>
+<script src="js/views/app.js"></script>
+</body>
+</html>
