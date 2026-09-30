@@ -8,7 +8,7 @@ const assert = require("assert");
 
 const RAIZ = path.join(__dirname, "..");
 const HTML_PRUEBA = path.join(RAIZ, "index.pruebas.html");
-const PESTANAS = ["Inicio","Gastos","Resumen del mes","Presupuestos","Movimientos","Cuentas","Deudas","Inversiones","Objetivos","Hitos","Proyección","Recurrentes","Categorías","Preferencias","Personalización","Notificaciones","Comunidad"];
+const PESTANAS = ["Inicio","Gastos","Resumen del mes","Presupuestos","Movimientos","Cuentas","Deudas","Inversiones","Objetivos","Vivienda","Hitos","Proyección","Recurrentes","Categorías","Preferencias","Personalización","Notificaciones","Comunidad"];
 
 const pruebas = [];
 const prueba = (nombre, fn)=>pruebas.push({nombre, fn});
@@ -586,6 +586,46 @@ prueba("hitos: se desbloquean solos, guardan la fecha y celebran los nuevos", as
   const local = await p.evaluate(async ()=>{ delete __db.hitos; localStorage.removeItem("hitos"); await recargar(["hitos","movimientos"]); return {enBd:hitosEnBd, local:JSON.parse(localStorage.getItem("hitos")||"{}")}; });
   assert.strictEqual(local.enBd, false);
   assert.ok(local.local.pat_500 && local.local.mes_ahorro);
+});
+
+prueba("simulador de vivienda: cifras, hucha 🏠 y comparación con otra persona", async ()=>{
+  const p = await abrir();
+  await p.evaluate(async ()=>{
+    __db.objetivos.push({id:"ov", nombre:"Piso", meta:70000, tipo_vinculo:"ninguno", ahorrado:20000, tema:"casa", orden:2, auto_activo:true, auto_cuota:1000, auto_dia_mes:1, auto_cuenta_origen:"c1"});
+    await recargar(["objetivos"]);
+    tab = "Vivienda"; render();
+  });
+  const txt = id=>p.textContent("#"+id);
+  // 300.000 € con 20 % de entrada y 10 % de gastos, partiendo de la hucha (20.000 € y 1.000 €/mes).
+  assert.strictEqual(await p.inputValue("#vivAhorro"), "20000");
+  assert.strictEqual(await p.inputValue("#vivMensual"), "1000");
+  assert.strictEqual(await txt("vivNecesario"), "€90000,00");
+  assert.strictEqual(await txt("vivFaltan"), "€70000,00");
+  assert.strictEqual(await txt("vivTiempo"), "5 años y 10 meses");
+  // Se recalcula al escribir, sin perder el foco.
+  await p.fill("#vivGastos", "0");
+  assert.strictEqual(await txt("vivNecesario"), "€60000,00");
+  assert.strictEqual(await txt("vivTiempo"), "3 años y 4 meses");
+  assert.strictEqual(await p.evaluate(()=>document.activeElement.id), "vivGastos");
+  await p.fill("#vivMensual", "0");
+  assert.strictEqual(await txt("vivTiempo"), "Sin ahorro mensual no se llega");
+  await p.fill("#vivMensual", "1000");
+  // Con otra persona: suma su ahorro y su ritmo, y se muestran las dos columnas.
+  await p.check("#vivConOtra");
+  await p.fill("#vivOtraNombre", "Alex");
+  await p.fill("#vivOtraAhorro", "10000");
+  await p.fill("#vivOtraMensual", "1000");
+  const comp = await p.textContent("#vivComparacion");
+  assert.ok(comp.includes("Tú + Alex"), comp);
+  assert.ok(comp.includes("3 años y 4 meses") && comp.includes("1 año y 3 meses"), comp);
+  assert.ok(!/mejor|recomend/i.test(comp), "no dice qué opción es mejor");
+  // Se recuerda en este dispositivo, pero el ahorro vuelve a salir de la hucha.
+  await p.reload();
+  await p.waitForFunction(()=>typeof ready!=="undefined" && ready);
+  await p.evaluate(()=>{ tab = "Vivienda"; render(); });
+  assert.strictEqual(await p.inputValue("#vivGastos"), "0");
+  assert.strictEqual(await p.inputValue("#vivOtraNombre"), "Alex");
+  assert.strictEqual(await p.inputValue("#vivAhorro"), "0");
 });
 
 (async ()=>{

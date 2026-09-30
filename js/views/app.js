@@ -22,6 +22,7 @@ function render(){
   else if(tab==="Cuentas") app.innerHTML = renderCuentas();
   else if(tab==="Inversiones") app.innerHTML = renderInversiones();
   else if(tab==="Objetivos") app.innerHTML = renderObjetivos();
+  else if(tab==="Vivienda") app.innerHTML = renderVivienda();
   else if(tab==="Hitos") app.innerHTML = renderHitos();
   else if(tab==="Proyección") app.innerHTML = renderProyeccion();
   else if(tab==="Recurrentes") app.innerHTML = renderRecurrentes();
@@ -62,6 +63,7 @@ function wireEvents(){
   wireEventosNotificaciones();
   wireEventosPresupuestos();
   wireEventosObjetivos();
+  wireEventosVivienda();
   wireEventosHitos();
   wireEventosComunidad();
 }

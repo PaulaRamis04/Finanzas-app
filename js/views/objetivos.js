@@ -68,6 +68,7 @@ function renderObjetivos(){
           return `<button class="btn ghost" data-toggle-auto-obj="${o.id}">${o.autoActivo?"Editar aportación automática":"Aportación automática"}</button>`;
         })()}
         ${manual? `<button class="btn ghost" data-meter-hucha="${o.id}">Añadir o sacar</button>` : ""}
+        ${temaObjetivo(o)==="casa"? `<button class="btn ghost" data-ir-tab="Vivienda">Simular vivienda</button>` : ""}
         <button class="btn ghost" data-tema-hucha="${o.id}">Cambiar icono</button>
         <button class="btn ghost" data-del-objetivo="${o.id}">Borrar</button>
       </div>
