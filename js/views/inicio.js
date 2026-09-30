@@ -1,7 +1,6 @@
 // Pestaña «Inicio»: su render y sus eventos.
 
 function renderInicio(){
-  const hoy = new Date();
   const totalInversiones = inversiones.filter(i=>i.estado==="activa").reduce((s,i)=>sumarDinero(s, i.valorActual),0);
   const meDeben = deudas.filter(d=>d.direccion==="me_deben" && d.estado==="pendiente").reduce((s,d)=>sumarDinero(s, d.importe),0);
   const debo = deudas.filter(d=>d.direccion==="debo" && d.estado==="pendiente").reduce((s,d)=>sumarDinero(s, d.importe),0);
@@ -78,20 +77,7 @@ function renderInicio(){
     <button class="btn" data-ir-tab="Objetivos">Crear un objetivo</button>
   </div>`;
 
-  // Gráfico de gasto acumulado: por días si hay un mes elegido, por meses si es el año entero.
   const porMes = periodoMes!=="todos";
-  const mesSel = Number(periodoMes);
-  const esActual = porMes ? (periodoAnio===hoy.getFullYear() && mesSel===hoy.getMonth()+1) : periodoAnio===hoy.getFullYear();
-  const nTramos = porMes ? new Date(periodoAnio, mesSel, 0).getDate() : 12;
-  const etiquetasGasto = porMes ? Array.from({length:nTramos}, (_,i)=>String(i+1)) : MESES.map(x=>x.slice(0,3));
-  const hastaTramo = esActual ? (porMes ? hoy.getDate() : hoy.getMonth()+1) : nTramos;
-  const gastoTramo = Array(nTramos).fill(0);
-  enP.filter(m=>m.tipo==="gasto" && m.categoria!=="Inversión").forEach(m=>{
-    const i = porMes ? Number(m.fecha.slice(8,10))-1 : Number(m.fecha.slice(5,7))-1;
-    if(i>=0 && i<nTramos) gastoTramo[i] = sumarDinero(gastoTramo[i], m.importe);
-  });
-  const acumulado = [];
-  gastoTramo.slice(0, hastaTramo).forEach(v=>acumulado.push(sumarDinero(acumulado.length ? acumulado[acumulado.length-1] : 0, v)));
   const presupuestoTotal = porMes ? presupuestos.reduce((s,p)=>sumarDinero(s, p.limite, rolloverAcumulado(p)), 0) : 0;
   const pctPat = patIni ? delta/Math.abs(patIni)*100 : 0;
   const nombre = (session?.user?.user_metadata?.full_name || "").trim().split(/\s+/)[0];
@@ -102,7 +88,6 @@ function renderInicio(){
     if(vistas.has(m.transferenciaId)) return false;
     vistas.add(m.transferenciaId); return true;
   }).slice(0,5);
-  const ACCIONES = [["mov","➕","Añadir","var(--lav-soft)"],["transferencia","🔁","Transferir","var(--accent-soft)"],["Deudas","🤝","Deudas","var(--peach-soft)"],["Inversiones","🌱","Invertir","var(--mint-soft)"]];
 
   const {valores:valoresPat, etiquetas:etiquetasPat} = serieRango(patrimonioRango);
   const cambioPat = valoresPat.length>1 ? Math.round((valoresPat[valoresPat.length-1]-valoresPat[0])*100)/100 : 0;
@@ -113,30 +98,28 @@ function renderInicio(){
     <h1>Hola${nombre ? ", "+esc(nombre) : ""} 👋</h1>
     <span style="display:flex;gap:10px">${botonOjo("btnOjoInicio")}<button class="campana" id="btnAvisos" aria-label="Notificaciones"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>${avisos ? `<span class="punto"></span>` : ""}</button></span>
   </div>
-  <div class="saldo-lbl">Saldo total</div>
-  <div class="saldo">
-    <span class="cifra ${patNeto>=0?'':'neg'}">${eur(patNeto)}</span>
-    <span class="var ${delta>=0?'pos':'neg'}">${delta>=0?"↗ +":"↘ -"}${Math.abs(pctPat).toFixed(1).replace(".",",")} % · ${delta>=0?"+":"-"}${eur(Math.abs(delta))} en ${lbl}</span>
-  </div>
-  <div class="mini">
-    <div><b>${eur(disponible)}</b><span>Disponible</span></div>
-    <div><b>${eur(totalInversiones)}</b><span>Inversiones</span></div>
-    <div><b class="pos">${eur(meDeben)}</b><span>Me deben</span></div>
-    <div><b class="neg">${eur(debo)}</b><span>Debo</span></div>
-  </div>
-  <div class="card grafico">
-    <h2 style="margin-bottom:6px">Gasto de ${porMes ? MESES[mesSel-1].toLowerCase() : periodoAnio}</h2>
-    <div class="meta" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-      <span style="width:9px;height:9px;border-radius:50%;background:var(--mint);display:inline-block"></span>
-      Gastado: <strong style="color:var(--ink)">${eur(gastosReales)}</strong>${presupuestoTotal>0 ? ` / Presupuesto: <strong style="color:var(--ink)">${eur(presupuestoTotal)}</strong>` : ""}
+  <div class="hero">
+    <div class="saldo-lbl">Saldo total</div>
+    <div class="saldo">
+      <span class="cifra ${patNeto>=0?'':'neg'}">${eur(patNeto)}</span>
+      <span class="var ${delta>=0?'pos':'neg'}">${delta>=0?"↗ +":"↘ -"}${Math.abs(pctPat).toFixed(1).replace(".",",")} % · ${delta>=0?"+":"-"}${eur(Math.abs(delta))} en ${lbl}</span>
     </div>
-    ${tAnt ? comparar(gastosReales, tAnt.gastos, false) : ""}
-    <div style="margin-top:10px">${graficoGastoMes(acumulado, etiquetasGasto, presupuestoTotal, porMes ? etiquetasGasto.map(d=>`${d} ${MESES[mesSel-1].slice(0,3).toLowerCase()}`) : MESES.map(m=>`Hasta ${m.toLowerCase()}`))}</div>
-    <div class="meta" style="margin-top:4px">Ingresos: <strong class="pos">${eur(ingresos)}</strong> · Ahorro: <strong>${eur(ahorroMes)}</strong></div>
+    <div class="hero-grid">
+      <div class="t-menta"><span>Disponible</span><b>${eur(disponible)}</b></div>
+      <div class="t-melocoton"><span>Inversiones</span><b>${eur(totalInversiones)}</b></div>
+      <div class="t-menta"><span>Me deben</span><b class="pos">${eur(meDeben)}</b></div>
+      <div class="t-melocoton"><span>Debo</span><b class="neg">${eur(debo)}</b></div>
+    </div>
   </div>
-  <h2 style="margin:22px 0 10px">Acciones rápidas</h2>
+  <div class="card barras-mes">
+    <h2>${porMes ? MESES[Number(periodoMes)-1] : "Año "+periodoAnio} de un vistazo</h2>
+    ${barrasMes(gastosReales, presupuestoTotal, ingresos, ahorroMes, disponible, inversionMes, tAnt ? comparar(gastosReales, tAnt.gastos, false) : "")}
+  </div>
+  <div class="tit-fila" style="margin-top:22px"><h2>Acciones rápidas</h2>${accionesElegidas().length ? `<button class="auth-link" data-editar-acciones="1">Editar</button>` : ""}</div>
   <div class="acciones">
-    ${ACCIONES.map(([dest, ico, txt, fondo])=>`<button class="accion" data-accion="${dest}"><i style="background:${fondo}">${ico}</i>${txt}</button>`).join("")}
+    ${accionesElegidas().map(a=>`<button class="accion" data-accion="${a.id}"><i style="background:${a.fondo}">${a.ico}</i>${a.txt}</button>`).join("")}
+    <button class="accion nueva" id="btnEditarAcciones" aria-label="Añadir o quitar accesos rápidos"><i>＋</i>Añadir</button>
+    ${accionesElegidas().length ? "" : `<p class="meta acciones-pista">Añade aquí los accesos que más uses.</p>`}
   </div>
   <div class="tit-fila"><h2>Movimientos recientes</h2><button class="auth-link" data-ir-tab="Movimientos">Ver todos</button></div>
   ${recientes.length ? `<div class="list" style="margin-bottom:16px">
@@ -155,6 +138,89 @@ function renderInicio(){
   </div>`;
 }
 
+// Tres barras redondeadas del periodo: gastado frente al presupuesto (o a los ingresos si no hay), ahorro y disponible.
+function barrasMes(gastado, presupuesto, ingresos, ahorro, disponible, invertido, vsAnterior){
+  const pct = (v, base)=>base>0 ? Math.max(0, Math.min(v/base*100, 100)) : 0;
+  const base = presupuesto>0 ? presupuesto : ingresos;
+  const uso = base>0 ? gastado/base*100 : 0;
+  const colorGasto = uso>100 ? "var(--neg)" : uso>=80 ? "#f2a65a" : "var(--mint)";
+  const fila = (titulo, valor, ancho, color, pie, extra = "")=>`
+    <div class="barra-mes">
+      <div class="barra-cab"><span>${titulo}</span><b>${valor}</b></div>
+      <div class="barra"><div style="width:${ancho}%;background:${color}"></div></div>
+      <div class="meta">${pie}</div>${extra}
+    </div>`;
+  const deIngresos = v=>ingresos>0 ? `${Math.round(v/ingresos*100)} % de tus ingresos` : "Sin ingresos en este periodo";
+  return fila("Gastado", presupuesto>0 ? `${eur(gastado)} de ${eur(presupuesto)}` : eur(gastado), pct(gastado, base), colorGasto,
+      presupuesto>0 ? (gastado>presupuesto ? `Te has pasado ${eur(restarDinero(gastado, presupuesto))}` : `Te quedan ${eur(restarDinero(presupuesto, gastado))} del presupuesto`)
+        : (ingresos>0 ? `${Math.round(uso)} % de tus ingresos` : "Sin presupuesto ni ingresos"), vsAnterior)
+    + fila("Ahorro", eur(ahorro), pct(ahorro, ingresos), "#8b7fd6", deIngresos(ahorro))
+    + fila("Disponible", eur(disponible), pct(disponible, ingresos), "var(--accent)", invertido>0 ? `Tras invertir ${eur(invertido)}` : deIngresos(disponible));
+}
+
+// Acciones rápidas personalizables: empiezan vacías y cada uno elige las suyas (se guardan en este dispositivo).
+const CATALOGO_ACCIONES = [
+  {id:"mov", ico:"✍️", txt:"Apuntar", largo:"Apuntar movimiento", fondo:"var(--lav-soft)"},
+  {id:"transferencia", ico:"🔁", txt:"Transferir", largo:"Transferir entre cuentas", fondo:"var(--accent-soft)"},
+  {id:"Movimientos", ico:"📒", txt:"Movim.", largo:"Movimientos", fondo:"var(--peach-soft)"},
+  {id:"Gastos", ico:"💸", txt:"Gastos", largo:"Gastos", fondo:"var(--accent-soft)"},
+  {id:"Resumen del mes", ico:"📊", txt:"Análisis", largo:"Análisis", fondo:"var(--lav-soft)"},
+  {id:"Presupuestos", ico:"🧮", txt:"Presup.", largo:"Presupuestos", fondo:"var(--mint-soft)"},
+  {id:"Cuentas", ico:"👛", txt:"Cuentas", largo:"Cuentas", fondo:"var(--peach-soft)"},
+  {id:"Deudas", ico:"🤝", txt:"Deudas", largo:"Deudas", fondo:"var(--peach-soft)"},
+  {id:"Inversiones", ico:"🌱", txt:"Invertir", largo:"Inversiones", fondo:"var(--mint-soft)"},
+  {id:"Objetivos", ico:"🎯", txt:"Objetivos", largo:"Objetivos", fondo:"var(--accent-soft)"},
+  {id:"Recurrentes", ico:"📅", txt:"Recurr.", largo:"Recurrentes", fondo:"var(--lav-soft)"},
+  {id:"Proyección", ico:"🔮", txt:"Proyección", largo:"Proyección", fondo:"var(--lav-soft)"},
+  {id:"Categorías", ico:"🏷️", txt:"Categorías", largo:"Categorías", fondo:"var(--mint-soft)"},
+  {id:"Personalización", ico:"🎨", txt:"Aspecto", largo:"Personalización", fondo:"var(--accent-soft)"},
+];
+
+function leerAcciones(){ try{ const a = JSON.parse(localStorage.getItem("accionesRapidas")||"[]"); return Array.isArray(a) ? a : []; }catch(e){ return []; } }
+function accionesElegidas(){ return leerAcciones().map(id=>CATALOGO_ACCIONES.find(a=>a.id===id)).filter(Boolean); }
+
+// Hoja inferior con todo el catálogo: tocar marca o desmarca; el orden es el de elección.
+function elegirAcciones(){
+  let elegidas = leerAcciones().filter(id=>CATALOGO_ACCIONES.some(a=>a.id===id));
+  document.getElementById("hoja")?.remove();
+  const cont = document.createElement("div");
+  cont.id = "hoja";
+  const pintar = ()=>{ cont.querySelector(".elegir-acciones").innerHTML = CATALOGO_ACCIONES.map(a=>{
+    const n = elegidas.indexOf(a.id);
+    return `<button class="elegir ${n>=0?"sel":""}" data-elegir-accion="${esc(a.id)}" aria-pressed="${n>=0}"><i style="background:${a.fondo}">${a.ico}</i><span>${a.largo}</span>${n>=0?`<b>${n+1}</b>`:""}</button>`;
+  }).join(""); };
+  cont.innerHTML = `
+    <div class="hoja-fondo"></div>
+    <div class="hoja" role="dialog" aria-modal="true" aria-labelledby="hojaTitulo">
+      <div class="hoja-asa"></div>
+      <h2 id="hojaTitulo">Tus acciones rápidas</h2>
+      <p>Toca las que quieras tener a mano en el Inicio. Salen en el orden en que las eliges.</p>
+      <div class="elegir-acciones"></div>
+      <div class="hoja-btns"><button class="hoja-si" id="hojaListo">Listo</button></div>
+    </div>`;
+  document.body.appendChild(cont);
+  pintar();
+  requestAnimationFrame(()=>requestAnimationFrame(()=>cont.classList.add("abierta")));
+  cont.querySelector(".elegir-acciones").onclick = e=>{
+    const b = e.target.closest("[data-elegir-accion]");
+    if(!b) return;
+    const id = b.dataset.elegirAccion;
+    elegidas = elegidas.includes(id) ? elegidas.filter(x=>x!==id) : [...elegidas, id];
+    try{ localStorage.setItem("accionesRapidas", JSON.stringify(elegidas)); }catch(e){}
+    pintar();
+  };
+  const cerrar = ()=>{
+    document.removeEventListener("keydown", tecla);
+    cont.classList.remove("abierta");
+    setTimeout(()=>cont.remove(), 260);
+    render();
+  };
+  const tecla = e=>{ if(e.key==="Escape") cerrar(); };
+  document.addEventListener("keydown", tecla);
+  cont.querySelector(".hoja-fondo").onclick = cerrar;
+  cont.querySelector("#hojaListo").onclick = cerrar;
+}
+
 function wireEventosInicio(){
   document.querySelectorAll("[data-accion]").forEach(b=>b.onclick=()=>{
     const d = b.dataset.accion;
@@ -166,6 +232,9 @@ function wireEventosInicio(){
     render();
     if(!enfocar) window.scrollTo(0,0);
   });
+  const editar = document.getElementById("btnEditarAcciones");
+  if(editar) editar.onclick = elegirAcciones;
+  document.querySelectorAll("[data-editar-acciones]").forEach(b=>b.onclick = elegirAcciones);
   const ojo = document.getElementById("btnOjoInicio");
   if(ojo) ojo.onclick = alternarPrivacidad;
   const av = document.getElementById("btnAvisos");
