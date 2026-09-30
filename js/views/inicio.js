@@ -86,6 +86,16 @@ function renderInicio(){
     <button class="btn ghost" data-ir-tab="Hitos">Ver mis hitos</button>
   </div>`;
 
+  const bloquePermitir = `
+  <div class="card cierre-banner">
+    <div class="cierre-banner-ico">🧾</div>
+    <div style="flex:1 1 160px;min-width:0">
+      <strong style="font-size:16px">¿Me lo puedo permitir?</strong>
+      <div class="meta">Mira qué te cuesta de verdad una compra antes de hacerla</div>
+    </div>
+    <button class="btn ghost" data-ir-tab="Permitir">Probar</button>
+  </div>`;
+
   const porMes = periodoMes!=="todos";
   const presupuestoTotal = porMes ? presupuestos.reduce((s,p)=>sumarDinero(s, p.limite, rolloverAcumulado(p)), 0) : 0;
   const pctPat = patIni ? delta/Math.abs(patIni)*100 : 0;
@@ -137,6 +147,7 @@ function renderInicio(){
   ${bloqueAlertas}
   ${bloqueObjetivos}
   ${bloqueHitos}
+  ${bloquePermitir}
   <div class="card">
     <h2>📈 Patrimonio</h2>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 12px">
@@ -176,6 +187,7 @@ const CATALOGO_ACCIONES = [
   {id:"Gastos", ico:"💸", txt:"Gastos", largo:"Gastos", fondo:"var(--accent-soft)"},
   {id:"Resumen del mes", ico:"📊", txt:"Análisis", largo:"Análisis", fondo:"var(--lav-soft)"},
   {id:"Presupuestos", ico:"🧮", txt:"Presup.", largo:"Presupuestos", fondo:"var(--mint-soft)"},
+  {id:"Permitir", ico:"🧾", txt:"¿Puedo?", largo:"¿Me lo puedo permitir?", fondo:"var(--peach-soft)"},
   {id:"Cuentas", ico:"👛", txt:"Cuentas", largo:"Cuentas", fondo:"var(--peach-soft)"},
   {id:"Deudas", ico:"🤝", txt:"Deudas", largo:"Deudas", fondo:"var(--peach-soft)"},
   {id:"Inversiones", ico:"🌱", txt:"Invertir", largo:"Inversiones", fondo:"var(--mint-soft)"},
