@@ -1,8 +1,7 @@
 // Pestaña «Deudas»: su render y sus eventos.
 
-// «Dividir un gasto» (premium): «Éramos 3 y pagué yo» → apunta el gasto entero y crea una deuda «Me deben» por cada amigo, vinculada a ese gasto.
+// «Dividir un gasto»: «Éramos 3 y pagué yo» → apunta el gasto entero y crea una deuda «Me deben» por cada amigo, vinculada a ese gasto.
 let dividirAbierto = false;
-TEXTO_PREMIUM.dividir = "Apunta una cena con amigos, di cuántos erais y la app calcula lo que te debe cada uno y te lo deja en «Me deben».";
 
 // Reparte en céntimos: cada amigo debe la parte redondeada hacia abajo y los céntimos sobrantes los pones tú.
 function repartoGasto(total, personas){
@@ -18,11 +17,10 @@ function nuevoId(){
 
 function bloqueDividirGasto(){
   const cab = `<div class="pleg-cab ${dividirAbierto?"abierto":""}" data-toggle-dividir="1" role="button" aria-expanded="${dividirAbierto}">
-      <i style="background:var(--mint-soft)">🍕</i><h2>Dividir un gasto</h2>${esPremium? "" : `<span class="marca-premium">Premium</span>`}
+      <i style="background:var(--mint-soft)">🍕</i><h2>Dividir un gasto</h2>
       <span class="chev"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
     </div>`;
   if(!dividirAbierto) return `<div class="card">${cab}</div>`;
-  if(!esPremium) return `<div class="card">${cab}${avisoPremium("dividir")}</div>`;
   const hayCuentas = cuentasActivas().length > 0;
   return `
   <div class="card">
@@ -76,7 +74,7 @@ function deudaItem(d){
     </div>
     <div class="chips">
       ${pend && saldarId!==d.id?`<button class="chip ok" data-saldar="${d.id}">Abonar</button>`:''}
-      ${pend && esPremium && d.direccion==='me_deben'?`<button class="chip lav" data-pedir-bizum="${d.id}">Pedir Bizum</button>`:''}
+      ${pend && d.direccion==='me_deben'?`<button class="chip lav" data-pedir-bizum="${d.id}">Pedir Bizum</button>`:''}
       <button class="chip peligro" data-del-deuda="${d.id}">Borrar</button>
     </div>
   </div>
@@ -195,7 +193,7 @@ function wireEventosDeudas(){
       hideError(); fDeuda.reset(); await recargar(["deudas"]);
     });
   };
-  document.querySelectorAll("[data-toggle-dividir]").forEach(b=>b.onclick=()=>{ dividirAbierto = !dividirAbierto; if(dividirAbierto && esPremium) pendienteEnfoque = "divImporte"; render(); });
+  document.querySelectorAll("[data-toggle-dividir]").forEach(b=>b.onclick=()=>{ dividirAbierto = !dividirAbierto; if(dividirAbierto) pendienteEnfoque = "divImporte"; render(); });
   const fDividir = document.getElementById("fDividir");
   if(fDividir){
     const nombres = document.getElementById("divNombres");

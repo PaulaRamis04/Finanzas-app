@@ -324,7 +324,7 @@ prueba("sin premium: Proyección bloqueada (Inversiones no), Personalización so
   assert.match(await p.innerText("#app"), /Esto es de Premium/);
   assert.strictEqual(await p.locator("#compartirEmail").count(), 0);
 });
-prueba("dividir un gasto: apunta el gasto entero y una deuda «Me deben» por amigo (premium)", async ()=>{
+prueba("dividir un gasto: apunta el gasto entero y una deuda «Me deben» por amigo", async ()=>{
   const p = await abrir();
   assert.deepStrictEqual(await p.evaluate(()=>repartoGasto(10, 3)), {parte:3.33, tuya:3.34, meDeben:6.66});
   await p.evaluate(()=>{ tab = "Deudas"; render(); });
@@ -357,11 +357,13 @@ prueba("dividir un gasto: apunta el gasto entero y una deuda «Me deben» por am
   await p.click('#fDividir button[type="submit"]');
   await p.waitForFunction(()=>document.getElementById("errBar").classList.contains("show"));
   assert.ok(!(await p.evaluate(()=>__db.movimientos.some(m=>m.nota==="pizzas"))));
+  // También sin premium.
   const pp = await abrir("?premium=0");
   await pp.evaluate(()=>{ tab = "Deudas"; render(); });
   await pp.click("[data-toggle-dividir]");
-  assert.match(await pp.innerText("#app"), /Esto es de Premium/);
-  assert.strictEqual(await pp.locator("#fDividir, [data-pedir-bizum]").count(), 0);
+  assert.doesNotMatch(await pp.innerText("#app"), /Esto es de Premium/);
+  assert.strictEqual(await pp.locator("#fDividir").count(), 1);
+  assert.ok(await pp.locator("[data-pedir-bizum]").count() >= 1);
 });
 prueba("Comunidad: supporter, idea y fallo se guardan y dan las gracias", async ()=>{
   const pp = await abrir("", {width:1280, height:900});
