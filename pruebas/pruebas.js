@@ -345,6 +345,31 @@ prueba("Comunidad: supporter, idea y fallo se guardan y dan las gracias", async 
   const filas = await p.evaluate(()=>__db.comunidad.map(f=>[f.tipo, f.importe, f.texto, !!f.info]));
   assert.deepStrictEqual(filas, [["supporter",10,"",false],["idea",null,"Modo pareja",false],["fallo",null,"No carga",true]]);
 });
+prueba("Comunidad: se ven tus mensajes con su respuesta", async ()=>{
+  const p = await abrir("", {width:1280, height:900});
+  await p.evaluate(()=>{ __db.comunidad.push({id:"k1", tipo:"idea", texto:"Modo pareja", estado:"resuelto", respuesta:"¡Apuntado!", respondido_en:new Date().toISOString()}, {id:"k2", tipo:"supporter", texto:"", importe:5}); });
+  await p.evaluate(()=>recargar(["comunidad"]));
+  await p.evaluate(()=>{ tab = "Comunidad"; render(); });
+  const texto = await p.innerText("#app");
+  assert.match(texto, /Tus mensajes/);
+  assert.match(texto, /Modo pareja/);
+  assert.match(texto, /¡Apuntado!/);
+  assert.doesNotMatch(texto, /Tu mini asesoría/, "sin plan con asesoría no hay chat");
+  assert.ok(await p.evaluate(()=>avisosActuales().some(a=>a.id.startsWith("resp-k1"))), "la respuesta llega como aviso");
+});
+prueba("mini asesoría: se ve el chat, se marca leído y se envía", async ()=>{
+  const p = await abrir("?asesoria=1", {width:1280, height:900});
+  assert.ok(await p.evaluate(()=>avisosActuales().some(a=>a.tab==="Comunidad" && /asesoría/.test(a.titulo))), "la respuesta sin leer es un aviso");
+  await p.evaluate(()=>{ tab = "Comunidad"; render(); });
+  assert.match(await p.innerText("#app"), /Empieza por Ocio/);
+  assert.ok(await p.evaluate(()=>__db.asesoria_mensajes.find(m=>m.id==="am2").leido), "al verla queda leída");
+  await p.click("#btnEnviarAsesoria");
+  assert.match(await textoError(p), /Escribe un mensaje/);
+  await p.fill("#asesoriaTexto", "Gracias, ¿y el ahorro?");
+  await p.click("#btnEnviarAsesoria");
+  await p.waitForFunction(()=>/y el ahorro/.test(document.querySelector(".comunidad .chat").textContent));
+  assert.deepStrictEqual(await p.evaluate(()=>__db.asesoria_mensajes.slice(-1).map(m=>[m.autor, m.texto])), [["cliente","Gracias, ¿y el ahorro?"]]);
+});
 prueba("acceso con contraseña: error, registro, recuperar y entrar", async ()=>{
   const p = await navegador.newPage({viewport:MOVIL});
   p.on("pageerror", e=>errores.push(e.message));

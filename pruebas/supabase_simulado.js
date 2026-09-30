@@ -1,7 +1,8 @@
 // Supabase simulado en memoria para las pruebas (sustituye a supabase-js del CDN).
 // Cada consulta respeta el tope de 1000 filas del Supabase real.
 // Parámetros de la URL: ?vacia=1 arranca sin datos; ?resumen=0 simula que falta la RPC de resumen; ?sinsesion=1 arranca sin sesión;
-// ?premium=0 usuario sin premium; ?compartida=1 añade la cuenta «Piso» que otro usuario (u2) comparte con este.
+// ?premium=0 usuario sin premium; ?compartida=1 añade la cuenta «Piso» que otro usuario (u2) comparte con este;
+// ?asesoria=1 da al usuario el plan con mini asesoría y una respuesta sin leer.
 // Acceso: la contraseña buena es "secreta123". window.__auth guarda las llamadas de acceso.
 // Desde la página: window.__db (los datos), window.__fallarEn = "tabla" (hace fallar los insert en esa tabla).
 (function(){
@@ -14,7 +15,8 @@
     categorias:[{id:"k1", tipo:"gasto", padre:"Imprescindible", nombre:"Comida"},{id:"k2", tipo:"gasto", padre:"Prescindible", nombre:"Ocio"},{id:"k3", tipo:"ingreso", padre:null, nombre:"Nómina"}],
     presupuestos:[{id:"p1", categoria:"Comida", limite:300, rollover:false},{id:"p2", categoria:"Ocio", limite:100, rollover:false}],
     recurrentes:[{id:"r1", tipo:"gasto", categoria:"Comida", importe:10, cuenta_id:"c1", dia_mes:1, activo:true, fecha_inicio:"2026-01-01", ultima_generada:"2026-09-01"}],
-    objetivos:[], movimientos_pendientes:[], preferencias:[], cuentas_miembros:[], comunidad:[]
+    objetivos:[], movimientos_pendientes:[], preferencias:[], cuentas_miembros:[], comunidad:[],
+    suscripciones:[], asesoria_mensajes:[]
   };
   const usuarios = {"ana@x.com":"u2", "p@x.com":"u1"};
   const hoy = new Date(); const y = hoy.getFullYear(), mAct = hoy.getMonth()+1;
@@ -39,6 +41,11 @@
     db.cuentas_miembros.push({cuenta_id:"c4", user_id:"u1", email:"p@x.com", propietario_id:"u2", propietario_email:"ana@x.com"});
     db.movimientos.push({id:"mp1", tipo:"gasto", categoria:"Luz", importe:60, fecha:f(y,mAct,6), cuenta_id:"c4", user_id:"u2"});
   }
+  if(url.searchParams.get("asesoria")==="1"){
+    db.suscripciones.push({user_id:"u1", plan:"asesoria", activa:true, hasta:null, importe:5});
+    db.asesoria_mensajes.push({id:"am1", user_id:"u1", autor:"cliente", texto:"¿Me ayudas con el presupuesto?", leido:true, creado_en:"2026-09-01T10:00:00Z"});
+    db.asesoria_mensajes.push({id:"am2", user_id:"u1", autor:"admin", texto:"¡Claro! Empieza por Ocio.", leido:false, creado_en:"2026-09-01T11:00:00Z"});
+  }
   if(url.searchParams.get("vacia")==="1") Object.keys(db).forEach(k=>{ db[k] = []; });
   window.__queries = [];
 
@@ -55,6 +62,7 @@
     gte(c,v){ this.filters.push(r=>r[c]>=v); return this; }
     order(c,o){ this.ord.push([c,(o&&o.ascending===false)?-1:1]); return this; }
     range(a,b){ this.rng=[a,b]; return this; }
+    limit(){ return this; }
     single(){ return this; }
     then(res, rej){ return Promise.resolve(this.run()).then(res, rej); }
     run(){
@@ -71,7 +79,8 @@
       if(this.op==="insert"){
         if(window.__fallarEn===this.t) return {error:{message:"fallo simulado"}};
         if(this.data.some(d=>d.id && tabla.some(r=>r.id===d.id))) return {error:{message:"duplicate key"}};
-        this.data.forEach(d=>tabla.push({id:"n"+(n++), ...d})); return {data:null, error:null}; }
+        const extra = this.t==="asesoria_mensajes" ? {user_id:"u1", leido:false, creado_en:new Date().toISOString()} : {};
+        this.data.forEach(d=>tabla.push({id:"n"+(n++), ...extra, ...d})); return {data:null, error:null}; }
       if(this.op==="update"){
         if(this.t==="cuentas" && "archivada" in this.data && window.__sinColumna) return {error:{message:'column "archivada" does not exist'}};
         match.forEach(r=>Object.assign(r, this.data)); return {data:null, error:null};
@@ -110,6 +119,7 @@
         return {data:Object.values(g), error:null};
       }
       if(name.startsWith("procesar_")) return {data:null, error:null};
+      if(name==="marcar_asesoria_leida"){ db.asesoria_mensajes.forEach(m=>{ if(m.user_id==="u1" && m.autor==="admin") m.leido = true; }); return {data:null, error:null}; }
       return {data:null, error:{code:"PGRST202", message:"not found"}};
     },
     auth:{

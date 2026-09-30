@@ -56,6 +56,9 @@ let session = null, appStarted = false;
 let esPremium = false;
 let cuentasMiembros = [], compartirCuentaId = null;
 const TABS_PREMIUM = ["Proyección"];
+// Suscripción (tabla suscripciones), respuestas del buzón y mini asesoría (schema_gestion.sql).
+let miSuscripcion = null, misMensajesComunidad = [], mensajesAsesoria = [];
+function tieneAsesoria(){ const s = miSuscripcion; return !!s && s.plan==="asesoria" && s.activa && (!s.hasta || s.hasta>=today()); }
 function miembrosDe(cuentaId){ return cuentasMiembros.filter(m=>m.cuentaId===cuentaId); }
 function cuentaCompartida(c){ return !c.propia || miembrosDe(c.id).length>0; }
 
