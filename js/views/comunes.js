@@ -194,9 +194,11 @@ function renderTabs(){
     `<div class="menu-marca">${LOGO_HUCHA}Mis finanzas</div>` + item("Inicio") +
     GRUPOS_MENU.map(g=>`<div class="menu-group-title">${g.nombre}</div>${g.tabs.map(item).join("")}`).join("") +
     `<button class="menu-comunidad" data-tab="Comunidad"><strong>🌸 Comunidad &amp; Feedback</strong><span>Ideas, ayuda y supporters</span></button>` +
+    (sinCuenta() ? `<button class="menu-item menu-guardar" id="menuGuardar"><span class="mi">💾</span>Crear cuenta y guardar mis datos</button>` : "") +
     `<button class="menu-item menu-salir" id="menuLogout"><span class="mi">↩</span>Cerrar sesión</button>`;
   document.querySelectorAll("#menuPanel [data-tab]").forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; closeMenu(); render(); });
-  document.getElementById("menuLogout").onclick = ()=> sb.auth.signOut();
+  document.getElementById("menuLogout").onclick = ()=>{ closeMenu(); cerrarSesion(); };
+  const mg = document.getElementById("menuGuardar"); if(mg) mg.onclick = ()=>{ closeMenu(); guardarCuenta(); };
   document.querySelectorAll("[data-nav]").forEach(b=>{
     b.classList.toggle("active", b.dataset.nav===tab);
     b.onclick = ()=>{ tab = b.dataset.nav; closeMenu(); render(); window.scrollTo(0,0); };
