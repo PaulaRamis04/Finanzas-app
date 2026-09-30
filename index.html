@@ -469,6 +469,23 @@ button:not(:disabled):active, .fila:active, .cat-fila:active, .color-propio:acti
   button, .fila, .cat-fila, .color-propio, .pleg-cab, .item{transition:none!important}
   button:active, .fila:active, .cat-fila:active, .pleg-cab:active, .item:active, .color-propio:active{transform:none!important}
 }
+/* Hitos */
+.hitos-cab{text-align:center; background:linear-gradient(135deg, var(--peach-soft), var(--card) 75%)}
+.hitos-cuenta{font-size:15px; color:var(--muted); margin-top:4px}
+.hitos-cuenta b{font-size:30px; color:var(--ink); font-weight:800}
+.rachas{display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:12px; margin-bottom:6px}
+.racha{display:flex; gap:12px; align-items:center; background:var(--card); border:1px solid var(--line); border-radius:20px; padding:14px}
+.racha-ico{width:44px; height:44px; flex-shrink:0; border-radius:50%; background:var(--line); display:flex; align-items:center; justify-content:center; font-size:22px; filter:grayscale(1); opacity:.6}
+.racha.viva .racha-ico{background:var(--peach-soft); filter:none; opacity:1}
+.hitos-grid{display:grid; grid-template-columns:repeat(4, 1fr); gap:10px}
+@media (min-width:700px){ .hitos-grid{grid-template-columns:repeat(6, 1fr)} }
+.hito{background:var(--card); border:2px solid var(--line); border-radius:18px; padding:12px 4px 10px; display:flex; flex-direction:column; align-items:center; gap:6px; font-family:inherit; color:var(--muted); cursor:pointer; min-width:0}
+.hito.ok{border-color:color-mix(in srgb, var(--accent) 45%, var(--line)); background:linear-gradient(180deg, var(--accent-soft), var(--card)); color:var(--ink)}
+.hito-ico{font-size:28px; line-height:1}
+.hito:not(.ok) .hito-ico{opacity:.55}
+.hito-nom{font-size:11px; font-weight:700; line-height:1.2; text-align:center; overflow-wrap:break-word; hyphens:auto; max-width:100%}
+.hito-hoja-ico{font-size:34px; background:var(--accent-soft)}
+.hito-hoja-ico.bloqueado{background:var(--line)}
 </style>
 </head>
 <body>
@@ -562,6 +579,7 @@ button:not(:disabled):active, .fila:active, .cat-fila:active, .color-propio:acti
 <script src="js/views/deudas.js"></script>
 <script src="js/views/inversiones.js"></script>
 <script src="js/views/objetivos.js"></script>
+<script src="js/views/hitos.js"></script>
 <script src="js/views/proyeccion.js"></script>
 <script src="js/views/recurrentes.js"></script>
 <script src="js/views/categorias.js"></script>

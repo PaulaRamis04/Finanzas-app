@@ -222,6 +222,9 @@ const TABLAS = {
     set:d=>{ objetivos = d.map(o=>({id:o.id, nombre:o.nombre, meta:Number(o.meta), tipoVinculo:o.tipo_vinculo, vinculoId:o.vinculo_id, orden:o.orden||0,
       autoActivo:!!o.auto_activo, autoCuota:o.auto_cuota!=null?Number(o.auto_cuota):null, autoDiaMes:o.auto_dia_mes||null, autoCuentaOrigen:o.auto_cuenta_origen||null, autoUltimaGenerada:o.auto_ultima_generada||null,
       tema:o.tema||null, ahorrado:Number(o.ahorrado||0)})).sort(porOrden); } },
+  // Fechas de los hitos conseguidos. Sin schema_hitos.sql la tabla no existe y se guardan en este dispositivo.
+  hitos: { q:async ()=>{ const r = await sb.from("hitos").select("clave, fecha"); return {data:{filas:r.data||[], ok:!r.error}, error:null}; }, sinRealtime:true,
+    set:d=>fijarHitos(d) },
   preferencias: { q:()=>sb.from("preferencias").select("*"), opcional:true, sinRealtime:true,
     set:d=>{ if(!d[0]) return;
       cuentaDefecto = d[0].cuenta_defecto || "";
@@ -249,6 +252,7 @@ async function recargar(tablas = Object.keys(TABLAS), {procesar=false} = {}){
     // Presupuestos/deudas pueden pedir más histórico del que se calculó antes de tenerlos.
     if(movParcial && calcularMovDesde()<movDesde){ await recargar(["movimientos"]); return; }
     detectarObjetivosCompletados();
+    sincronizarHitos();
     hideError(); ready = true;
     const ae = document.activeElement;
     const escribiendo = refrescoSilencioso && (arrastrando || (ae && ["INPUT","SELECT","TEXTAREA"].includes(ae.tagName) && document.getElementById("app").contains(ae)));
@@ -407,7 +411,7 @@ async function startApp(){
 // ── Perfiles: varias cuentas recordadas en este dispositivo ──
 // Cada perfil guarda su sesión de Supabase y sus preferencias locales. Para cambiar se escribe
 // su sesión donde la lee supabase-js y se recarga (sin cerrar la de las demás en el servidor).
-const PREFS_PERFIL = ["cuentaDefecto","objCompletados","catsContraidas","formsPorDefecto","personalizacion","fondoImagen","avisosVistos","accionesRapidas"];
+const PREFS_PERFIL = ["cuentaDefecto","objCompletados","catsContraidas","formsPorDefecto","personalizacion","fondoImagen","avisosVistos","accionesRapidas","hitos"];
 const claveSesionSb = ()=> sb.auth.storageKey || `sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`;
 function leerPerfiles(){ try{ const a = JSON.parse(localStorage.getItem("perfiles")||"[]"); return Array.isArray(a) ? a : []; }catch(e){ return []; } }
 function escribirPerfiles(l){ try{ localStorage.setItem("perfiles", JSON.stringify(l)); }catch(e){} }

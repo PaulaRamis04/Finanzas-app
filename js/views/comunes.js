@@ -166,7 +166,7 @@ function closeMenu(){
 
 const TITULOS_TAB = {"Resumen del mes":"Análisis","Comunidad":"Comunidad & Feedback"};
 const ICONOS_MENU = {"Inicio":"🏠","Gastos":"💸","Resumen del mes":"📊","Presupuestos":"🧮","Movimientos":"📒","Cuentas":"👛","Deudas":"🤝","Recurrentes":"📅",
-  "Inversiones":"🌱","Objetivos":"🐷","Proyección":"🔮","Categorías":"🏷️","Preferencias":"⚙️","Personalización":"🎨","Comunidad":"🌸"};
+  "Inversiones":"🌱","Objetivos":"🐷","Hitos":"🏆","Proyección":"🔮","Categorías":"🏷️","Preferencias":"⚙️","Personalización":"🎨","Comunidad":"🌸"};
 const LOGO_HUCHA = `<svg viewBox="0 0 64 64" aria-hidden="true"><ellipse cx="32" cy="36" rx="22" ry="17" fill="#f7b3ac"/><circle cx="54" cy="36" r="6" fill="#f39c93"/><circle cx="52.5" cy="35" r="1.2" fill="#b8615a"/><circle cx="55.5" cy="35" r="1.2" fill="#b8615a"/><path d="M20 22l-2-9 9 5z" fill="#f39c93"/><circle cx="44" cy="30" r="2" fill="#4a3b3b"/><rect x="26" y="19" width="12" height="3" rx="1.5" fill="#b8615a"/><rect x="18" y="48" width="6" height="8" rx="3" fill="#f39c93"/><rect x="38" y="48" width="6" height="8" rx="3" fill="#f39c93"/></svg>`;
 
 // Aviso amable en lo que es solo para premium. Aún no hay pago: premium se activa desde Supabase.
