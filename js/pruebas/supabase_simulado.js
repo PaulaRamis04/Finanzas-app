@@ -122,6 +122,10 @@
         if(password!=="secreta123") return {data:{}, error:{message:"Invalid login credentials"}};
         session = {user:usuario}; avisar("SIGNED_IN"); return {data:{session}, error:null};
       },
+      signInAnonymously: async ()=>{
+        auth.push(["signInAnonymously"]);
+        session = {user:{id:"u1", email:"", is_anonymous:true, user_metadata:{}}}; avisar("SIGNED_IN"); return {data:{session}, error:null};
+      },
       signUp: async (d)=>{ auth.push(["signUp", d]); return {data:{user:{id:"u2", identities:[{}]}, session:null}, error:null}; },
       resetPasswordForEmail: async (email, o)=>{ auth.push(["resetPasswordForEmail", email, o]); return {error:null}; }
     },
