@@ -2,51 +2,39 @@
 
 function movItem(m, cubMov, pendMov){
   const protegido = movimientoProtegido(m.id);
+  const abierto = movAbiertoId===m.id || editarMovId===m.id || meDebenMovId===m.id;
   if(m.transferenciaId){
     const otro = movimientos.find(x=>x.transferenciaId===m.transferenciaId && x.id!==m.id);
     if(m.tipo==="gasto" && otro){
       return `
-      <div class="item">
-        <div>
-          <span class="tag">Transferencia</span>
-          <div class="meta">${cuentaNombre(m.cuentaId)} → ${cuentaNombre(otro.cuentaId)}</div>
-          ${m.nota && m.nota!=="Transferencia"?`<div class="meta">${esc(m.nota)}</div>`:""}
-          <div class="meta">${m.fecha}</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px">
-          <div class="amt">${eur(m.importe)}</div>
-          <button class="btn ghost" data-del-transferencia="${m.transferenciaId}">Borrar</button>
-        </div>
-      </div>`;
+      ${filaMov(m, {attrs:`data-abrir-mov="${m.id}"`, extra:`${cuentaNombre(m.cuentaId)} → ${cuentaNombre(otro.cuentaId)}`, fecha:false, clase:abierto?"abierta":""})}
+      ${abierto? `<div class="fila-extra">
+        ${m.nota && m.nota!=="Transferencia"?`<div class="meta">${esc(m.nota)}</div>`:""}
+        <div class="chips"><button class="chip peligro" data-del-transferencia="${m.transferenciaId}">Borrar</button></div>
+      </div>` : ""}`;
     }
     return ""; // el lado "ingreso" del par ya se muestra junto al "gasto"
   }
+  const notas = [
+    m.saldoBanco!=null ? `Saldo banco: ${eur(m.saldoBanco)}` : "",
+    m.recurrenteId ? "Generado automáticamente (recurrente)" : "",
+    m.reembolsoDe ? "Reembolso de un gasto: no cuenta como ingreso" : "",
+    pendMov[m.id] ? `Te deben ${eur(pendMov[m.id])} (pendiente: hasta que lo cobres, cuenta entero)` : "",
+    cubMov[m.id] ? `Ya cobrado: ${eur(cubMov[m.id])} · cuenta ${eur(Math.max(0,restarDinero(m.importe, cubMov[m.id])))} como gasto tuyo` : "",
+  ].filter(Boolean);
+  const sub = `${m.nota ? m.categoria : ""}${m.nota ? " · " : ""}${cuentaNombre(m.cuentaId)}${m.conciliado ? " · ✓" : ""}`;
   return `
-  <div class="item">
-    <div>
-      <span class="tag">${esc(m.categoria)}</span>
-      <span class="tag">${cuentaNombre(m.cuentaId)}</span>
-      ${m.nota?`<div class="meta">${esc(m.nota)}</div>`:""}
-      ${m.saldoBanco!=null?`<div class="meta">Saldo banco: ${eur(m.saldoBanco)}</div>`:""}
-      ${m.recurrenteId? `<div class="meta">Generado automáticamente (recurrente)</div>` : ""}
-      ${m.reembolsoDe? `<div class="meta">Reembolso de un gasto: no cuenta como ingreso</div>` : ""}
-      ${pendMov[m.id]? `<div class="meta">Te deben ${eur(pendMov[m.id])} (pendiente: hasta que lo cobres, cuenta entero)</div>` : ""}
-      ${cubMov[m.id]? `<div class="meta">Ya cobrado: ${eur(cubMov[m.id])} · cuenta ${eur(Math.max(0,restarDinero(m.importe, cubMov[m.id])))} como gasto tuyo</div>` : ""}
-      <div class="meta">${m.fecha}</div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
-        ${m.tipo==='gasto' && !m.reembolsoDe && m.categoria!=='Inversión' && m.categoria!=='Ajuste' && m.categoria!=='Transferencia' && meDebenMovId!==m.id? `<button class="tag" data-me-deben="${m.id}" style="cursor:pointer;border:none;font-family:inherit">Me deben…</button>` : ""}
-        ${!protegido && editarMovId!==m.id? `<button class="tag" data-editar-mov="${m.id}" style="cursor:pointer;border:none;font-family:inherit">Editar</button>` : ""}
-        <button class="tag" data-duplicar-mov="${m.id}" style="cursor:pointer;border:none;font-family:inherit">Repetir</button>
-        <button class="tag" data-toggle-conciliado="${m.id}" style="cursor:pointer;border:none;font-family:inherit;${m.conciliado?'background:var(--pos);color:#fff':''}">${m.conciliado?"✓ Conciliado":"Sin conciliar"}</button>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:10px">
-      <div class="amt ${m.tipo==='ingreso'?'pos':'neg'}">${m.tipo==='ingreso'?'+':'-'}${eur(m.importe)}</div>
-      <button class="btn ghost" data-del-mov="${m.id}">Borrar</button>
-    </div>
-  </div>
-  ${meDebenMovId===m.id? `
-  <div class="item" style="flex-direction:column;align-items:stretch;gap:8px">
+  ${filaMov(m, {attrs:`data-abrir-mov="${m.id}"`, extra:sub, fecha:false, clase:abierto?"abierta":""})}
+  ${abierto? `<div class="fila-extra">
+    ${notas.map(n=>`<div class="meta">${n}</div>`).join("")}
+    ${meDebenMovId!==m.id && editarMovId!==m.id? `<div class="chips">
+      ${!protegido? `<button class="chip" data-editar-mov="${m.id}">Editar</button>` : ""}
+      <button class="chip lav" data-duplicar-mov="${m.id}">Repetir</button>
+      ${m.tipo==='gasto' && !m.reembolsoDe && m.categoria!=='Inversión' && m.categoria!=='Ajuste' && m.categoria!=='Transferencia'? `<button class="chip" data-me-deben="${m.id}" style="background:var(--peach-soft);color:#c77a2e">Me deben…</button>` : ""}
+      <button class="chip ${m.conciliado?'ok':''}" data-toggle-conciliado="${m.id}" ${m.conciliado?"":`style="background:var(--line);color:var(--muted)"`}>${m.conciliado?"✓ Conciliado":"Sin conciliar"}</button>
+      <button class="chip peligro" data-del-mov="${m.id}">Borrar</button>
+    </div>` : ""}
+    ${meDebenMovId===m.id? `
     <label>¿Quién te lo debe?</label>
     <input id="mdPersona" placeholder="ej. Marta">
     <label>Cuánto te deben (€)</label>
@@ -55,10 +43,8 @@ function movItem(m, cubMov, pendMov){
     <div style="display:flex;gap:8px">
       <button class="btn" data-confirmar-me-deben="${m.id}">Crear deuda</button>
       <button class="btn ghost" data-cancelar-me-deben="1">Cancelar</button>
-    </div>
-  </div>` : ""}
-  ${editarMovId===m.id? `
-  <div class="item" style="flex-direction:column;align-items:stretch;gap:8px">
+    </div>` : ""}
+    ${editarMovId===m.id? `
     <label>Tipo</label>
     <select id="movEditTipo">
       <option value="gasto"${m.tipo==="gasto"?" selected":""}>Gasto</option>
@@ -77,7 +63,7 @@ function movItem(m, cubMov, pendMov){
     <div style="display:flex;gap:8px">
       <button class="btn" data-confirmar-editar-mov="${m.id}">Guardar</button>
       <button class="btn ghost" data-cancelar-editar-mov="1">Cancelar</button>
-    </div>
+    </div>` : ""}
   </div>` : ""}`;
 }
 
@@ -87,10 +73,8 @@ function renderMovimientosLista(){
   const pendMov = pendientePorMovimiento();
   const hayFiltro = movBuscarTexto.trim() || movFiltroCategoria;
   return `
-  <div class="section-title">Historial (${items.length})</div>
-  <div class="list">
-    ${items.length? items.map(m=>movItem(m,cubMov,pendMov)).join("") : `<div class="empty">${hayFiltro? "Nada coincide con el filtro." : "Aún no hay movimientos. Añade el primero arriba."}</div>`}
-  </div>`;
+  <div class="section-title">Historial <span class="meta" style="font-size:13px">(${items.length})</span></div>
+  ${items.length? listaPorDias(items, m=>movItem(m,cubMov,pendMov)) : `<div class="empty">${hayFiltro? "Nada coincide con el filtro." : "Aún no hay movimientos. Añade el primero arriba."}</div>`}`;
 }
 
 function renderMovimientos(){
@@ -117,7 +101,7 @@ function renderMovimientos(){
   </div>
   <div class="card">
     <h2>Transferencia entre cuentas</h2>
-    <p class="meta" style="margin:0 0 10px">Mueve dinero de una cuenta a otra sin que cuente como gasto ni ingreso.</p>
+    <p class="meta" style="margin:0 0 12px">Mueve dinero de una cuenta a otra sin que cuente como gasto ni ingreso.</p>
     ${cuentasActivas().length<2? `<div class="meta">Necesitas al menos dos cuentas para transferir entre ellas.</div>` : `
     <form id="fTransferencia">
       <div class="row2">
@@ -132,11 +116,9 @@ function renderMovimientos(){
       <button class="btn" type="submit">Transferir</button>
     </form>`}
   </div>`}
-  <div class="card">
-    <div class="row2">
-      <div><label>Buscar en concepto</label><input id="movBuscar" placeholder="ej. supermercado" value="${esc(movBuscarTexto)}"></div>
-      <div><label>Categoría</label><select id="movFiltroCat"><option value="">Todas</option>${categoriasPresentes.map(c=>`<option value="${esc(c)}"${c===movFiltroCategoria?" selected":""}>${esc(c)}</option>`).join("")}</select></div>
-    </div>
+  <div class="buscador">
+    <div class="buscar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="movBuscar" placeholder="Buscar" aria-label="Buscar en concepto" value="${esc(movBuscarTexto)}"></div>
+    <select id="movFiltroCat" aria-label="Categoría"><option value="">Todas</option>${categoriasPresentes.map(c=>`<option value="${esc(c)}"${c===movFiltroCategoria?" selected":""}>${esc(c)}</option>`).join("")}</select>
   </div>
   <div id="movListaWrap">${renderMovimientosLista()}</div>`;
 }
@@ -178,6 +160,14 @@ function wireEventosMovimientos(){
     wireListaMovimientos();
   }
   function wireListaMovimientos(){
+    document.querySelectorAll("[data-abrir-mov]").forEach(b=>b.onclick=()=>{
+      const id = b.dataset.abrirMov;
+      const cerrar = movAbiertoId===id || editarMovId===id || meDebenMovId===id;
+      movAbiertoId = cerrar ? null : id;
+      if(cerrar || (editarMovId && editarMovId!==id)) editarMovId = null;
+      if(cerrar || (meDebenMovId && meDebenMovId!==id)) meDebenMovId = null;
+      refrescarListaMov();
+    });
     document.querySelectorAll("[data-del-mov]").forEach(b=>b.onclick=()=>{
       if(!confirm("¿Borrar este movimiento?")) return;
       conCarga(b, "Borrando…", async ()=>{

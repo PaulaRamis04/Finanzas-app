@@ -9,9 +9,11 @@ function deudaItem(d){
   const abonos = abonosDeDeuda(d.id);
   const abonado = Math.round(((d.importeInicial||d.importe) - d.importe)*100)/100;
   return `
-  <div class="item" style="${pend?'':'opacity:.72'}">
-    <div style="min-width:0">
-      <strong>${esc(d.persona)}</strong>
+  <div class="item" style="flex-direction:column;align-items:stretch;gap:10px;${pend?'':'opacity:.72'}">
+    <div style="display:flex;align-items:center;gap:12px">
+    <div class="ico-cat" style="border-radius:50%;background:${d.direccion==='me_deben'?'var(--mint-soft)':'var(--accent-soft)'};color:${d.direccion==='me_deben'?'var(--mint)':'var(--accent)'};font-weight:800;font-size:17px">${esc((d.persona||"?").trim().charAt(0).toUpperCase())}</div>
+    <div style="min-width:0;flex:1">
+      <strong style="font-size:15px">${esc(d.persona)}</strong>
       ${!pend?'<span class="tag">Saldada</span>':''}
       ${pend && d.direccion==='me_deben'? `<button class="tag" data-pres-deuda="${d.id}" style="cursor:pointer;border:none;font-family:inherit">${d.movimientoId? "Gasto: "+etiquetaGasto(d.movimientoId) : "+ Vincular gasto"}</button>` : (d.movimientoId? `<span class="tag">Gasto: ${etiquetaGasto(d.movimientoId)}</span>` : "")}
       ${d.concepto?`<div class="meta">${esc(d.concepto)}</div>`:""}
@@ -19,10 +21,11 @@ function deudaItem(d){
       ${abonos.length? `<div class="meta">Importe inicial: ${eur(d.importeInicial)} · Abonado: ${eur(abonado)} · Pendiente: ${eur(d.importe)}</div>` : ""}
       ${abonos.length? `<button class="tag" data-ver-abonos="${d.id}" style="cursor:pointer;border:none;font-family:inherit;margin-top:4px">${verAbonosDeudaId===d.id?"Ocultar abonos":`Ver abonos (${abonos.length})`}</button>` : ""}
     </div>
-    <div style="display:flex;align-items:center;gap:8px">
-      <div class="amt ${d.direccion==='me_deben'?'pos':'neg'}">${eur(d.importe)}</div>
-      ${pend && saldarId!==d.id?`<button class="btn gold" data-saldar="${d.id}">Abonar</button>`:''}
-      <button class="btn ghost" data-del-deuda="${d.id}">Borrar</button>
+    <div class="amt ${d.direccion==='me_deben'?'pos':'neg'}">${eur(d.importe)}</div>
+    </div>
+    <div class="chips">
+      ${pend && saldarId!==d.id?`<button class="chip ok" data-saldar="${d.id}">Abonar</button>`:''}
+      <button class="chip peligro" data-del-deuda="${d.id}">Borrar</button>
     </div>
   </div>
   ${verAbonosDeudaId===d.id? `
