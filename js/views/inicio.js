@@ -86,6 +86,17 @@ function renderInicio(){
     <button class="btn ghost" data-ir-tab="Hitos">Ver mis hitos</button>
   </div>`;
 
+  const {nota:notaSalud} = evaluarSalud();
+  const bloqueSalud = `
+  <div class="card cierre-banner">
+    <div class="cierre-banner-ico">🚦</div>
+    <div style="flex:1 1 160px;min-width:0">
+      <strong style="font-size:16px">¿Cómo estoy?</strong>
+      <div class="meta">${notaSalud===null ? "Tu semáforo financiero" : `Salud financiera: ${notaSalud}/100`}</div>
+    </div>
+    <button class="btn ghost" data-ir-tab="Salud">Ver mi semáforo</button>
+  </div>`;
+
   const porMes = periodoMes!=="todos";
   const presupuestoTotal = porMes ? presupuestos.reduce((s,p)=>sumarDinero(s, p.limite, rolloverAcumulado(p)), 0) : 0;
   const pctPat = patIni ? delta/Math.abs(patIni)*100 : 0;
@@ -136,6 +147,7 @@ function renderInicio(){
   </div>` : `<div class="card">${vacio("hucha","Aún no hay movimientos","Toca «Añadir» para apuntar el primero.")}</div>`}
   ${bloqueAlertas}
   ${bloqueObjetivos}
+  ${bloqueSalud}
   ${bloqueHitos}
   <div class="card">
     <h2>📈 Patrimonio</h2>
@@ -181,6 +193,7 @@ const CATALOGO_ACCIONES = [
   {id:"Inversiones", ico:"🌱", txt:"Invertir", largo:"Inversiones", fondo:"var(--mint-soft)"},
   {id:"Objetivos", ico:"🎯", txt:"Objetivos", largo:"Objetivos", fondo:"var(--accent-soft)"},
   {id:"Hitos", ico:"🏆", txt:"Hitos", largo:"Mis hitos", fondo:"var(--peach-soft)"},
+  {id:"Salud", ico:"🚦", txt:"¿Cómo estoy?", largo:"¿Cómo estoy?", fondo:"var(--mint-soft)"},
   {id:"Recurrentes", ico:"📅", txt:"Recurr.", largo:"Recurrentes", fondo:"var(--lav-soft)"},
   {id:"Proyección", ico:"🔮", txt:"Proyección", largo:"Proyección", fondo:"var(--lav-soft)"},
   {id:"Categorías", ico:"🏷️", txt:"Categorías", largo:"Categorías", fondo:"var(--mint-soft)"},

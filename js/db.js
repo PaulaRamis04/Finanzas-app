@@ -225,6 +225,9 @@ const TABLAS = {
   // Fechas de los hitos conseguidos. Sin schema_hitos.sql la tabla no existe y se guardan en este dispositivo.
   hitos: { q:async ()=>{ const r = await sb.from("hitos").select("clave, fecha"); return {data:{filas:r.data||[], ok:!r.error}, error:null}; }, sinRealtime:true,
     set:d=>fijarHitos(d) },
+  // Objetivos del semáforo «¿Cómo estoy?». Sin schema_salud.sql la tabla no existe y se guardan en este dispositivo.
+  salud_config: { q:async ()=>{ const r = await sb.from("salud_config").select("config"); return {data:{config:r.data?.[0]?.config||null, ok:!r.error}, error:null}; }, sinRealtime:true,
+    set:d=>fijarSaludConfig(d) },
   preferencias: { q:()=>sb.from("preferencias").select("*"), opcional:true, sinRealtime:true,
     set:d=>{ if(!d[0]) return;
       cuentaDefecto = d[0].cuenta_defecto || "";
@@ -411,7 +414,7 @@ async function startApp(){
 // ── Perfiles: varias cuentas recordadas en este dispositivo ──
 // Cada perfil guarda su sesión de Supabase y sus preferencias locales. Para cambiar se escribe
 // su sesión donde la lee supabase-js y se recarga (sin cerrar la de las demás en el servidor).
-const PREFS_PERFIL = ["cuentaDefecto","objCompletados","catsContraidas","formsPorDefecto","personalizacion","fondoImagen","avisosVistos","accionesRapidas","hitos"];
+const PREFS_PERFIL = ["cuentaDefecto","objCompletados","catsContraidas","formsPorDefecto","personalizacion","fondoImagen","avisosVistos","accionesRapidas","hitos","saludConfig"];
 const claveSesionSb = ()=> sb.auth.storageKey || `sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`;
 function leerPerfiles(){ try{ const a = JSON.parse(localStorage.getItem("perfiles")||"[]"); return Array.isArray(a) ? a : []; }catch(e){ return []; } }
 function escribirPerfiles(l){ try{ localStorage.setItem("perfiles", JSON.stringify(l)); }catch(e){} }
