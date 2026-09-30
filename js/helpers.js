@@ -231,10 +231,10 @@ function donutClicable(desc, tipo, atributo, categoriaElegida){
   </svg>`;
 }
 
-function lanzarConfeti(mensajeHtml){
+function lanzarConfeti(mensajeHtml, titulo = "¡Objetivo conseguido!"){
   const aviso = document.createElement("div");
   aviso.style.cssText = "position:fixed;left:50%;top:22%;transform:translateX(-50%);z-index:61;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:18px;padding:14px 22px;box-shadow:0 10px 40px rgba(0,0,0,.25);text-align:center;max-width:82%;pointer-events:none;transition:opacity .5s";
-  aviso.innerHTML = `<div style="font-size:12px;color:var(--pos);font-weight:800">¡Objetivo conseguido!</div><div style="font-size:17px;font-weight:800;margin-top:3px">${mensajeHtml}</div>`;
+  aviso.innerHTML = `<div style="font-size:12px;color:var(--pos);font-weight:800">${titulo}</div><div style="font-size:17px;font-weight:800;margin-top:3px">${mensajeHtml}</div>`;
   document.body.appendChild(aviso);
   setTimeout(()=>{ aviso.style.opacity = "0"; setTimeout(()=>aviso.remove(), 600); }, 3300);
   if(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
