@@ -14,6 +14,7 @@ function render(){
   if(!ready){ app.innerHTML = `<div class="status">Cargando...</div>`; return; }
   if(TABS_PREMIUM.includes(tab) && !esPremium) app.innerHTML = avisoPremium(tab);
   else if(tab==="Inicio") app.innerHTML = renderInicio();
+  else if(tab==="Salud") app.innerHTML = renderSalud();
   else if(tab==="Gastos") app.innerHTML = renderGastos();
   else if(tab==="Resumen del mes") app.innerHTML = renderResumen();
   else if(tab==="Presupuestos") app.innerHTML = renderPresupuestos();
@@ -23,6 +24,7 @@ function render(){
   else if(tab==="Cuentas") app.innerHTML = renderCuentas();
   else if(tab==="Inversiones") app.innerHTML = renderInversiones();
   else if(tab==="Objetivos") app.innerHTML = renderObjetivos();
+  else if(tab==="Vivienda") app.innerHTML = renderVivienda();
   else if(tab==="Hitos") app.innerHTML = renderHitos();
   else if(tab==="Proyección") app.innerHTML = renderProyeccion();
   else if(tab==="Simulador") app.innerHTML = renderSimulador();
@@ -66,7 +68,9 @@ function wireEvents(){
   wireEventosPresupuestos();
   wireEventosPermitir();
   wireEventosObjetivos();
+  wireEventosVivienda();
   wireEventosHitos();
+  wireEventosSalud();
   wireEventosComunidad();
 }
 

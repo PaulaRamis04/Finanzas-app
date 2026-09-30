@@ -479,6 +479,9 @@ button:not(:disabled):active, .fila:active, .cat-fila:active, .color-propio:acti
 .permitir-hucha{display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; font-size:14px}
 .permitir-hucha b{margin-left:auto}
 
+/* Simulador de vivienda */
+.viv-col{min-width:92px; font-variant-numeric:tabular-nums}
+
 /* Hitos */
 .hitos-cab{text-align:center; background:linear-gradient(135deg, var(--peach-soft), var(--card) 75%)}
 .hitos-cuenta{font-size:15px; color:var(--muted); margin-top:4px}
@@ -496,6 +499,27 @@ button:not(:disabled):active, .fila:active, .cat-fila:active, .color-propio:acti
 .hito-nom{font-size:11px; font-weight:700; line-height:1.2; text-align:center; overflow-wrap:break-word; hyphens:auto; max-width:100%}
 .hito-hoja-ico{font-size:34px; background:var(--accent-soft)}
 .hito-hoja-ico.bloqueado{background:var(--line)}
+/* ¿Cómo estoy? */
+.salud-cab{background:linear-gradient(135deg, var(--mint-soft), var(--card) 75%)}
+.salud-lista{display:flex; flex-direction:column; gap:6px; margin-top:12px}
+.salud-fila{display:flex; align-items:center; gap:10px; width:100%; text-align:left; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:12px 14px; font:inherit; font-size:15px; color:var(--ink); cursor:pointer}
+.salud-luz{font-size:18px; line-height:1}
+.salud-txt{flex:1; min-width:0}
+.salud-pts{font-weight:800; color:var(--muted); font-size:13px}
+.salud-detalle{padding:2px 14px 8px 42px}
+.salud-detalle p{margin:0 0 4px}
+.salud-nota{display:flex; align-items:center; gap:16px; margin-top:18px; flex-wrap:wrap}
+.salud-nota strong{font-size:18px}
+.salud-nota p{margin:4px 0 0}
+.salud-anillo{width:108px; height:108px; flex-shrink:0}
+.salud-ajustes-cab{display:flex; justify-content:space-between; align-items:center; width:100%; background:none; border:0; padding:0; font:inherit; color:var(--ink); cursor:pointer}
+.salud-ajustes-cab h2{margin:0}
+.salud-form{margin-top:12px}
+.salud-campo{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); font-size:14px}
+.salud-campo select{width:auto}
+.salud-num{display:flex; align-items:center; gap:6px; flex-shrink:0}
+.salud-num input{width:78px; text-align:right}
+.salud-num i{font-style:normal; color:var(--muted); font-size:12px; max-width:90px}
 </style>
 </head>
 <body>
@@ -590,7 +614,9 @@ button:not(:disabled):active, .fila:active, .cat-fila:active, .color-propio:acti
 <script src="js/views/deudas.js"></script>
 <script src="js/views/inversiones.js"></script>
 <script src="js/views/objetivos.js"></script>
+<script src="js/views/vivienda.js"></script>
 <script src="js/views/hitos.js"></script>
+<script src="js/views/salud.js"></script>
 <script src="js/views/proyeccion.js"></script>
 <script src="js/views/simulador.js"></script>
 <script src="js/views/recurrentes.js"></script>

@@ -8,7 +8,7 @@ const assert = require("assert");
 
 const RAIZ = path.join(__dirname, "..");
 const HTML_PRUEBA = path.join(RAIZ, "index.pruebas.html");
-const PESTANAS = ["Inicio","Gastos","Resumen del mes","Presupuestos","Permitir","Movimientos","Cuentas","Deudas","Inversiones","Objetivos","Hitos","Proyección","Simulador","Recurrentes","Categorías","Preferencias","Personalización","Notificaciones","Comunidad"];
+const PESTANAS = ["Inicio","Salud","Gastos","Resumen del mes","Presupuestos","Permitir","Movimientos","Cuentas","Deudas","Inversiones","Objetivos","Vivienda","Hitos","Proyección","Simulador","Recurrentes","Categorías","Preferencias","Personalización","Notificaciones","Comunidad"];
 
 const pruebas = [];
 const prueba = (nombre, fn)=>pruebas.push({nombre, fn});
@@ -623,6 +623,97 @@ prueba("¿me lo puedo permitir?: enseña cómo quedaría todo después de la com
   await p.evaluate(()=>{ tab = "Inicio"; render(); tab = "Permitir"; render(); });
   assert.strictEqual(await p.$eval("#permImporte", i=>i.value), "650");
   assert.ok((await p.innerText("#permResultado")).includes("Después de Móvil"));
+});
+
+prueba("¿cómo estoy?: semáforo con nota y objetivos configurables", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>{ tab = "Salud"; render(); });
+  // Carga los 6 meses cerrados que necesita aunque la carga inicial fuese parcial.
+  await p.waitForFunction(()=>!movParcial || movDesde<=mesesAntes(6)[0]+"-01");
+  let texto = await p.evaluate(()=>document.getElementById("app").innerText);
+  for(const t of ["Ahorro:","Deuda: sin deudas","Fondo de emergencia:","Inversión:","Gastos:"]) assert.ok(texto.includes(t), t);
+  const {nota} = await p.evaluate(()=>evaluarSalud());
+  assert.ok(Number.isInteger(nota) && nota>=0 && nota<=100, "nota "+nota);
+  assert.ok(texto.includes(`Salud financiera: ${nota}/100`), texto.slice(0, 400));
+  // El detalle se despliega al tocar el indicador.
+  await p.click('[data-salud="deuda"]');
+  assert.ok(await p.isVisible("#saludDet_deuda"));
+  // Una deuda enorme pone la deuda en rojo y baja la nota.
+  await p.evaluate(async ()=>{ __db.deudas.push({id:"d9", persona:"Banco", importe:100000, importe_inicial:100000, direccion:"debo", concepto:"hipoteca", estado:"pendiente", fecha:today()}); await recargar(["deudas"]); });
+  texto = await p.evaluate(()=>document.getElementById("app").innerText);
+  assert.ok(texto.includes("Deuda: alta"), texto.slice(0, 400));
+  const conDeuda = await p.evaluate(()=>evaluarSalud().nota);
+  assert.ok(conDeuda<nota, `${conDeuda} < ${nota}`);
+  // Si la deuda no cuenta, la nota no la tiene en cuenta; los objetivos se guardan en la tabla.
+  await p.click("#saludAjustes");
+  await p.selectOption("#saludPeso_deuda", "0");
+  await p.fill("#salud_ahorro", "35");
+  await p.click("#saludGuardar");
+  await p.waitForFunction(()=>__db.salud_config.length===1);
+  const cfg = await p.evaluate(()=>__db.salud_config[0].config);
+  assert.strictEqual(cfg.ahorro, 35);
+  assert.strictEqual(cfg.pesos.deuda, 0);
+  texto = await p.evaluate(()=>document.getElementById("app").innerText);
+  assert.ok(texto.includes("(no cuenta)"));
+  assert.ok((await p.textContent("#saludDet_ahorro")).includes("tu objetivo: 35 %"));
+  assert.strictEqual(await p.evaluate(()=>evaluarSalud().nota), await p.evaluate(()=>{
+    const l = evaluarSalud().lista.filter(i=>i.puntos!==null && i.id!=="deuda");
+    return Math.round(l.reduce((s,i)=>s+i.puntos, 0)/l.length);
+  }));
+  // Inicio enseña la nota.
+  const notaFinal = await p.evaluate(()=>{ tab = "Inicio"; render(); return evaluarSalud().nota; });
+  assert.ok((await p.evaluate(()=>document.getElementById("app").innerText)).includes(`Salud financiera: ${notaFinal}/100`));
+  // Sin la tabla «salud_config» se guardan en este dispositivo.
+  const local = await p.evaluate(async ()=>{
+    delete __db.salud_config; await recargar(["salud_config"]);
+    tab = "Salud"; saludAjustesAbiertos = true; render();
+    document.getElementById("salud_inversion").value = "15";
+    document.getElementById("saludGuardar").click();
+    await new Promise(r=>setTimeout(r, 50));
+    return {enBd:saludEnBd, local:JSON.parse(localStorage.getItem("saludConfig")||"{}")};
+  });
+  assert.strictEqual(local.enBd, false);
+  assert.strictEqual(local.local.inversion, 15);
+});
+
+prueba("simulador de vivienda: cifras, hucha 🏠 y comparación con otra persona", async ()=>{
+  const p = await abrir();
+  await p.evaluate(async ()=>{
+    __db.objetivos.push({id:"ov", nombre:"Piso", meta:70000, tipo_vinculo:"ninguno", ahorrado:20000, tema:"casa", orden:2, auto_activo:true, auto_cuota:1000, auto_dia_mes:1, auto_cuenta_origen:"c1"});
+    await recargar(["objetivos"]);
+    tab = "Vivienda"; render();
+  });
+  const txt = id=>p.textContent("#"+id);
+  // 300.000 € con 20 % de entrada y 10 % de gastos, partiendo de la hucha (20.000 € y 1.000 €/mes).
+  assert.strictEqual(await p.inputValue("#vivAhorro"), "20000");
+  assert.strictEqual(await p.inputValue("#vivMensual"), "1000");
+  assert.strictEqual(await txt("vivNecesario"), "€90000,00");
+  assert.strictEqual(await txt("vivFaltan"), "€70000,00");
+  assert.strictEqual(await txt("vivTiempo"), "5 años y 10 meses");
+  // Se recalcula al escribir, sin perder el foco.
+  await p.fill("#vivGastos", "0");
+  assert.strictEqual(await txt("vivNecesario"), "€60000,00");
+  assert.strictEqual(await txt("vivTiempo"), "3 años y 4 meses");
+  assert.strictEqual(await p.evaluate(()=>document.activeElement.id), "vivGastos");
+  await p.fill("#vivMensual", "0");
+  assert.strictEqual(await txt("vivTiempo"), "Sin ahorro mensual no se llega");
+  await p.fill("#vivMensual", "1000");
+  // Con otra persona: suma su ahorro y su ritmo, y se muestran las dos columnas.
+  await p.check("#vivConOtra");
+  await p.fill("#vivOtraNombre", "Alex");
+  await p.fill("#vivOtraAhorro", "10000");
+  await p.fill("#vivOtraMensual", "1000");
+  const comp = await p.textContent("#vivComparacion");
+  assert.ok(comp.includes("Tú + Alex"), comp);
+  assert.ok(comp.includes("3 años y 4 meses") && comp.includes("1 año y 3 meses"), comp);
+  assert.ok(!/mejor|recomend/i.test(comp), "no dice qué opción es mejor");
+  // Se recuerda en este dispositivo, pero el ahorro vuelve a salir de la hucha.
+  await p.reload();
+  await p.waitForFunction(()=>typeof ready!=="undefined" && ready);
+  await p.evaluate(()=>{ tab = "Vivienda"; render(); });
+  assert.strictEqual(await p.inputValue("#vivGastos"), "0");
+  assert.strictEqual(await p.inputValue("#vivOtraNombre"), "Alex");
+  assert.strictEqual(await p.inputValue("#vivAhorro"), "0");
 });
 
 prueba("¿qué pasaría si…?: compara patrimonio a 1, 3, 5 y 10 años y las huchas", async ()=>{
