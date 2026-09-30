@@ -1,0 +1,228 @@
+// Utilidades de vista compartidas: carga en botones, errores, formularios plegables, arrastrar para ordenar, cabecera, menú y selects comunes.
+
+async function conCarga(btn, textoCarga, fn){
+  if(!btn || btn.disabled) return;
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = textoCarga;
+  try{
+    await fn();
+  } finally {
+    if(document.body.contains(btn)){
+      btn.disabled = false;
+      btn.textContent = original;
+    }
+  }
+}
+
+let pendienteEnfoque = null;
+
+function formAbierto(clave){ return clave in formsEstado ? formsEstado[clave] : (formsPorDefecto==="abiertos"); }
+
+// Convierte las tarjetas de "añadir algo" en plegables (se toca el título para abrir o cerrar)
+
+function aplicarPlegables(){
+  const defs = [["fMov","mov"],["fTransferencia","transferencia"],["fDeuda","deuda"],["fCuenta","cuenta"],["fInversion","inversion"],["fGrupo","grupo"],["fCategoria","categoria"],["fPresupuesto","presupuesto"],["fObjetivo","objetivo"]];
+  defs.forEach(([id,clave])=>{
+    const form = document.getElementById(id);
+    const card = form ? form.closest(".card") : null;
+    const h2 = card ? card.querySelector("h2") : null;
+    if(!h2) return;
+    const cuerpo = document.createElement("div");
+    cuerpo.style.marginTop = "12px";
+    [...card.children].filter(ch=>ch!==h2).forEach(ch=>cuerpo.appendChild(ch));
+    const cab = document.createElement("div");
+    cab.style.cssText = "display:flex;justify-content:space-between;align-items:center;cursor:pointer;gap:10px";
+    h2.style.margin = "0";
+    const etiqueta = document.createElement("span");
+    etiqueta.style.cssText = "color:var(--accent);font-weight:800;font-size:13px;white-space:nowrap";
+    card.insertBefore(cab, card.firstChild);
+    cab.appendChild(h2); cab.appendChild(etiqueta);
+    card.appendChild(cuerpo);
+    const pintar = ()=>{
+      const ab = formAbierto(clave);
+      cuerpo.style.display = ab ? "block" : "none";
+      etiqueta.textContent = ab ? "Ocultar" : "+ Añadir";
+    };
+    pintar();
+    cab.onclick = ()=>{ formsEstado[clave] = !formAbierto(clave); pintar(); };
+  });
+}
+
+function activarOrdenar(){
+  document.querySelectorAll(".grip").forEach(g=>{
+    g.onclick = e=>e.stopPropagation();
+    g.onpointerdown = e=>{
+      if(e.pointerType==="mouse" && e.button!==0) return;
+      const item = g.closest(".sort-item");
+      const cont = item ? item.parentElement : null;
+      if(!cont || !cont.dataset.sortable || arrastrando) return;
+      e.preventDefault(); e.stopPropagation();
+      iniciarArrastre(e, g, item, cont);
+    };
+  });
+}
+
+function iniciarArrastre(e, handle, item, cont){
+  arrastrando = true;
+  const rpcNombre = cont.dataset.sortable;
+  const els = [...cont.children].filter(x=>x.dataset && x.dataset.sortId);
+  const i0 = els.indexOf(item);
+  const scroll0 = window.scrollY;
+  const tops = els.map(el=>{ const r = el.getBoundingClientRect(); return {top:r.top+scroll0, h:r.height}; });
+  const hDrag = tops[i0].h;
+  const hueco = els.length>1 ? Math.max(0, i0+1<els.length ? tops[i0+1].top-(tops[i0].top+tops[i0].h) : tops[i0].top-(tops[i0-1].top+tops[i0-1].h)) : 0;
+  const rect = item.getBoundingClientRect();
+  const ghost = item.cloneNode(true);
+  ghost.querySelectorAll("[id]").forEach(n=>n.removeAttribute("id"));
+  ghost.classList.add("sort-ghost");
+  ghost.style.width = rect.width+"px"; ghost.style.left = rect.left+"px"; ghost.style.top = rect.top+"px";
+  document.body.appendChild(ghost);
+  document.body.style.userSelect = "none";
+  item.classList.add("sort-arrastrando");
+  els.forEach(el=>{ if(el!==item) el.style.transition = "transform .15s ease"; });
+  const offsetY = e.clientY - rect.top;
+  let y = e.clientY, activo = true, raf = 0, destino = i0;
+  try{ handle.setPointerCapture(e.pointerId); }catch(_){}
+  const actualizar = ()=>{
+    if(!activo) return;
+    ghost.style.top = (y - offsetY) + "px";
+    const yPag = y + window.scrollY;
+    let t = 0;
+    els.forEach((el,j)=>{ if(j!==i0 && (tops[j].top + tops[j].h/2) < yPag) t++; });
+    destino = t;
+    els.forEach((el,j)=>{
+      if(j===i0) return;
+      let dy = 0;
+      if(destino>i0 && j>i0 && j<=destino) dy = -(hDrag+hueco);
+      else if(destino<i0 && j>=destino && j<i0) dy = (hDrag+hueco);
+      el.style.transform = dy ? `translateY(${dy}px)` : "";
+    });
+    const cab = document.querySelector("header");
+    const limite = (cab ? cab.getBoundingClientRect().bottom : 0) + 70;
+    if(y < limite) window.scrollBy(0, -14);
+    else if(y > window.innerHeight - 80) window.scrollBy(0, 14);
+    raf = requestAnimationFrame(actualizar);
+  };
+  const onMove = ev=>{ if(ev.pointerId===e.pointerId) y = ev.clientY; };
+  const fin = async ev=>{
+    if(!activo || (ev && ev.pointerId!==e.pointerId)) return;
+    activo = false; cancelAnimationFrame(raf);
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", fin);
+    window.removeEventListener("pointercancel", fin);
+    ghost.remove(); document.body.style.userSelect = "";
+    item.classList.remove("sort-arrastrando");
+    els.forEach(el=>{ el.style.transform = ""; el.style.transition = ""; });
+    if((ev && ev.type==="pointercancel") || destino===i0){ arrastrando = false; return; }
+    const ids = els.map(x=>x.dataset.sortId);
+    const [movido] = ids.splice(i0, 1);
+    ids.splice(destino, 0, movido);
+    ids.forEach(id=>{ const el = els.find(x=>x.dataset.sortId===id); if(el) cont.appendChild(el); });
+    arrastrando = false;
+    const {error} = await sb.rpc(rpcNombre, {p_ids: ids});
+    if(error) showError("No se pudo cambiar el orden: "+error.message); else hideError();
+    await recargar();
+  };
+  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", fin);
+  window.addEventListener("pointercancel", fin);
+  raf = requestAnimationFrame(actualizar);
+}
+
+function showError(msg){
+  const bar = document.getElementById("errBar");
+  document.getElementById("errMsg").textContent = msg;
+  bar.classList.add("show");
+  document.getElementById("errRetry").onclick = ()=>{ hideError(); fetchAll(); };
+  document.getElementById("errClose").onclick = hideError;
+}
+
+function hideError(){ document.getElementById("errBar").classList.remove("show"); }
+
+function renderPeriodo(){
+  const years = Array.from(new Set([...movimientos.map(m=>Number((m.fecha||"").slice(0,4))), ...movResumen.map(r=>Number(r.mes.slice(0,4))), periodoAnio].filter(Boolean))).sort((a,b)=>b-a);
+  document.getElementById("periodoBox").innerHTML = `
+    <select id="selMes">
+      <option value="todos" ${periodoMes==="todos"?"selected":""}>Total del año</option>
+      ${MESES.map((m,i)=>`<option value="${i+1}" ${periodoMes===String(i+1)?"selected":""}>${m}</option>`).join("")}
+    </select>
+    <select id="selAnio">${years.map(y=>`<option value="${y}" ${y===periodoAnio?"selected":""}>${y}</option>`).join("")}</select>
+  `;
+  document.getElementById("selMes").onchange = e=>{periodoMes=e.target.value; render();};
+  document.getElementById("selAnio").onchange = e=>{periodoAnio=Number(e.target.value); if(!asegurarMovimientosDesde(`${periodoAnio}-01-01`)) render();};
+}
+
+function closeMenu(){
+  document.getElementById("menuPanel")?.classList.remove("open");
+  document.getElementById("menuOverlay")?.classList.remove("open");
+}
+
+function renderTabs(){
+  document.getElementById("tabActual").textContent = tab;
+  document.getElementById("menuPanel").innerHTML =
+    `<button class="menu-item ${tab==="Inicio"?"active":""}" data-tab="Inicio" style="margin-bottom:16px">🏠 Inicio</button>` +
+    GRUPOS_MENU.map(g=>`
+    <div class="menu-group-title">${g.nombre}</div>
+    ${g.tabs.map(t=>`<button class="menu-item ${t===tab?'active':''}" data-tab="${t}">${t}${t==="Importar" && pendientes.length? ` (${pendientes.length})` : ""}</button>`).join("")}
+  `).join("");
+  document.querySelectorAll(".menu-item").forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; closeMenu(); render(); });
+  const menuBtn = document.getElementById("menuBtn");
+  const overlay = document.getElementById("menuOverlay");
+  if(menuBtn) menuBtn.onclick = ()=>{
+    document.getElementById("menuPanel").classList.add("open");
+    overlay.classList.add("open");
+  };
+  if(overlay) overlay.onclick = closeMenu;
+  const rb = document.getElementById("btnRefrescar");
+  if(rb) rb.onclick = ()=>conCarga(rb, "Actualizando…", async ()=>{ await fetchAll(); });
+}
+
+function renderBalance(){
+  const enP = movimientosEfectivos();
+  const ingresos = enP.filter(m=>m.tipo==="ingreso").reduce((s,m)=>sumarDinero(s, m.importe),0);
+  const ahorro = enP.filter(m=>m.tipo==="gasto" && m.categoria==="Inversión").reduce((s,m)=>sumarDinero(s, m.importe),0);
+  const gastado = enP.filter(m=>m.tipo==="gasto" && m.categoria!=="Inversión").reduce((s,m)=>sumarDinero(s, m.importe),0);
+  const disponible = restarDinero(restarDinero(ingresos, ahorro), gastado);
+  const meDeben = deudas.filter(d=>d.direccion==="me_deben" && d.estado==="pendiente").reduce((s,d)=>sumarDinero(s, d.importe),0);
+  const debo = deudas.filter(d=>d.direccion==="debo" && d.estado==="pendiente").reduce((s,d)=>sumarDinero(s, d.importe),0);
+  const totalCuentas = cuentas.reduce((s,c)=>sumarDinero(s, saldoCuenta(c)),0);
+  const totalInversiones = inversiones.filter(i=>i.estado==="activa").reduce((s,i)=>sumarDinero(s, i.valorActual),0);
+  const patrimonioNeto = restarDinero(sumarDinero(totalCuentas, totalInversiones, meDeben), debo);
+  const lbl = periodoMes==="todos" ? `Año ${periodoAnio}` : `${MESES[Number(periodoMes)-1]} ${periodoAnio}`;
+  document.getElementById("balanceBox").innerHTML = `
+    <div><div class="num pos">${eur(ingresos)}</div><div class="lbl">Ingresos · ${lbl}</div></div>
+    <div><div class="num ${disponible>=0?'pos':'neg'}">${eur(disponible)}</div><div class="lbl">Disponible para gastar</div></div>
+    <div><div class="num ${patrimonioNeto>=0?'pos':'neg'}">${eur(patrimonioNeto)}</div><div class="lbl">Patrimonio neto</div></div>
+    <div><div class="num pos">${eur(meDeben)}</div><div class="lbl">Me deben (total)</div></div>
+    <div><div class="num neg">${eur(debo)}</div><div class="lbl">Debo (total)</div></div>
+  `;
+}
+
+function opcionesCuentas(selectedId, sinDefecto){
+  const sel = selectedId || (sinDefecto ? "" : cuentaPorDefecto());
+  return cuentas.filter(c=>!c.archivada || c.id===sel).map(c=>`<option value="${c.id}"${c.id===sel?" selected":""}>${esc(c.nombre)}</option>`).join("");
+}
+
+function opcionesCategoriaPend(tipo, sel){
+  const base = `<option value="">Elegir categoría…</option>`;
+  if(tipo==="gasto"){
+    const porPadre = {};
+    categorias.filter(c=>c.tipo==="gasto").forEach(c=>{ const p=c.padre||"Otros"; (porPadre[p]=porPadre[p]||[]).push(c); });
+    return base + Object.entries(porPadre).map(([p,cs])=>`<optgroup label="${esc(p)}">${cs.map(c=>`<option value="${esc(c.nombre)}"${c.nombre===sel?" selected":""}>${esc(c.nombre)}</option>`).join("")}</optgroup>`).join("");
+  }
+  return base + categorias.filter(c=>c.tipo==="ingreso").map(c=>`<option value="${esc(c.nombre)}"${c.nombre===sel?" selected":""}>${esc(c.nombre)}</option>`).join("");
+}
+
+function opcionesMovimientosGasto(selectedId){
+  const lista = movimientos.filter(m=>m.tipo==="gasto" && !m.reembolsoDe && m.categoria!=="Ajuste" && m.categoria!=="Inversión")
+    .sort((a,b)=>b.fecha.localeCompare(a.fecha)).slice(0,60);
+  if(selectedId && !lista.some(m=>m.id===selectedId)){ const m = movimientos.find(x=>x.id===selectedId); if(m) lista.push(m); }
+  return lista.map(m=>`<option value="${m.id}"${m.id===selectedId?" selected":""}>${esc(m.fecha)} · ${esc(m.nota||m.categoria)} · ${eur(m.importe)}</option>`).join("");
+}
+
+function opcionesCategoriasGasto(){
+  const porPadre = {};
+  categorias.filter(c=>c.tipo==="gasto").forEach(c=>{ const p=c.padre||"Otros"; (porPadre[p]=porPadre[p]||[]).push(c); });
+  return Object.entries(porPadre).map(([p,cs])=>`<optgroup label="${esc(p)}">${cs.map(c=>`<option value="${esc(c.nombre)}">${esc(c.nombre)}</option>`).join("")}</optgroup>`).join("");
+}
