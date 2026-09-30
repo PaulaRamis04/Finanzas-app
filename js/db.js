@@ -68,6 +68,111 @@ async function renombrarCategoria(cat, nuevo){
   return {error:null};
 }
 
+// ── Restaurar copia de seguridad ──
+// Solo en una cuenta sin datos, para no duplicar nada. Conserva los ids de la copia, así los
+// vínculos entre tablas siguen valiendo. Si algo falla a mitad, borra lo que haya insertado.
+const COPIA_A_FILAS = {
+  cuentas: c=>({id:c.id, nombre:c.nombre, saldo_inicial:c.saldoInicial, orden:c.orden||0}),
+  categorias: c=>({id:c.id, tipo:c.tipo, padre:c.padre??null, nombre:c.nombre}),
+  presupuestos: p=>({id:p.id, categoria:p.categoria, limite:p.limite, rollover:!!p.rollover, rollover_desde:p.rolloverDesde??null}),
+  recurrentes: r=>({id:r.id, tipo:r.tipo, categoria:r.categoria, importe:r.importe, nota:r.nota||"", cuenta_id:r.cuentaId??null, dia_mes:r.diaMes, activo:r.activo, fecha_inicio:r.fechaInicio, ultima_generada:r.ultimaGenerada??null}),
+  inversiones: i=>({id:i.id, nombre:i.nombre, tipo:i.tipo??"", valor_actual:i.valorActual, valor_inicial:i.valorInicial, estado:i.estado||"activa", fecha_prevista:i.fechaPrevista??null, importe_previsto:i.importePrevisto??null, cuenta_prevista_id:i.cuentaPrevistaId??null, padre_id:i.padreId??null, es_grupo:!!i.esGrupo, orden:i.orden||0, rentas:i.rentas||0}),
+  deudas: d=>({id:d.id, persona:d.persona, importe:d.importe, importe_inicial:d.importeInicial??d.importe, direccion:d.direccion, concepto:d.concepto??"", estado:d.estado, fecha:d.fecha, movimiento_id:null}),
+  movimientos: m=>({id:m.id, tipo:m.tipo, categoria:m.categoria, importe:m.importe, fecha:m.fecha, nota:m.nota??null, cuenta_id:m.cuentaId??null, saldo_banco:m.saldoBanco??null, reembolso_de:null, recurrente_id:m.recurrenteId??null, transferencia_id:m.transferenciaId??null, conciliado:!!m.conciliado, deuda_id:m.deudaId??null}),
+  aportaciones_inversion: a=>({id:a.id, inversion_id:a.inversionId, importe:a.importe, fecha:a.fecha, cuenta_id:a.cuentaId??null, movimiento_id:a.movimientoId??null}),
+  retiros_inversion: r=>({id:r.id, inversion_id:r.inversionId, importe:r.importe, fecha:r.fecha, cuenta_id:r.cuentaId??null, movimiento_id:r.movimientoId??null}),
+  objetivos: o=>({id:o.id, nombre:o.nombre, meta:o.meta, tipo_vinculo:o.tipoVinculo, vinculo_id:o.vinculoId??null, orden:o.orden||0, auto_activo:!!o.autoActivo, auto_cuota:o.autoCuota??null, auto_dia_mes:o.autoDiaMes??null, auto_cuenta_origen:o.autoCuentaOrigen??null, auto_ultima_generada:o.autoUltimaGenerada??null}),
+  movimientos_pendientes: x=>({id:x.id, cuenta_id:x.cuentaId, tipo:x.tipo, importe:x.importe, fecha:x.fecha, descripcion:x.descripcion||"", saldo:x.saldo??null, posicion:x.posicion||0})
+};
+// Clave de la copia para cada tabla (la copia usa los nombres del estado de la app).
+const CLAVE_COPIA = {aportaciones_inversion:"aportaciones", retiros_inversion:"retiros", movimientos_pendientes:"pendientes"};
+
+function leerCopia(texto){
+  let d;
+  try{ d = JSON.parse(texto); }catch(e){ throw new Error("El archivo no es un JSON válido."); }
+  if(!d || !d.exportado_en || !Array.isArray(d.movimientos) || !Array.isArray(d.cuentas)) throw new Error("El archivo no es una copia de seguridad de esta app.");
+  const filas = {};
+  Object.keys(COPIA_A_FILAS).forEach(t=>{ filas[t] = (d[CLAVE_COPIA[t]||t] || []).map(COPIA_A_FILAS[t]); });
+  // "archivada" solo se envía si hace falta: sin schema_cuentas_archivadas.sql la columna no existe.
+  const archivadas = new Set((d.cuentas||[]).filter(c=>c.archivada).map(c=>c.id));
+  if(archivadas.size) filas.cuentas.forEach(c=>{ c.archivada = archivadas.has(c.id); });
+  return {
+    exportadoEn: d.exportado_en, filas,
+    reembolsos: d.movimientos.filter(m=>m.reembolsoDe).map(m=>({id:m.id, reembolso_de:m.reembolsoDe})),
+    deudaMov: (d.deudas||[]).filter(x=>x.movimientoId).map(x=>({id:x.id, movimiento_id:x.movimientoId}))
+  };
+}
+
+async function cuentaVacia(){
+  const tablas = ["cuentas","movimientos","deudas","inversiones","objetivos","recurrentes","presupuestos"];
+  const res = await Promise.all(tablas.map(t=>sb.from(t).select("id", {count:"exact", head:true})));
+  const err = res.find(r=>r.error);
+  if(err) throw new Error(err.error.message);
+  return res.every(r=>!r.count);
+}
+
+async function restaurarCopia(copia, progreso = ()=>{}){
+  if(!(await cuentaVacia())) throw new Error("Solo se puede restaurar en una cuenta sin datos, para no duplicar nada. Borra antes tus cuentas, movimientos, deudas, inversiones, objetivos, recurrentes y presupuestos, o usa otra cuenta.");
+  const {filas} = copia;
+  const insertados = {}; // tabla -> ids, para deshacer
+  const LOTE = 500;
+  const insertar = async (clave, lista)=>{
+    const tabla = clave==="inversiones_hijas" ? "inversiones" : clave;
+    for(let i=0; i<lista.length; i+=LOTE){
+      const lote = lista.slice(i, i+LOTE);
+      const {error} = await sb.from(tabla).insert(lote);
+      if(error) throw new Error(`${tabla}: ${error.message}`);
+      (insertados[clave] = insertados[clave] || []).push(...lote.map(x=>x.id));
+    }
+  };
+  const actualizar = async (tabla, lista)=>{
+    for(const x of lista){
+      const {id, ...cambios} = x;
+      const {error} = await sb.from(tabla).update(cambios).eq("id", id);
+      if(error) throw new Error(`${tabla}: ${error.message}`);
+    }
+  };
+  try{
+    progreso("Cuentas y categorías…");
+    await insertar("cuentas", filas.cuentas);
+    // La cuenta está vacía, así que las categorías que tenga son las de por defecto: se sustituyen
+    // por las de la copia (si falla, la app vuelve a crear las de por defecto al cargar).
+    if(filas.categorias.length){
+      const {error:eCats} = await sb.from("categorias").delete().not("id", "is", null);
+      if(eCats) throw new Error(eCats.message);
+    }
+    await insertar("categorias", filas.categorias);
+    await insertar("presupuestos", filas.presupuestos);
+    await insertar("recurrentes", filas.recurrentes);
+    progreso("Inversiones y deudas…");
+    await insertar("inversiones", filas.inversiones.filter(i=>!i.padre_id));
+    await insertar("inversiones_hijas", filas.inversiones.filter(i=>i.padre_id));
+    await insertar("deudas", filas.deudas);
+    progreso(`Movimientos (${filas.movimientos.length})…`);
+    await insertar("movimientos", filas.movimientos);
+    progreso("Vínculos…");
+    await actualizar("movimientos", copia.reembolsos);
+    await actualizar("deudas", copia.deudaMov);
+    await insertar("aportaciones_inversion", filas.aportaciones_inversion);
+    await insertar("retiros_inversion", filas.retiros_inversion);
+    await insertar("objetivos", filas.objetivos);
+    await insertar("movimientos_pendientes", filas.movimientos_pendientes);
+  }catch(e){
+    progreso("Deshaciendo…");
+    await deshacerRestauracion(insertados);
+    throw e;
+  }
+}
+
+async function deshacerRestauracion(insertados){
+  const porLotes = async (ids, fn)=>{ for(let i=0; i<ids.length; i+=100) await fn(ids.slice(i, i+100)); };
+  const borrar = (clave)=>porLotes(insertados[clave] || [], ids=>sb.from(clave==="inversiones_hijas" ? "inversiones" : clave).delete().in("id", ids));
+  // Primero se sueltan los vínculos circulares (deuda ↔ movimiento, reembolso → movimiento).
+  await porLotes(insertados.deudas || [], ids=>sb.from("deudas").update({movimiento_id:null}).in("id", ids));
+  await porLotes(insertados.movimientos || [], ids=>sb.from("movimientos").update({reembolso_de:null}).in("id", ids));
+  for(const t of ["movimientos_pendientes","objetivos","retiros_inversion","aportaciones_inversion","movimientos","deudas","inversiones_hijas","inversiones","recurrentes","presupuestos","categorias","cuentas"]) await borrar(t);
+}
+
 const TABLAS = {
   cuentas: { q:()=>todas(()=>sb.from("cuentas").select("*").order("nombre")),
     set:d=>{ cuentas = d.map(c=>({id:c.id, nombre:c.nombre, saldoInicial:Number(c.saldo_inicial), orden:c.orden||0, archivada:!!c.archivada})).sort(porOrden); } },
