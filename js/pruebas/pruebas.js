@@ -8,7 +8,7 @@ const assert = require("assert");
 
 const RAIZ = path.join(__dirname, "..");
 const HTML_PRUEBA = path.join(RAIZ, "index.pruebas.html");
-const PESTANAS = ["Inicio","Gastos","Resumen del mes","Presupuestos","Movimientos","Cuentas","Deudas","Inversiones","Objetivos","Proyección","Recurrentes","Categorías","Preferencias","Personalización","Notificaciones"];
+const PESTANAS = ["Inicio","Gastos","Resumen del mes","Presupuestos","Movimientos","Cuentas","Deudas","Inversiones","Objetivos","Proyección","Recurrentes","Categorías","Preferencias","Personalización","Notificaciones","Comunidad"];
 
 const pruebas = [];
 const prueba = (nombre, fn)=>pruebas.push({nombre, fn});
@@ -323,6 +323,27 @@ prueba("sin premium: Inversiones y Proyección bloqueadas, Personalización solo
   await p.click('[data-sort-id="c1"] [data-compartir-cuenta]');
   assert.match(await p.innerText("#app"), /Esto es de Premium/);
   assert.strictEqual(await p.locator("#compartirEmail").count(), 0);
+});
+prueba("Comunidad: supporter, idea y fallo se guardan y dan las gracias", async ()=>{
+  const p = await abrir("", {width:1280, height:900});
+  await p.click(".menu-comunidad");
+  assert.strictEqual(await p.evaluate(()=>tab), "Comunidad");
+  await p.click('[data-comunidad-abrir="supporter"]');
+  assert.match(await p.innerText("#app"), /Mini asesoría personalizada/);
+  await p.click('[data-supporter-importe="10"]');
+  await p.click('[data-comunidad-enviar="supporter"]');
+  await p.waitForSelector(".comunidad-ok");
+  await p.click('[data-comunidad-abrir="idea"]');
+  await p.click('[data-comunidad-enviar="idea"]');
+  assert.match(await textoError(p), /Escribe un mensaje/);
+  await p.fill("#comunidadTexto", "Modo pareja");
+  await p.click('[data-comunidad-enviar="idea"]');
+  await p.click('[data-comunidad-abrir="fallo"]');
+  await p.fill("#comunidadTexto", "No carga");
+  await p.click('[data-comunidad-enviar="fallo"]');
+  await p.waitForSelector(".comunidad-ok");
+  const filas = await p.evaluate(()=>__db.comunidad.map(f=>[f.tipo, f.importe, f.texto, !!f.info]));
+  assert.deepStrictEqual(filas, [["supporter",10,"",false],["idea",null,"Modo pareja",false],["fallo",null,"No carga",true]]);
 });
 prueba("acceso con contraseña: error, registro, recuperar y entrar", async ()=>{
   const p = await navegador.newPage({viewport:MOVIL});

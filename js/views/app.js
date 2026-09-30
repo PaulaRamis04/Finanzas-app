@@ -27,6 +27,7 @@ function render(){
   else if(tab==="Preferencias") app.innerHTML = renderPreferencias();
   else if(tab==="Notificaciones") app.innerHTML = renderNotificaciones();
   else if(tab==="Personalización") app.innerHTML = renderPersonalizacion();
+  else if(tab==="Comunidad") app.innerHTML = renderComunidad();
   else app.innerHTML = renderCategorias();
   wireEvents();
   aplicarPlegables();
@@ -60,6 +61,7 @@ function wireEvents(){
   wireEventosNotificaciones();
   wireEventosPresupuestos();
   wireEventosObjetivos();
+  wireEventosComunidad();
 }
 
 init();
