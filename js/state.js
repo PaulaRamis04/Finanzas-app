@@ -32,7 +32,7 @@ let deudaLado = "me_deben", saldadasAbiertas = {};
 
 let recurrentes = [];
 
-let editarMovId = null, transferenciaAbierta = false, movBuscarTexto = "", movFiltroCategoria = "";
+let editarMovId = null, movAbiertoId = null, transferenciaAbierta = false, movBuscarTexto = "", movFiltroCategoria = "";
 
 let proy = {inicial:null, aporte:0, anios:10, tasa:5, detalle:false};
 

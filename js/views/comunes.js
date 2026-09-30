@@ -21,6 +21,9 @@ function formAbierto(clave){ return clave in formsEstado ? formsEstado[clave] : 
 
 // Convierte las tarjetas de "añadir algo" en plegables (se toca el título para abrir o cerrar)
 
+const ICONOS_PLEGABLE = {mov:["➕","var(--lav-soft)"], transferencia:["🔁","var(--accent-soft)"], deuda:["🤝","var(--peach-soft)"], cuenta:["👛","var(--mint-soft)"],
+  inversion:["🌱","var(--mint-soft)"], grupo:["📁","var(--lav-soft)"], categoria:["🏷️","var(--peach-soft)"], presupuesto:["📊","var(--accent-soft)"], objetivo:["🎯","var(--mint-soft)"]};
+
 function aplicarPlegables(){
   const defs = [["fMov","mov"],["fTransferencia","transferencia"],["fDeuda","deuda"],["fCuenta","cuenta"],["fInversion","inversion"],["fGrupo","grupo"],["fCategoria","categoria"],["fPresupuesto","presupuesto"],["fObjetivo","objetivo"]];
   defs.forEach(([id,clave])=>{
@@ -32,17 +35,20 @@ function aplicarPlegables(){
     cuerpo.style.marginTop = "12px";
     [...card.children].filter(ch=>ch!==h2).forEach(ch=>cuerpo.appendChild(ch));
     const cab = document.createElement("div");
-    cab.style.cssText = "display:flex;justify-content:space-between;align-items:center;cursor:pointer;gap:10px";
-    h2.style.margin = "0";
-    const etiqueta = document.createElement("span");
-    etiqueta.style.cssText = "color:var(--accent);font-weight:800;font-size:13px;white-space:nowrap";
+    cab.className = "pleg-cab";
+    const [ico, fondo] = ICONOS_PLEGABLE[clave] || ["➕","var(--accent-soft)"];
+    const circ = document.createElement("i");
+    circ.textContent = ico; circ.style.background = fondo;
+    const chev = document.createElement("span");
+    chev.className = "chev";
+    chev.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;
     card.insertBefore(cab, card.firstChild);
-    cab.appendChild(h2); cab.appendChild(etiqueta);
+    cab.appendChild(circ); cab.appendChild(h2); cab.appendChild(chev);
     card.appendChild(cuerpo);
     const pintar = ()=>{
       const ab = formAbierto(clave);
       cuerpo.style.display = ab ? "block" : "none";
-      etiqueta.textContent = ab ? "Ocultar" : "+ Añadir";
+      cab.classList.toggle("abierto", ab);
     };
     pintar();
     cab.onclick = ()=>{ formsEstado[clave] = !formAbierto(clave); pintar(); };
@@ -158,8 +164,10 @@ function closeMenu(){
   document.getElementById("menuOverlay")?.classList.remove("open");
 }
 
+const TITULOS_TAB = {"Resumen del mes":"Análisis"};
+
 function renderTabs(){
-  document.getElementById("tabActual").textContent = tab;
+  document.getElementById("tabActual").textContent = TITULOS_TAB[tab] || tab;
   document.getElementById("menuPanel").innerHTML =
     `<button class="menu-item ${tab==="Inicio"?"active":""}" data-tab="Inicio" style="margin-bottom:16px">🏠 Inicio</button>` +
     GRUPOS_MENU.map(g=>`
@@ -185,7 +193,11 @@ function renderTabs(){
   document.getElementById("navMas").onclick = abrirMenu;
   if(overlay) overlay.onclick = closeMenu;
   const rb = document.getElementById("btnRefrescar");
-  if(rb) rb.onclick = ()=>conCarga(rb, "Actualizando…", async ()=>{ await fetchAll(); });
+  if(rb) rb.onclick = async ()=>{
+    if(rb.disabled) return;
+    rb.disabled = true; rb.classList.add("girando");
+    try{ await fetchAll(); } finally { rb.disabled = false; rb.classList.remove("girando"); }
+  };
 }
 
 function renderBalance(){
@@ -201,11 +213,11 @@ function renderBalance(){
   const patrimonioNeto = restarDinero(sumarDinero(totalCuentas, totalInversiones, meDeben), debo);
   const lbl = periodoMes==="todos" ? `Año ${periodoAnio}` : `${MESES[Number(periodoMes)-1]} ${periodoAnio}`;
   document.getElementById("balanceBox").innerHTML = `
-    <div><div class="num pos">${eur(ingresos)}</div><div class="lbl">Ingresos · ${lbl}</div></div>
-    <div><div class="num ${disponible>=0?'pos':'neg'}">${eur(disponible)}</div><div class="lbl">Disponible para gastar</div></div>
-    <div><div class="num ${patrimonioNeto>=0?'pos':'neg'}">${eur(patrimonioNeto)}</div><div class="lbl">Patrimonio neto</div></div>
-    <div><div class="num pos">${eur(meDeben)}</div><div class="lbl">Me deben (total)</div></div>
-    <div><div class="num neg">${eur(debo)}</div><div class="lbl">Debo (total)</div></div>
+    <div><b class="${patrimonioNeto>=0?'':'neg'}">${eur(patrimonioNeto)}</b><span>Patrimonio</span></div>
+    <div><b class="pos">${eur(ingresos)}</b><span>Ingresos · ${lbl}</span></div>
+    <div><b class="${disponible>=0?'':'neg'}">${eur(disponible)}</b><span>Disponible</span></div>
+    <div><b class="pos">${eur(meDeben)}</b><span>Me deben</span></div>
+    <div><b class="neg">${eur(debo)}</b><span>Debo</span></div>
   `;
 }
 
@@ -235,4 +247,44 @@ function opcionesCategoriasGasto(){
   const porPadre = {};
   categorias.filter(c=>c.tipo==="gasto").forEach(c=>{ const p=c.padre||"Otros"; (porPadre[p]=porPadre[p]||[]).push(c); });
   return Object.entries(porPadre).map(([p,cs])=>`<optgroup label="${esc(p)}">${cs.map(c=>`<option value="${esc(c.nombre)}">${esc(c.nombre)}</option>`).join("")}</optgroup>`).join("");
+}
+
+// Fila de movimiento tipo tarjeta (icono, concepto, categoría, importe). extra = texto de la línea de detalle.
+function fechaCorta(f){ return `${Number(f.slice(8,10))} ${MESES[Number(f.slice(5,7))-1].slice(0,3).toLowerCase()}`; }
+
+function etiquetaDia(f){
+  const d = new Date(f+"T00:00:00"), hoy = new Date(); hoy.setHours(0,0,0,0);
+  const dif = Math.round((hoy-d)/86400000);
+  if(dif===0) return "Hoy";
+  if(dif===1) return "Ayer";
+  const dia = ["dom","lun","mar","mié","jue","vie","sáb"][d.getDay()];
+  return `${dia} ${fechaCorta(f)}${d.getFullYear()!==hoy.getFullYear() ? " "+d.getFullYear() : ""}`;
+}
+
+function filaMov(m, {attrs="", extra="", signo=true, fecha=true, clase=""}={}){
+  const trans = !!m.transferenciaId;
+  const ingreso = m.tipo==="ingreso";
+  const tag = attrs ? "button" : "div";
+  const titulo = trans ? "Transferencia" : (m.nota || m.categoria);
+  const sub = extra || (trans ? "Entre cuentas" : m.categoria);
+  const importe = signo && !trans ? `${ingreso?"+":"-"}${eur(m.importe)}` : eur(m.importe);
+  return `<${tag} class="fila ${clase}" ${attrs}>
+    <div class="ico ${trans?"tr":ingreso?"ing":""}">${trans ? "🔁" : emojiCategoria(m.categoria, m.tipo)}</div>
+    <div class="txt"><b>${esc(titulo)}</b><div class="meta">${esc(sub)}</div></div>
+    <div class="der"><b class="${!trans && ingreso ? "pos" : ""}">${importe}</b>${fecha ? `<div class="meta">${fechaCorta(m.fecha)}</div>` : ""}</div>
+  </${tag}>`;
+}
+
+// Agrupa por día (lista ya ordenada por fecha desc) y pinta con cabeceras «Hoy», «Ayer», «sáb 27 sep».
+function listaPorDias(lista, pintar){
+  let html = "", dia = null;
+  lista.forEach(m=>{
+    if(m.fecha!==dia){
+      if(dia!==null) html += `</div>`;
+      dia = m.fecha;
+      html += `<div class="dia">${etiquetaDia(dia)}</div><div class="list">`;
+    }
+    html += pintar(m);
+  });
+  return dia===null ? "" : html + `</div>`;
 }

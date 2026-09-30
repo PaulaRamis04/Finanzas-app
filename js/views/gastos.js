@@ -12,41 +12,39 @@ function renderGastos(){
   gastosReales.forEach(m=>{ porCategoria[m.categoria] = sumarDinero(porCategoria[m.categoria]||0, m.importe); });
   const gastosMostrados = gastosCatSel ? gastosReales.filter(m=>m.categoria===gastosCatSel) : gastosReales;
   const lbl = periodoMes==="todos" ? `Año ${periodoAnio}` : `${MESES[Number(periodoMes)-1]} ${periodoAnio}`;
+  const maxCat = Math.max(0, ...Object.values(porCategoria));
+  const pctGastado = disponible>0 ? Math.min(gastado/disponible*100, 100) : (gastado>0 ? 100 : 0);
   return `
   <div class="card">
-    <h2>Disponible para gastar · ${lbl}</h2>
-    <p class="meta" style="margin:4px 0 0">Ingresos menos lo que aportas a inversiones (tu ahorro del mes)</p>
-    <div class="balance" style="margin-top:14px">
-      <div><div class="num pos">${eur(ingresos)}</div><div class="lbl">Ingresos</div></div>
-      <div><div class="num neg">${eur(ahorro)}</div><div class="lbl">Ahorro (inversiones)</div></div>
-      <div><div class="num">${eur(disponible)}</div><div class="lbl">Disponible</div></div>
-    </div>
+    <div class="meta" style="font-weight:600">Te queda para gastar · ${lbl}</div>
+    <div style="font-size:34px;font-weight:800;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;margin:2px 0 12px" class="${restante>=0?'pos':'neg'}">${eur(restante)}</div>
+    <div class="barra"><div style="width:${pctGastado}%;background:${restante>=0?'var(--mint)':'var(--neg)'}"></div></div>
+    <div class="meta" style="margin-top:8px">Has gastado <strong style="color:var(--ink)">${eur(gastado)}</strong> de ${eur(disponible)} disponibles</div>
   </div>
-  <div class="card">
-    <div class="balance">
-      <div><div class="num neg">${eur(gastado)}</div><div class="lbl">Gastado</div></div>
-      <div><div class="num ${restante>=0?'pos':'neg'}">${eur(restante)}</div><div class="lbl">Te queda</div></div>
-    </div>
+  <div class="stats">
+    <div class="stat"><i style="background:var(--mint-soft)">💰</i><b class="pos">${eur(ingresos)}</b><span>Ingresos</span></div>
+    <div class="stat"><i style="background:var(--lav-soft)">🌱</i><b>${eur(ahorro)}</b><span>Ahorro (inversiones)</span></div>
   </div>
+  <p class="meta" style="margin:-6px 4px 0">Disponible = ingresos menos lo que aportas a inversiones.</p>
   <div class="section-title">Por categoría</div>
   <div class="list">
     ${Object.keys(porCategoria).length? Object.entries(porCategoria).sort((a,b)=>b[1]-a[1]).map(([cat,total])=>`
-      <button data-gastos-cat="${esc(cat)}" style="display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;background:${gastosCatSel===cat?'var(--accent-soft)':'var(--card)'};border:1px solid var(--line);border-radius:11px;padding:12px 13px;cursor:pointer;font-family:inherit;font-size:14px;color:var(--ink)">
-        <span>${esc(cat)}</span><span class="amt neg">${eur(total)}</span>
+      <button class="cat-fila ${gastosCatSel===cat?'sel':''}" data-gastos-cat="${esc(cat)}">
+        <div class="ico">${emojiCategoria(cat, "gasto")}</div>
+        <div class="txt">
+          <div class="top"><span>${esc(cat)}</span><span style="font-variant-numeric:tabular-nums">${eur(total)}</span></div>
+          <div class="barra"><div style="width:${maxCat? total/maxCat*100 : 0}%;background:var(--accent)"></div></div>
+        </div>
       </button>
     `).join("") : `<div class="empty">Sin gastos en este periodo.</div>`}
   </div>
-  <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
-    <span>Movimientos de gasto${gastosCatSel? ` · ${esc(gastosCatSel)}` : ""} (${gastosMostrados.length})</span>
-    ${gastosCatSel? `<button class="btn ghost" data-gastos-cat="">Ver todos</button>` : ""}
+  <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+    <span>Gastos${gastosCatSel? ` · ${esc(gastosCatSel)}` : ""} <span class="meta" style="font-size:13px">(${gastosMostrados.length})</span></span>
+    ${gastosCatSel? `<button class="btn ghost" data-gastos-cat="" style="color:var(--accent)">Ver todos</button>` : ""}
   </div>
-  <div class="list">
-    ${gastosMostrados.length? [...gastosMostrados].sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(m=>`
-      <div class="item">
-        <div><span class="tag">${esc(m.categoria)}</span>${m.nota?`<div class="meta">${esc(m.nota)}</div>`:""}<div class="meta">${m.fecha}</div>${m.cubierto?`<div class="meta">De ${eur(m.importeOriginal)}; ${eur(m.cubierto)} ya cobrados de deudas</div>`:""}</div>
-        <div class="amt neg">-${eur(m.importe)}</div>
-      </div>`).join("") : `<div class="empty">${gastosCatSel? "Sin movimientos en esta categoría." : "Sin movimientos de gasto en este periodo."}</div>`}
-  </div>`;
+  ${gastosMostrados.length? listaPorDias([...gastosMostrados].sort((a,b)=>b.fecha.localeCompare(a.fecha)), m=>filaMov(m, {fecha:false,
+      extra: m.cubierto ? `De ${eur(m.importeOriginal)}; ${eur(m.cubierto)} ya cobrados` : (m.nota ? m.categoria : cuentaNombre(m.cuentaId))}))
+    : `<div class="empty">${gastosCatSel? "Sin movimientos en esta categoría." : "Sin movimientos de gasto en este periodo."}</div>`}`;
 }
 
 function wireEventosGastos(){

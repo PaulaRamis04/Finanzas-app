@@ -15,15 +15,12 @@ function renderPresupuestos(){
   const totalPasado = totalGastado > totalLimite;
   const bloqueTotal = presupuestos.length ? `
   <div class="card">
-    <h2>Total presupuestado · ${lbl}</h2>
-    <div class="balance" style="margin-top:6px">
-      <div><div class="num">${eur(totalLimite)}</div><div class="lbl">${mult===12?"Presupuesto anual":"Presupuesto mensual"}</div></div>
-      <div><div class="num ${totalPasado?'neg':''}">${eur(totalGastado)}</div><div class="lbl">Gastado</div></div>
-      <div><div class="num ${totalPasado?'neg':'pos'}">${totalPct.toFixed(0)}%</div><div class="lbl">Consumido</div></div>
+    <div class="meta" style="font-weight:600">Gastado de lo presupuestado · ${lbl}</div>
+    <div style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;margin:4px 0 12px">
+      <span style="font-size:34px;font-weight:800;letter-spacing:-0.02em;font-variant-numeric:tabular-nums" class="${totalPasado?'neg':''}">${eur(totalGastado)}</span>
+      <span class="meta" style="padding-bottom:7px;font-size:14px">de ${eur(totalLimite)} ${mult===12?"al año":"al mes"} · ${totalPct.toFixed(0)}%</span>
     </div>
-    <div style="height:8px;background:var(--line);border-radius:999px;margin-top:12px;overflow:hidden">
-      <div style="height:100%;width:${Math.min(totalPct,100)}%;background:${totalPasado?'var(--neg)':'var(--accent)'}"></div>
-    </div>
+    <div class="barra"><div style="width:${Math.min(totalPct,100)}%;background:${totalPasado?'var(--neg)':totalPct>=80?'#e0ac4e':'var(--mint)'}"></div></div>
     ${mult===12? `<p class="meta" style="margin:8px 0 0">Vista anual: cada límite mensual se multiplica por 12.</p>` : ""}
     ${totalPasado? `<p class="meta" style="margin:8px 0 0;color:var(--neg)">Has superado el total presupuestado en ${eur(restarDinero(totalGastado, totalLimite))}</p>` : ""}
   </div>` : "";
@@ -53,22 +50,22 @@ function renderPresupuestos(){
       const pct = limiteEf>0 ? Math.max(0, gastado/limiteEf*100) : 0;
       const pasado = gastado > limiteEf;
       return `
-      <div class="item">
-        <div style="flex:1">
-          <strong>${esc(p.categoria)}</strong>
-          ${p.rollover?`<span class="tag">Con remanente</span>`:""}
-          <div class="meta">${eur(gastado)} de ${eur(limiteEf)}${mult===12?" al año":""} · ${pct.toFixed(0)}%</div>
-          ${rolloverImp!==0 && mult!==12? `<div class="meta">Incluye ${rolloverImp>=0?"+":""}${eur(rolloverImp)} de meses anteriores</div>` : ""}
-          ${ajuste>0? `<div class="meta">Sin contar ${eur(ajuste)} que ya te han devuelto</div>` : ""}
-          <div style="height:6px;background:var(--line);border-radius:999px;margin-top:6px;overflow:hidden">
-            <div style="height:100%;width:${Math.min(pct,100)}%;background:${pasado?'var(--neg)':'var(--accent)'}"></div>
+      <div class="item" style="flex-direction:column;align-items:stretch;gap:10px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="ico-cat">${emojiCategoria(p.categoria, "gasto")}</div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;justify-content:space-between;gap:8px;font-weight:700;font-size:15px"><span>${esc(p.categoria)}</span><span class="${pasado?'neg':''}" style="font-variant-numeric:tabular-nums">${pct.toFixed(0)}%</span></div>
+            <div class="meta">${eur(gastado)} de ${eur(limiteEf)}${mult===12?" al año":""}${p.rollover?" · con remanente":""}</div>
           </div>
-          ${pasado? `<div class="meta" style="color:var(--neg);margin-top:4px">Has superado el límite en ${eur(restarDinero(gastado, limiteEf))}</div>` : ""}
         </div>
-        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
-          <button class="btn ghost" data-toggle-rollover="${p.id}">${p.rollover?"Quitar remanente":"Activar remanente"}</button>
-          <button class="btn ghost" data-editar-presupuesto="${p.id}">Editar</button>
-          <button class="btn ghost" data-del-presupuesto="${p.id}">Borrar</button>
+        <div class="barra" style="height:8px"><div style="width:${Math.min(pct,100)}%;background:${pasado?'var(--neg)':pct>=80?'#e0ac4e':'var(--mint)'}"></div></div>
+        ${rolloverImp!==0 && mult!==12? `<div class="meta">Incluye ${rolloverImp>=0?"+":""}${eur(rolloverImp)} de meses anteriores</div>` : ""}
+        ${ajuste>0? `<div class="meta">Sin contar ${eur(ajuste)} que ya te han devuelto</div>` : ""}
+        ${pasado? `<div class="meta" style="color:var(--neg)">Has superado el límite en ${eur(restarDinero(gastado, limiteEf))}</div>` : ""}
+        <div class="chips">
+          <button class="chip" data-editar-presupuesto="${p.id}">Editar</button>
+          <button class="chip ${p.rollover?'ok':'lav'}" data-toggle-rollover="${p.id}">${p.rollover?"Quitar remanente":"Activar remanente"}</button>
+          <button class="chip peligro" data-del-presupuesto="${p.id}">Borrar</button>
         </div>
       </div>
       ${editarPresupuestoId===p.id? `

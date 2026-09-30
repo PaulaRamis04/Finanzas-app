@@ -1,4 +1,4 @@
-const PALETTE = ["#1f4d43","#c08a2e","#a3402f","#5c9683","#7fb8a6","#e0ac4e","#8a6d3b","#3f6b52","#b5651d","#4a7c94"];
+const PALETTE = ["#f07f76","#3fae92","#8b7fd6","#f2a65a","#5aa9e6","#e98bb5","#7cc26b","#d9a441","#6c8ebf","#c77dbb"];
 
 // Valores de movimientos.categoria que genera la propia app; no son categorías de usuario.
 const CATEGORIAS_ESPECIALES = ["Ajuste","Inversión","Deuda","Transferencia"];

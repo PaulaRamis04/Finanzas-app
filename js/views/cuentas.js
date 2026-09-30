@@ -12,8 +12,8 @@ function renderCuentas(){
   const totalPos = positivas.reduce((s,x)=>sumarDinero(s, x.saldo),0);
   const resumen = items.length ? `
   <div class="card">
-    <div class="meta">Saldo total en cuentas</div>
-    <div style="font-size:30px;font-weight:800;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;margin-top:2px" class="${total>=0?'':'neg'}">${eur(total)}</div>
+    <div class="meta" style="font-weight:600">Saldo total en cuentas</div>
+    <div style="font-size:34px;font-weight:800;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;margin-top:2px" class="${total>=0?'':'neg'}">${eur(total)}</div>
     ${totalPos>0? `
     <div style="display:flex;height:10px;border-radius:999px;overflow:hidden;margin-top:14px;gap:2px">
       ${positivas.map(x=>`<div style="width:${x.saldo/totalPos*100}%;background:${PALETTE[x.k%PALETTE.length]}"></div>`).join("")}
@@ -31,14 +31,14 @@ function renderCuentas(){
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
         <div style="display:flex;align-items:center;gap:12px;min-width:0">
           ${items.length>1? gripHtml() : ""}
-          <div style="width:42px;height:42px;border-radius:14px;background:${col};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">${esc((c.nombre||"?").trim().charAt(0).toUpperCase())}</div>
-          <div style="min-width:0"><strong>${esc(c.nombre)}</strong><div class="meta">Inicial ${eur(c.saldoInicial||0)} · ${nMov} movimiento${nMov===1?"":"s"}</div></div>
+          <div style="width:44px;height:44px;border-radius:50%;background:${col}26;color:${col};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;flex-shrink:0">${esc((c.nombre||"?").trim().charAt(0).toUpperCase())}</div>
+          <div style="min-width:0"><strong style="font-size:16px">${esc(c.nombre)}</strong><div class="meta">Inicial ${eur(c.saldoInicial||0)} · ${nMov} movimiento${nMov===1?"":"s"}</div></div>
         </div>
-        <div style="font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap" class="${saldo>=0?'':'neg'}">${eur(saldo)}</div>
+        <div style="font-size:19px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap" class="${saldo>=0?'':'neg'}">${eur(saldo)}</div>
       </div>
-      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-        ${ajustarSaldoId!==c.id?`<button class="btn gold" data-ajustar-saldo="${c.id}">Ajustar saldo</button>`:""}
-        ${nMov ? `<button class="btn ghost" data-archivar-cuenta="${c.id}" style="color:var(--muted)">Archivar</button>` : `<button class="btn ghost" data-del-cuenta="${c.id}">Borrar</button>`}
+      <div class="chips" style="margin-top:14px">
+        ${ajustarSaldoId!==c.id?`<button class="chip" data-ajustar-saldo="${c.id}">Ajustar saldo</button>`:""}
+        ${nMov ? `<button class="chip" data-archivar-cuenta="${c.id}" style="background:var(--line);color:var(--muted)">Archivar</button>` : `<button class="chip peligro" data-del-cuenta="${c.id}">Borrar</button>`}
       </div>
       ${ajustarSaldoId===c.id? `
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
@@ -61,7 +61,7 @@ function renderCuentas(){
     <p class="meta" style="margin:-6px 0 10px">Siguen contando en tu patrimonio, pero no aparecen al apuntar movimientos.</p>
     <div class="list">${archivadas.map(c=>`
       <div class="item">
-        <div style="min-width:0"><strong>${esc(c.nombre)}</strong><div class="meta">${eur(saldoCuenta(c))}</div></div>
+        <div style="min-width:0"><strong style="font-size:16px">${esc(c.nombre)}</strong><div class="meta">${eur(saldoCuenta(c))}</div></div>
         <div style="display:flex;gap:6px">
           <button class="btn ghost" data-desarchivar-cuenta="${c.id}" style="color:var(--accent)">Reactivar</button>
           ${nMovCuenta(c) ? "" : `<button class="btn ghost" data-del-cuenta="${c.id}">Borrar</button>`}

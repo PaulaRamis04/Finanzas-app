@@ -96,7 +96,6 @@ function renderInicio(){
   const pctPat = patIni ? delta/Math.abs(patIni)*100 : 0;
   const nombre = (session?.user?.user_metadata?.full_name || "").trim().split(/\s+/)[0];
   const avisos = pendientes.length || alertas.length;
-  const fechaCorta = f=>`${Number(f.slice(8,10))} ${MESES[Number(f.slice(5,7))-1].slice(0,3).toLowerCase()}`;
   const vistas = new Set();
   const recientes = [...movimientos].sort((a,b)=>b.fecha.localeCompare(a.fecha)).filter(m=>{
     if(!m.transferenciaId) return true;
@@ -141,16 +140,7 @@ function renderInicio(){
   </div>
   <div class="tit-fila"><h2>Movimientos recientes</h2><button class="auth-link" data-ir-tab="Movimientos">Ver todos</button></div>
   ${recientes.length ? `<div class="list" style="margin-bottom:16px">
-    ${recientes.map(m=>{
-      const trans = !!m.transferenciaId;
-      const ingreso = m.tipo==="ingreso";
-      return `
-      <div class="reciente">
-        <div class="ico">${trans ? "🔁" : emojiCategoria(m.categoria, m.tipo)}</div>
-        <div class="txt"><b>${esc(trans ? "Transferencia" : (m.nota || m.categoria))}</b><div class="meta">${trans ? "Entre cuentas" : esc(m.categoria)}</div></div>
-        <div class="der"><b class="${trans ? "" : ingreso ? "pos" : ""}">${trans ? "" : ingreso ? "+" : "-"}${eur(m.importe)}</b><div class="meta">${fechaCorta(m.fecha)}</div></div>
-      </div>`;
-    }).join("")}
+    ${recientes.map(m=>filaMov(m)).join("")}
   </div>` : `<div class="card"><p class="meta" style="margin:0">Aún no tienes movimientos.</p></div>`}
   ${bloqueAlertas}
   ${bloqueObjetivos}
