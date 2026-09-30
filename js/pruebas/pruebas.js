@@ -519,6 +519,30 @@ prueba("perfiles: añadir otra cuenta, cambiar con la flecha y cerrar solo uno",
   await p.waitForFunction(()=>typeof ready!=="undefined" && ready && session?.user?.id==="u2");
 });
 
+prueba("cierre del mes: tarjeta que se guarda como imagen y PDF, con importes ocultables", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>{ tab = "Resumen del mes"; render(); });
+  await p.click("#btnCierre");
+  await p.waitForFunction(()=>document.getElementById("cierreImg")?.src.startsWith("data:image/png"));
+  const bytes = async boton=>{
+    const [dl] = await Promise.all([p.waitForEvent("download"), p.click(boton)]);
+    return {nombre: dl.suggestedFilename(), datos: fs.readFileSync(await dl.path())};
+  };
+  const png = await bytes("#cierrePng");
+  assert.match(png.nombre, /^cierre-[a-z]+-\d{4}\.png$/);
+  assert.strictEqual(png.datos.subarray(1,4).toString(), "PNG");
+  const pdf = await bytes("#cierrePdf");
+  assert.match(pdf.nombre, /\.pdf$/);
+  assert.ok(pdf.datos.subarray(0,8).toString().startsWith("%PDF-1.4") && pdf.datos.includes("/DCTDecode") && pdf.datos.subarray(-6).toString().includes("%%EOF"));
+  const antes = await p.$eval("#cierreImg", i=>i.src);
+  await p.click("#cierreOcultar");
+  assert.notStrictEqual(await p.$eval("#cierreImg", i=>i.src), antes, "ocultar importes vuelve a dibujar la tarjeta");
+  await p.keyboard.press("Escape");
+  await p.waitForSelector("#cierre", {state:"detached"});
+  await p.evaluate(()=>{ periodoAnio = periodoAnio-1; periodoMes = "8"; render(); });
+  assert.ok(await p.$eval("#btnCierre", b=>b.disabled), "sin movimientos no hay cierre que ver");
+});
+
 (async ()=>{
   const html = fs.readFileSync(path.join(RAIZ, "index.html"), "utf8");
   const conSimulado = html.replace(/<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase[^>]*><\/script>/, '<script src="pruebas/supabase_simulado.js"></script>');
