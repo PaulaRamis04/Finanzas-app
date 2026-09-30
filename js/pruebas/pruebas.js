@@ -158,7 +158,12 @@ prueba("cerrar sesión recarga y borra los datos locales", async ()=>{
   const conSimulado = html.replace(/<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase[^>]*><\/script>/, '<script src="pruebas/supabase_simulado.js"></script>');
   assert.notStrictEqual(conSimulado, html, "no se encontró el <script> de supabase-js en index.html");
   fs.writeFileSync(HTML_PRUEBA, conSimulado);
-  navegador = await chromium.launch();
+  // Usa el Chromium de Playwright si está instalado; si no (p. ej. macOS 12, que ya no lo soporta), el Google Chrome del sistema.
+  try{ navegador = await chromium.launch(); }
+  catch(e){
+    try{ navegador = await chromium.launch({channel:"chrome"}); }
+    catch(e2){ console.error("No se encontró ningún navegador. Instala Google Chrome (o ejecuta: npx playwright install chromium)."); throw e2; }
+  }
   let fallos = 0;
   try{
     for(const {nombre, fn} of pruebas){
