@@ -18,6 +18,7 @@ function render(){
   else if(tab==="Gastos") app.innerHTML = renderGastos();
   else if(tab==="Resumen del mes") app.innerHTML = renderResumen();
   else if(tab==="Presupuestos") app.innerHTML = renderPresupuestos();
+  else if(tab==="Permitir") app.innerHTML = renderPermitir();
   else if(tab==="Movimientos") app.innerHTML = renderMovimientos();
   else if(tab==="Deudas") app.innerHTML = renderDeudas();
   else if(tab==="Cuentas") app.innerHTML = renderCuentas();
@@ -65,6 +66,7 @@ function wireEvents(){
   wireEventosPersonalizacion();
   wireEventosNotificaciones();
   wireEventosPresupuestos();
+  wireEventosPermitir();
   wireEventosObjetivos();
   wireEventosVivienda();
   wireEventosHitos();
