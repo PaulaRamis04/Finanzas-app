@@ -74,7 +74,7 @@ function renderMovimientosLista(){
   const hayFiltro = movBuscarTexto.trim() || movFiltroCategoria;
   return `
   <div class="section-title">Historial <span class="meta" style="font-size:13px">(${items.length})</span></div>
-  ${items.length? listaPorDias(items, m=>movItem(m,cubMov,pendMov)) : `<div class="empty">${hayFiltro? "Nada coincide con el filtro." : "Aún no hay movimientos. Añade el primero arriba."}</div>`}`;
+  ${items.length? listaPorDias(items, m=>movItem(m,cubMov,pendMov)) : `<div class="card">${hayFiltro? vacio("nube","No encontramos nada","Prueba con otra palabra o categoría.") : vacio("hucha","Aún no hay movimientos","Apunta el primero arriba y tu hucha despertará.")}</div>`}`;
 }
 
 function renderMovimientos(){
@@ -168,16 +168,16 @@ function wireEventosMovimientos(){
       if(cerrar || (meDebenMovId && meDebenMovId!==id)) meDebenMovId = null;
       refrescarListaMov();
     });
-    document.querySelectorAll("[data-del-mov]").forEach(b=>b.onclick=()=>{
-      if(!confirm("¿Borrar este movimiento?")) return;
+    document.querySelectorAll("[data-del-mov]").forEach(b=>b.onclick=async ()=>{
+      if(!(await confirmar("¿Borrar este movimiento?"))) return;
       conCarga(b, "Borrando…", async ()=>{
         const {error} = await sb.from("movimientos").delete().eq("id", b.dataset.delMov);
         if(error){ showError("No se pudo borrar: "+error.message); return; }
         hideError(); await recargar(["movimientos","deudas","aportaciones_inversion","retiros_inversion"]);
       });
     });
-    document.querySelectorAll("[data-del-transferencia]").forEach(b=>b.onclick=()=>{
-      if(!confirm("¿Borrar esta transferencia? Se deshacen los dos movimientos.")) return;
+    document.querySelectorAll("[data-del-transferencia]").forEach(b=>b.onclick=async ()=>{
+      if(!(await confirmar("¿Borrar esta transferencia? Se deshacen los dos movimientos."))) return;
       conCarga(b, "Borrando…", async ()=>{
         const {error} = await sb.rpc("eliminar_transferencia", {p_transferencia_id: b.dataset.delTransferencia});
         if(error){ showError("No se pudo borrar: "+error.message); return; }

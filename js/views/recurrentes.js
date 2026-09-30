@@ -50,7 +50,7 @@ function renderRecurrentes(){
   </div>
   <div class="section-title">Recurrentes (${items.length})</div>
   <div class="list">
-    ${items.length? items.map(recurrenteItem).join("") : `<div class="empty">Sin gastos o ingresos recurrentes todavía.</div>`}
+    ${items.length? items.map(recurrenteItem).join("") : `<div class="card">${vacio("nube","Sin pagos automáticos todavía","Añade tu nómina, el alquiler o las suscripciones y se apuntarán solos cada mes.")}</div>`}
   </div>`;
 }
 
@@ -83,8 +83,8 @@ function wireEventosRecurrentes(){
     if(error){ showError("No se pudo actualizar: "+error.message); return; }
     hideError(); await recargar(["recurrentes","movimientos"], {procesar:true});
   }));
-  document.querySelectorAll("[data-del-recurrente]").forEach(b=>b.onclick=()=>{
-    if(!confirm("¿Borrar este recurrente? Los movimientos que ya generó no se borran.")) return;
+  document.querySelectorAll("[data-del-recurrente]").forEach(b=>b.onclick=async ()=>{
+    if(!(await confirmar("¿Borrar este recurrente? Los movimientos que ya generó no se borran."))) return;
     conCarga(b, "Borrando…", async ()=>{
       const {error} = await sb.from("recurrentes").delete().eq("id", b.dataset.delRecurrente);
       if(error){ showError("No se pudo borrar: "+error.message); return; }

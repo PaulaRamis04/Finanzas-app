@@ -5,7 +5,7 @@ function renderPreferencias(){
   return `
   <div class="card">
     <h2>Cuenta por defecto</h2>
-    <p class="meta" style="margin:0 0 10px">Es la cuenta que aparece ya seleccionada cuando añades un movimiento, aportas o rescatas de una inversión, saldas una deuda o importas un extracto. Siempre puedes elegir otra en cada caso.</p>
+    <p class="meta" style="margin:0 0 10px">Es la cuenta que aparece ya seleccionada cuando añades un movimiento, aportas o rescatas de una inversión, o saldas una deuda. Siempre puedes elegir otra en cada caso.</p>
     ${cuentasActivas().length? `<select id="prefCuenta"><option value="">Ninguna (la primera de la lista)</option>${cuentasActivas().map(c=>`<option value="${c.id}"${c.id===def?" selected":""}>${esc(c.nombre)}</option>`).join("")}</select>` : `<div class="meta">Crea antes una cuenta en la pestaña "Cuentas".</div>`}
     <div class="meta" id="prefEstado" style="margin-top:8px"></div>
   </div>
@@ -34,7 +34,7 @@ function wireEventosPreferencias(){
     const datos = {
       exportado_en: new Date().toISOString(),
       cuentas, movimientos, deudas, inversiones, aportaciones, retiros,
-      categorias, presupuestos, objetivos, recurrentes, pendientes
+      categorias, presupuestos, objetivos, recurrentes
     };
     const blob = new Blob([JSON.stringify(datos, null, 2)], {type:"application/json"});
     const url = URL.createObjectURL(blob);
@@ -55,7 +55,7 @@ function wireEventosPreferencias(){
         try{ copia = leerCopia(await archivo.text()); }catch(e){ showError(e.message); return; }
         const f = copia.filas;
         const fecha = new Date(copia.exportadoEn).toLocaleString("es-ES");
-        if(!confirm(`Copia del ${fecha}: ${f.cuentas.length} cuentas, ${f.movimientos.length} movimientos, ${f.deudas.length} deudas, ${f.inversiones.length} inversiones y ${f.objetivos.length} objetivos. ¿Restaurarla?`)) return;
+        if(!(await confirmar(`Copia del ${fecha}: ${f.cuentas.length} cuentas, ${f.movimientos.length} movimientos, ${f.deudas.length} deudas, ${f.inversiones.length} inversiones y ${f.objetivos.length} objetivos. ¿Restaurarla?`))) return;
         try{
           await restaurarCopia(copia, txt=>{ btnRestaurar.textContent = txt; });
         }catch(e){ showError("No se pudo restaurar y no se ha guardado nada: "+e.message); return; }

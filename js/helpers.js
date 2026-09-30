@@ -19,7 +19,9 @@ const CATEGORIAS_DEFECTO = [
 
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
-function eur(n){ return (n<0?"-":"") + "€" + Math.abs(n).toFixed(2).replace(".",","); }
+let ocultarSaldos = false;
+try{ ocultarSaldos = localStorage.getItem("ocultarSaldos")==="1"; }catch(e){}
+function eur(n){ return ocultarSaldos ? "•••• €" : (n<0?"-":"") + "€" + Math.abs(n).toFixed(2).replace(".",","); }
 
 function esc(s){
   if(s==null) return "";
@@ -63,7 +65,14 @@ function emojiCategoria(categoria, tipo){
 }
 
 // Gasto acumulado del periodo (línea con relleno) frente al presupuesto (línea discontinua).
-function graficoGastoMes(acumulado, etiquetas, presupuesto){
+// Envuelve una gráfica de líneas para que al tocarla (o pasar el ratón) muestre el importe de ese punto.
+// puntos: [{x, series:[{y, color, nombre?, valor}], titulo}] con x/y en unidades del viewBox (W×H).
+function graficoInteractivo(svg, W, H, puntos){
+  const datos = puntos.map(p=>({x:+(p.x/W*100).toFixed(2), t:p.titulo, s:p.series.map(s=>({y:+(s.y/H*100).toFixed(2), c:s.color, n:s.nombre||"", v:s.valor}))}));
+  return `<div class="graf-int" data-puntos="${esc(JSON.stringify(datos))}">${svg}<div class="graf-linea"></div><div class="graf-tip" role="status" aria-live="polite"></div></div>`;
+}
+
+function graficoGastoMes(acumulado, etiquetas, presupuesto, titulos){
   const W=320,H=150,padL=6,padR=8,padT=14,padB=20;
   const n = acumulado.length;
   const max = Math.max(1, presupuesto||0, ...acumulado) * 1.08;
@@ -82,7 +91,8 @@ function graficoGastoMes(acumulado, etiquetas, presupuesto){
   const xe = i => padL + (W-padL-padR) * (total>1 ? i/(total-1) : 0);
   const marcas = total>12 ? [0,6,13,20,total-1] : etiquetas.map((_,i)=>i);
   const yp = presupuesto>0 ? y(presupuesto) : null;
-  return `
+  const tit = titulos || etiquetas;
+  return graficoInteractivo(`
   <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="Gasto acumulado del periodo">
     <defs><linearGradient id="gradGasto" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--mint)" stop-opacity=".35"/><stop offset="1" stop-color="var(--mint)" stop-opacity="0"/></linearGradient></defs>
     <line x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}" stroke="var(--line)"/>
@@ -92,10 +102,10 @@ function graficoGastoMes(acumulado, etiquetas, presupuesto){
     <line x1="${ux.toFixed(1)}" y1="${uy.toFixed(1)}" x2="${ux.toFixed(1)}" y2="${H-padB}" stroke="var(--mint)" stroke-width="1" opacity=".5"/>
     <circle cx="${ux.toFixed(1)}" cy="${uy.toFixed(1)}" r="4.2" fill="var(--card)" stroke="var(--mint)" stroke-width="2.2"/>` : ""}
     ${marcas.map(i=>`<text x="${xe(i).toFixed(1)}" y="${H-5}" font-size="9" fill="var(--muted)" text-anchor="${i===0?"start":i===total-1?"end":"middle"}">${esc(etiquetas[i])}</text>`).join("")}
-  </svg>`;
+  </svg>`, W, H, acumulado.map((v,i)=>({x:x(i), titulo:tit[i], series:[{y:y(v), color:"var(--mint)", valor:eur(v)+(presupuesto>0 ? ` de ${eur(presupuesto)}` : "")}]})));
 }
 
-function graficoPatrimonio(valores, etiquetas){
+function graficoPatrimonio(valores, etiquetas, titulos){
   const W=320,H=150,padL=6,padR=6,padT=14,padB=20;
   const min = Math.min(0,...valores), max = Math.max(1,...valores);
   const rango = (max-min) || 1;
@@ -103,7 +113,7 @@ function graficoPatrimonio(valores, etiquetas){
   const x = i => padL + (W-padL-padR) * (n>1 ? i/(n-1) : 0);
   const y = v => (H-padB) - (H-padT-padB) * ((v-min)/rango);
   const path = valores.map((v,i)=>`${i===0?"M":"L"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
-  return `
+  return graficoInteractivo(`
   <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">
     <line x1="${padL}" y1="${(H-padB).toFixed(1)}" x2="${W-padR}" y2="${(H-padB).toFixed(1)}" stroke="var(--line)" stroke-width="1"/>
     <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
@@ -115,7 +125,7 @@ function graficoPatrimonio(valores, etiquetas){
       if(idxs[idxs.length-1]!==n-1) idxs.push(n-1);
       return idxs.map(i=>`<text x="${x(i).toFixed(1)}" y="${H-6}" font-size="8" fill="var(--muted)" text-anchor="${i===0?"start":i===n-1?"end":"middle"}">${esc(etiquetas[i])}</text>`).join("");
     })()}
-  </svg>`;
+  </svg>`, W, H, valores.map((v,i)=>({x:x(i), titulo:(titulos||etiquetas)[i], series:[{y:y(v), color:"var(--accent)", valor:eur(v)}]})));
 }
 
 function proyectarSerie(inicial, aporteMensual, tasaAnual, anios){
@@ -139,12 +149,13 @@ function graficoLineasProyeccion(escenarios, anios){
   const marcas = [];
   for(let a=0;a<=anios;a+=paso) marcas.push(a);
   if(marcas[marcas.length-1]!==anios) marcas.push(anios);
-  return `
+  return graficoInteractivo(`
   <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">
     <line x1="${padL}" y1="${(H-padB).toFixed(1)}" x2="${W-padR}" y2="${(H-padB).toFixed(1)}" stroke="var(--line)" stroke-width="1"/>
     ${escenarios.slice().reverse().map(e=>`<path d="${linea(e)}" fill="none" stroke="${e.color}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>`).join("")}
     ${marcas.map(a=>`<text x="${x(a).toFixed(1)}" y="${H-6}" font-size="8" fill="var(--muted)" text-anchor="${a===0?"start":a===anios?"end":"middle"}">${a}</text>`).join("")}
-  </svg>`;
+  </svg>`, W, H, Array.from({length:anios+1}, (_,i)=>({x:x(i), titulo: i===0 ? "Hoy" : `Año ${i}`,
+    series: escenarios.map(e=>({y:y(e.data[i]), color:e.color, nombre:e.nombre, valor:eur(e.data[i])}))})));
 }
 
 function pieStyle(desc){
@@ -164,8 +175,21 @@ function sectorDonut(cx,cy,rOut,rIn,a0,a1){
   const large = (a1-a0)>180 ? 1 : 0;
   return `M ${x1.toFixed(2)},${y1.toFixed(2)} A ${rOut},${rOut} 0 ${large} 1 ${x2.toFixed(2)},${y2.toFixed(2)} L ${x3.toFixed(2)},${y3.toFixed(2)} A ${rIn},${rIn} 0 ${large} 0 ${x4.toFixed(2)},${y4.toFixed(2)} Z`;
 }
-function donutClicable(desc, tipo, atributo){
+// El texto del centro del donut se encoge con importes largos para no salirse del hueco (68 px).
+function tamTextoDonut(total){ return Math.min(12, Math.floor(100/eur(total).length*10)/10); }
+
+// Centro del donut: el total o, si hay una categoría elegida (al tocarla), su nombre y su importe.
+function centroDonut(total, elegida){
+  if(!elegida) return `<text x="65" y="65" text-anchor="middle" dominant-baseline="middle" font-size="${tamTextoDonut(total)}" font-weight="800" fill="var(--ink)" style="pointer-events:none">${esc(eur(total))}</text>`;
+  const nombre = elegida.categoria.length>13 ? elegida.categoria.slice(0,12)+"…" : elegida.categoria;
+  return `<text x="65" y="56" text-anchor="middle" dominant-baseline="middle" font-size="8.5" font-weight="700" fill="var(--muted)" style="pointer-events:none">${esc(nombre)}</text>
+    <text x="65" y="69" text-anchor="middle" dominant-baseline="middle" font-size="${tamTextoDonut(elegida.total)}" font-weight="800" fill="var(--ink)" style="pointer-events:none">${esc(eur(elegida.total))}</text>
+    <text x="65" y="81" text-anchor="middle" dominant-baseline="middle" font-size="8" font-weight="700" fill="var(--muted)" style="pointer-events:none">${elegida.pct.toFixed(0)} %</text>`;
+}
+
+function donutClicable(desc, tipo, atributo, categoriaElegida){
   const total = desc.reduce((s,d)=>s+d.total,0);
+  const elegida = categoriaElegida ? desc.find(d=>d.categoria===categoriaElegida) : null;
   if(!total) return `<div style="width:130px;height:130px;border-radius:50%;background:var(--line);flex-shrink:0"></div>`;
   const attr = atributo || "data-resumen-sel";
   if(desc.length===1){
@@ -173,85 +197,20 @@ function donutClicable(desc, tipo, atributo){
     <svg viewBox="0 0 130 130" width="130" height="130" style="flex-shrink:0">
       <circle cx="65" cy="65" r="50" fill="none" stroke="${desc[0].color}" stroke-width="30" ${attr}="${tipo}|${esc(desc[0].categoria)}" style="cursor:pointer"/>
       <circle cx="65" cy="65" r="34" fill="var(--card)"/>
-      <text x="65" y="65" text-anchor="middle" dominant-baseline="middle" font-size="12" font-weight="800" fill="var(--ink)">${esc(eur(total))}</text>
+      ${centroDonut(total, elegida)}
     </svg>`;
   }
   let acc = 0;
   const sectores = desc.map(d=>{
     const a0 = acc/total*360; acc += d.total; const a1 = acc/total*360;
-    return `<path d="${sectorDonut(65,65,65,35,a0,a1)}" fill="${d.color}" ${attr}="${tipo}|${esc(d.categoria)}" style="cursor:pointer"><title>${esc(d.categoria)}</title></path>`;
+    return `<path d="${sectorDonut(65,65,65,35,a0,a1)}" fill="${d.color}" ${attr}="${tipo}|${esc(d.categoria)}" style="cursor:pointer;transition:opacity .15s${elegida && elegida!==d ? ";opacity:.35" : ""}"><title>${esc(d.categoria)}</title></path>`;
   }).join("");
   return `
   <svg viewBox="0 0 130 130" width="130" height="130" style="flex-shrink:0">
     ${sectores}
     <circle cx="65" cy="65" r="34" fill="var(--card)" style="pointer-events:none"/>
-    <text x="65" y="65" text-anchor="middle" dominant-baseline="middle" font-size="12" font-weight="800" fill="var(--ink)" style="pointer-events:none">${esc(eur(total))}</text>
+    ${centroDonut(total, elegida)}
   </svg>`;
-}
-
-function parseCSV(texto){
-  const lineas = texto.split(/\r?\n/).filter(l=>l.trim().length);
-  const splitLinea = (linea, delim)=>{
-    const out = []; let cur=""; let enComillas=false;
-    for(let i=0;i<linea.length;i++){
-      const ch = linea[i];
-      if(ch==='"'){ enComillas = !enComillas; }
-      else if(ch===delim && !enComillas){ out.push(cur); cur=""; }
-      else cur += ch;
-    }
-    out.push(cur);
-    return out.map(x=>x.trim());
-  };
-  let best = null;
-  [";",",","\t"].forEach(d=>{
-    const freq = {};
-    lineas.slice(0,50).forEach(l=>{ const n = splitLinea(l,d).length; freq[n]=(freq[n]||0)+1; });
-    let modo = 1, f = 0;
-    Object.entries(freq).forEach(([c,n])=>{ if(Number(c)>1 && n>f){ modo=Number(c); f=n; } });
-    if(!best || f>best.f) best = {d, modo, f};
-  });
-  const delim = best ? best.d : ",";
-  const modo = best && best.f ? best.modo : 1;
-  const filas = lineas.map(l=>splitLinea(l, delim));
-  let h = filas.findIndex(f=>f.length===modo && f.every(c=>c.length>0));
-  if(h<0) h = filas.findIndex(f=>f.length===modo);
-  if(h<0) h = 0;
-  return {headers: filas[h]||[], filas: filas.slice(h+1).filter(f=>f.length>1)};
-}
-
-// Admite "1.234,56", "1,234.56", "1.234", "-12,50", "12,50-", "(12,50)", "+12,50 €".
-function parseImporteCSV(str){
-  if(str==null) return NaN;
-  let s = String(str).trim().replace(/[€\s\u00a0+]/g,"").replace(/EUR/i,"");
-  let neg = false;
-  if(/^\(.*\)$/.test(s)){ neg = true; s = s.slice(1,-1); }
-  if(s.endsWith("-")){ neg = true; s = s.slice(0,-1); }
-  if(s.startsWith("-")){ neg = !neg; s = s.slice(1); }
-  if(!/^[\d.,]+$/.test(s)) return NaN;
-  const ultComa = s.lastIndexOf(","), ultPunto = s.lastIndexOf(".");
-  let dec = null; // separador decimal
-  if(ultComa>=0 && ultPunto>=0) dec = ultComa>ultPunto ? "," : ".";
-  else if(ultComa>=0) dec = s.split(",").length>2 ? null : ",";
-  else if(ultPunto>=0){
-    // Un único punto seguido de 3 cifras es de miles ("1.234"), salvo "0.123".
-    const partes = s.split(".");
-    dec = partes.length>2 || (partes[1].length===3 && !/^0*$/.test(partes[0])) ? null : ".";
-  }
-  const miles = dec==="," ? "." : dec==="." ? "," : /[.,]/g;
-  s = s.replace(typeof miles==="string" ? new RegExp("\\"+miles,"g") : miles, "");
-  if(dec) s = s.replace(dec, ".");
-  const n = parseFloat(s);
-  return isNaN(n) ? NaN : (neg ? -n : n);
-}
-
-function parseFechaCSV(str){
-  if(!str) return null;
-  const s = String(str).trim();
-  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if(m) return `${m[1]}-${m[2]}-${m[3]}`;
-  m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4}|\d{2})/);
-  if(m){ let y = m[3]; if(y.length===2) y = "20"+y; return `${y}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`; }
-  return s;
 }
 
 function lanzarConfeti(mensajeHtml){

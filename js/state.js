@@ -1,8 +1,8 @@
-const TABS = ["Inicio","Gastos","Resumen del mes","Presupuestos","Movimientos","Cuentas","Deudas","Importar","Inversiones","Objetivos","Proyección","Recurrentes","Categorías","Preferencias"];
+const TABS = ["Inicio","Gastos","Resumen del mes","Presupuestos","Movimientos","Cuentas","Deudas","Inversiones","Objetivos","Proyección","Recurrentes","Categorías","Preferencias"];
 
 const GRUPOS_MENU = [
   {nombre:"Resumen", tabs:["Gastos","Resumen del mes","Presupuestos"]},
-  {nombre:"Movimientos", tabs:["Movimientos","Cuentas","Deudas","Importar","Recurrentes"]},
+  {nombre:"Movimientos", tabs:["Movimientos","Cuentas","Deudas","Recurrentes"]},
   {nombre:"Ahorro", tabs:["Inversiones","Objetivos","Proyección"]},
   {nombre:"Ajustes", tabs:["Categorías","Preferencias","Personalización"]}
 ];
@@ -40,12 +40,6 @@ let proyResultado = null;
 
 let cuentaDefecto = "";
 try{ cuentaDefecto = localStorage.getItem("cuentaDefecto") || ""; }catch(e){}
-
-let csvHeaders = [], csvFilas = [], csvPreview = [], csvSel = {}, csvPreviewCuentaId = "";
-
-let csvDecisiones = {};
-
-let pendientes = [], pendCats = {};
 
 let aportarInvId = null, editarValorInvId = null, editarCatId = null, verAportacionesId = null, ajustarSaldoId = null, rescatarInvId = null;
 
@@ -206,56 +200,6 @@ function desglosePorCategoria(lista){
   return Object.entries(map).sort((a,b)=>b[1]-a[1]).map(([categoria,tot],i)=>({
     categoria, total:tot, color: PALETTE[i%PALETTE.length], pct: total? (tot/total*100) : 0
   }));
-}
-
-function sugerirCategoria(desc, tipo){
-  if(!desc) return "";
-  const d = desc.trim().toLowerCase();
-  const m = movimientos.find(x=>x.tipo===tipo && (x.nota||"").trim().toLowerCase()===d
-    && !["Inversión","Ajuste","Deuda"].includes(x.categoria)
-    && categorias.some(c=>c.tipo===tipo && c.nombre===x.categoria));
-  return m ? m.categoria : "";
-}
-
-function calcularPreview(){
-  const iFecha = csvHeaders.indexOf(csvSel.fecha);
-  const iImporte = csvHeaders.indexOf(csvSel.importe);
-  const iNota = csvSel.nota ? csvHeaders.indexOf(csvSel.nota) : -1;
-  const iSaldo = csvSel.saldo ? csvHeaders.indexOf(csvSel.saldo) : -1;
-  const cuentaId = csvSel.cuenta;
-  const cntP = new Map();
-  const add = (mp,k)=>mp.set(k,(mp.get(k)||0)+1);
-  pendientes.filter(p=>p.cuentaId===cuentaId).forEach(p=>add(cntP, `${p.fecha}|${p.tipo}|${p.importe.toFixed(2)}|${p.descripcion}|${p.saldo!=null?p.saldo.toFixed(2):""}`));
-  const VENTANA_DIAS = 3;
-  const movsCuenta = movimientos.filter(m=>m.cuentaId===cuentaId);
-  const usados = new Set(); // ids de movimientos ya emparejados con otra línea del banco
-  csvDecisiones = {};
-  csvPreview = csvFilas.map((fila,idx)=>{
-    const imp = parseImporteCSV(fila[iImporte]);
-    if(isNaN(imp) || imp===0) return null;
-    const saldoRaw = iSaldo>=0 ? parseImporteCSV(fila[iSaldo]) : NaN;
-    const r = {
-      fecha: parseFechaCSV(fila[iFecha]) || "", importe: redondearDinero(Math.abs(imp)),
-      tipo: imp<0 ? "gasto" : "ingreso", nota: iNota>=0 ? (fila[iNota]||"") : "",
-      saldo: isNaN(saldoRaw) ? null : redondearDinero(saldoRaw), posicion: idx,
-      dup:false, invalida:false, matchId:null
-    };
-    r.invalida = !/^\d{4}-\d{2}-\d{2}$/.test(r.fecha);
-    if(r.invalida) return r;
-    const kP = `${r.fecha}|${r.tipo}|${r.importe.toFixed(2)}|${r.nota}|${r.saldo!=null?r.saldo.toFixed(2):""}`;
-    if((cntP.get(kP)||0)>0){ cntP.set(kP, cntP.get(kP)-1); r.dup = true; return r; }
-    // Conciliación: busca un movimiento ya apuntado con el mismo importe y tipo,
-    // en una fecha cercana (no hace falta que la descripción coincida).
-    let mejor = null, mejorDif = Infinity;
-    movsCuenta.forEach(m=>{
-      if(usados.has(m.id) || m.tipo!==r.tipo || restarDinero(m.importe, r.importe)!==0) return;
-      const dif = Math.abs(diasEntre(m.fecha, r.fecha));
-      if(dif<=VENTANA_DIAS && dif<mejorDif){ mejor = m; mejorDif = dif; }
-    });
-    if(mejor){ r.matchId = mejor.id; usados.add(mejor.id); csvDecisiones[idx] = "igual"; }
-    return r;
-  }).filter(Boolean);
-  csvPreviewCuentaId = cuentaId;
 }
 
 function objetivoCompletado(o){ return o.meta>0 && progresoObjetivo(o)>=o.meta; }

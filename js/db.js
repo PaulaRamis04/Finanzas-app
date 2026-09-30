@@ -84,11 +84,10 @@ const COPIA_A_FILAS = {
   movimientos: m=>({id:m.id, tipo:m.tipo, categoria:m.categoria, importe:m.importe, fecha:m.fecha, nota:m.nota??null, cuenta_id:m.cuentaId??null, saldo_banco:m.saldoBanco??null, reembolso_de:null, recurrente_id:m.recurrenteId??null, transferencia_id:m.transferenciaId??null, conciliado:!!m.conciliado, deuda_id:m.deudaId??null}),
   aportaciones_inversion: a=>({id:a.id, inversion_id:a.inversionId, importe:a.importe, fecha:a.fecha, cuenta_id:a.cuentaId??null, movimiento_id:a.movimientoId??null}),
   retiros_inversion: r=>({id:r.id, inversion_id:r.inversionId, importe:r.importe, fecha:r.fecha, cuenta_id:r.cuentaId??null, movimiento_id:r.movimientoId??null}),
-  objetivos: o=>({id:o.id, nombre:o.nombre, meta:o.meta, tipo_vinculo:o.tipoVinculo, vinculo_id:o.vinculoId??null, orden:o.orden||0, auto_activo:!!o.autoActivo, auto_cuota:o.autoCuota??null, auto_dia_mes:o.autoDiaMes??null, auto_cuenta_origen:o.autoCuentaOrigen??null, auto_ultima_generada:o.autoUltimaGenerada??null}),
-  movimientos_pendientes: x=>({id:x.id, cuenta_id:x.cuentaId, tipo:x.tipo, importe:x.importe, fecha:x.fecha, descripcion:x.descripcion||"", saldo:x.saldo??null, posicion:x.posicion||0})
+  objetivos: o=>({id:o.id, nombre:o.nombre, meta:o.meta, tipo_vinculo:o.tipoVinculo, vinculo_id:o.vinculoId??null, orden:o.orden||0, auto_activo:!!o.autoActivo, auto_cuota:o.autoCuota??null, auto_dia_mes:o.autoDiaMes??null, auto_cuenta_origen:o.autoCuentaOrigen??null, auto_ultima_generada:o.autoUltimaGenerada??null})
 };
 // Clave de la copia para cada tabla (la copia usa los nombres del estado de la app).
-const CLAVE_COPIA = {aportaciones_inversion:"aportaciones", retiros_inversion:"retiros", movimientos_pendientes:"pendientes"};
+const CLAVE_COPIA = {aportaciones_inversion:"aportaciones", retiros_inversion:"retiros"};
 
 function leerCopia(texto){
   let d;
@@ -159,7 +158,6 @@ async function restaurarCopia(copia, progreso = ()=>{}){
     await insertar("aportaciones_inversion", filas.aportaciones_inversion);
     await insertar("retiros_inversion", filas.retiros_inversion);
     await insertar("objetivos", filas.objetivos);
-    await insertar("movimientos_pendientes", filas.movimientos_pendientes);
   }catch(e){
     progreso("Deshaciendo…");
     await deshacerRestauracion(insertados);
@@ -173,7 +171,7 @@ async function deshacerRestauracion(insertados){
   // Primero se sueltan los vínculos circulares (deuda ↔ movimiento, reembolso → movimiento).
   await porLotes(insertados.deudas || [], ids=>sb.from("deudas").update({movimiento_id:null}).in("id", ids));
   await porLotes(insertados.movimientos || [], ids=>sb.from("movimientos").update({reembolso_de:null}).in("id", ids));
-  for(const t of ["movimientos_pendientes","objetivos","retiros_inversion","aportaciones_inversion","movimientos","deudas","inversiones_hijas","inversiones","recurrentes","presupuestos","categorias","cuentas"]) await borrar(t);
+  for(const t of ["objetivos","retiros_inversion","aportaciones_inversion","movimientos","deudas","inversiones_hijas","inversiones","recurrentes","presupuestos","categorias","cuentas"]) await borrar(t);
 }
 
 const TABLAS = {
@@ -215,8 +213,6 @@ const TABLAS = {
   objetivos: { q:()=>todas(()=>sb.from("objetivos").select("*")),
     set:d=>{ objetivos = d.map(o=>({id:o.id, nombre:o.nombre, meta:Number(o.meta), tipoVinculo:o.tipo_vinculo, vinculoId:o.vinculo_id, orden:o.orden||0,
       autoActivo:!!o.auto_activo, autoCuota:o.auto_cuota!=null?Number(o.auto_cuota):null, autoDiaMes:o.auto_dia_mes||null, autoCuentaOrigen:o.auto_cuenta_origen||null, autoUltimaGenerada:o.auto_ultima_generada||null})).sort(porOrden); } },
-  movimientos_pendientes: { q:()=>todas(()=>sb.from("movimientos_pendientes").select("*")),
-    set:d=>{ pendientes = d.map(x=>({id:x.id, cuentaId:x.cuenta_id, tipo:x.tipo, importe:Number(x.importe), fecha:x.fecha, descripcion:x.descripcion||"", saldo:x.saldo!=null?Number(x.saldo):null, posicion:x.posicion||0})); } },
   preferencias: { q:()=>sb.from("preferencias").select("*"), opcional:true,
     set:d=>{ if(!d[0]) return;
       cuentaDefecto = d[0].cuenta_defecto || "";
@@ -404,7 +400,7 @@ async function init(){
   // Al cerrar sesión o cambiar de usuario no puede quedar nada del anterior: ni datos
   // en memoria, ni el canal realtime, ni preferencias locales.
   const cambiarDeUsuario = ()=>{
-    ["cuentaDefecto","objCompletados","catsContraidas","formsPorDefecto","personalizacion","fondoImagen"].forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
+    ["cuentaDefecto","objCompletados","catsContraidas","formsPorDefecto","personalizacion","fondoImagen","avisosVistos"].forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
     location.reload();
   };
 

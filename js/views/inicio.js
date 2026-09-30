@@ -74,7 +74,7 @@ function renderInicio(){
   </div>` : `
   <div class="card">
     <h2>🎯 Mis objetivos</h2>
-    <p class="meta" style="margin:8px 0 12px">Aún no tienes ningún objetivo de ahorro.</p>
+    ${vacio("hucha","Tu hucha sueña con algo","Ponle una meta: un viaje, un colchón o un capricho.")}
     <button class="btn" data-ir-tab="Objetivos">Crear un objetivo</button>
   </div>`;
 
@@ -95,7 +95,7 @@ function renderInicio(){
   const presupuestoTotal = porMes ? presupuestos.reduce((s,p)=>sumarDinero(s, p.limite, rolloverAcumulado(p)), 0) : 0;
   const pctPat = patIni ? delta/Math.abs(patIni)*100 : 0;
   const nombre = (session?.user?.user_metadata?.full_name || "").trim().split(/\s+/)[0];
-  const avisos = pendientes.length || alertas.length;
+  const avisos = hayAvisosNuevos();
   const vistas = new Set();
   const recientes = [...movimientos].sort((a,b)=>b.fecha.localeCompare(a.fecha)).filter(m=>{
     if(!m.transferenciaId) return true;
@@ -111,7 +111,7 @@ function renderInicio(){
   return `
   <div class="hola">
     <h1>Hola${nombre ? ", "+esc(nombre) : ""} 👋</h1>
-    <button class="campana" id="btnAvisos" aria-label="Avisos"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>${avisos ? `<span class="punto"></span>` : ""}</button>
+    <span style="display:flex;gap:10px">${botonOjo("btnOjoInicio")}<button class="campana" id="btnAvisos" aria-label="Notificaciones"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>${avisos ? `<span class="punto"></span>` : ""}</button></span>
   </div>
   <div class="saldo-lbl">Saldo total</div>
   <div class="saldo">
@@ -131,7 +131,7 @@ function renderInicio(){
       Gastado: <strong style="color:var(--ink)">${eur(gastosReales)}</strong>${presupuestoTotal>0 ? ` / Presupuesto: <strong style="color:var(--ink)">${eur(presupuestoTotal)}</strong>` : ""}
     </div>
     ${tAnt ? comparar(gastosReales, tAnt.gastos, false) : ""}
-    <div style="margin-top:10px">${graficoGastoMes(acumulado, etiquetasGasto, presupuestoTotal)}</div>
+    <div style="margin-top:10px">${graficoGastoMes(acumulado, etiquetasGasto, presupuestoTotal, porMes ? etiquetasGasto.map(d=>`${d} ${MESES[mesSel-1].slice(0,3).toLowerCase()}`) : MESES.map(m=>`Hasta ${m.toLowerCase()}`))}</div>
     <div class="meta" style="margin-top:4px">Ingresos: <strong class="pos">${eur(ingresos)}</strong> · Ahorro: <strong>${eur(ahorroMes)}</strong></div>
   </div>
   <h2 style="margin:22px 0 10px">Acciones rápidas</h2>
@@ -141,7 +141,7 @@ function renderInicio(){
   <div class="tit-fila"><h2>Movimientos recientes</h2><button class="auth-link" data-ir-tab="Movimientos">Ver todos</button></div>
   ${recientes.length ? `<div class="list" style="margin-bottom:16px">
     ${recientes.map(m=>filaMov(m)).join("")}
-  </div>` : `<div class="card"><p class="meta" style="margin:0">Aún no tienes movimientos.</p></div>`}
+  </div>` : `<div class="card">${vacio("hucha","Aún no hay movimientos","Toca «Añadir» para apuntar el primero.")}</div>`}
   ${bloqueAlertas}
   ${bloqueObjetivos}
   <div class="card">
@@ -166,8 +166,10 @@ function wireEventosInicio(){
     render();
     if(!enfocar) window.scrollTo(0,0);
   });
+  const ojo = document.getElementById("btnOjoInicio");
+  if(ojo) ojo.onclick = alternarPrivacidad;
   const av = document.getElementById("btnAvisos");
-  if(av) av.onclick = ()=>{ tab = pendientes.length ? "Importar" : "Presupuestos"; render(); window.scrollTo(0,0); };
+  if(av) av.onclick = ()=>{ tab = "Notificaciones"; render(); window.scrollTo(0,0); };
   document.querySelectorAll("[data-ir-tab]").forEach(b=>b.onclick=()=>{ tab=b.dataset.irTab; render(); window.scrollTo(0,0); });
   document.querySelectorAll("[data-rango-pat]").forEach(b=>b.onclick=()=>{ patrimonioRango = b.dataset.rangoPat; render(); });
 }

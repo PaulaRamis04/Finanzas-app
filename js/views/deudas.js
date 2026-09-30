@@ -109,7 +109,7 @@ function renderDeudas(){
   <div class="section-title">${lado==="me_deben" ? "Lo que me deben" : "Lo que debo"} (${pend.length})</div>
   ${personas.length>1 ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${personas.map(x=>`<span class="tag">${esc(x.nombre.charAt(0).toUpperCase()+x.nombre.slice(1))} · ${eur(x.total)}</span>`).join("")}</div>` : ""}
   <div class="list">
-    ${pend.length ? pend.map(deudaItem).join("") : `<div class="card"><div class="empty" style="padding:18px 10px">${lado==="me_deben" ? "Nadie te debe nada ahora mismo." : "No debes nada ahora mismo."}</div></div>`}
+    ${pend.length ? pend.map(deudaItem).join("") : `<div class="card">${lado==="me_deben" ? vacio("nube","Nadie te debe nada","Cuentas claras y amistades largas ✨") : vacio("hucha","¡No debes nada!","Tu hucha duerme tranquila.")}</div>`}
   </div>
   ${saldadas.length ? `
   <div data-toggle-saldadas="${lado}" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;margin-top:18px;padding:6px 2px">
@@ -142,8 +142,8 @@ function wireEventosDeudas(){
       hideError(); fDeuda.reset(); await recargar(["deudas"]);
     });
   };
-  document.querySelectorAll("[data-del-deuda]").forEach(b=>b.onclick=()=>{
-    if(!confirm("¿Borrar esta deuda?")) return;
+  document.querySelectorAll("[data-del-deuda]").forEach(b=>b.onclick=async ()=>{
+    if(!(await confirmar("¿Borrar esta deuda?"))) return;
     conCarga(b, "Borrando…", async ()=>{
       const {error} = await sb.from("deudas").delete().eq("id", b.dataset.delDeuda);
       if(error){ showError("No se pudo borrar: "+error.message); return; }

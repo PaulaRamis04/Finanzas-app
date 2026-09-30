@@ -96,7 +96,7 @@ function renderObjetivos(){
   ${completados.length && enCurso.length ? `<div class="section-title">En curso (${enCurso.length})</div>` : ""}
   ${enCurso.length ? `<div data-sortable="ordenar_objetivos">${enCurso.map((o,k)=>tarjeta(o,k,enCurso.length)).join("")}</div>` : ""}
   ${completados.length ? `<div class="section-title">Completados (${completados.length})</div><div data-sortable="ordenar_objetivos">${completados.map((o,k)=>tarjeta(o,k,completados.length)).join("")}</div>` : ""}
-  ${objetivos.length ? "" : `<div class="card"><div class="empty" style="padding:20px 10px">Sin objetivos todavía. Crea el primero abajo.</div></div>`}
+  ${objetivos.length ? "" : `<div class="card">${vacio("hucha","Tu hucha sueña con algo","Crea tu primer objetivo abajo: un viaje, un colchón o un capricho.")}</div>`}
 `;
 }
 
@@ -144,8 +144,8 @@ function wireEventosObjetivos(){
       hideError(); fObjetivo.reset(); await recargar(["objetivos"]);
     });
   };
-  document.querySelectorAll("[data-del-objetivo]").forEach(b=>b.onclick=()=>{
-    if(!confirm("¿Borrar este objetivo?")) return;
+  document.querySelectorAll("[data-del-objetivo]").forEach(b=>b.onclick=async ()=>{
+    if(!(await confirmar("¿Borrar este objetivo?"))) return;
     conCarga(b, "Borrando…", async ()=>{
       const {error} = await sb.from("objetivos").delete().eq("id", b.dataset.delObjetivo);
       if(error){ showError("No se pudo borrar: "+error.message); return; }
