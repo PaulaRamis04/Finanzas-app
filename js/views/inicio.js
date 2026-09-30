@@ -75,6 +75,17 @@ function renderInicio(){
     <button class="btn" data-ir-tab="Objetivos">Crear una hucha</button>
   </div>`;
 
+  const hitosHechos = HITOS.filter(h=>hitosGuardados?.[h.id]).length;
+  const bloqueHitos = `
+  <div class="card cierre-banner">
+    <div class="cierre-banner-ico">🏆</div>
+    <div style="flex:1 1 160px;min-width:0">
+      <strong style="font-size:16px">Mis hitos</strong>
+      <div class="meta">${hitosHechos} / ${HITOS.length} desbloqueados</div>
+    </div>
+    <button class="btn ghost" data-ir-tab="Hitos">Ver mis hitos</button>
+  </div>`;
+
   const porMes = periodoMes!=="todos";
   const presupuestoTotal = porMes ? presupuestos.reduce((s,p)=>sumarDinero(s, p.limite, rolloverAcumulado(p)), 0) : 0;
   const pctPat = patIni ? delta/Math.abs(patIni)*100 : 0;
@@ -125,6 +136,7 @@ function renderInicio(){
   </div>` : `<div class="card">${vacio("hucha","Aún no hay movimientos","Toca «Añadir» para apuntar el primero.")}</div>`}
   ${bloqueAlertas}
   ${bloqueObjetivos}
+  ${bloqueHitos}
   <div class="card">
     <h2>📈 Patrimonio</h2>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 12px">
@@ -168,6 +180,7 @@ const CATALOGO_ACCIONES = [
   {id:"Deudas", ico:"🤝", txt:"Deudas", largo:"Deudas", fondo:"var(--peach-soft)"},
   {id:"Inversiones", ico:"🌱", txt:"Invertir", largo:"Inversiones", fondo:"var(--mint-soft)"},
   {id:"Objetivos", ico:"🎯", txt:"Objetivos", largo:"Objetivos", fondo:"var(--accent-soft)"},
+  {id:"Hitos", ico:"🏆", txt:"Hitos", largo:"Mis hitos", fondo:"var(--peach-soft)"},
   {id:"Recurrentes", ico:"📅", txt:"Recurr.", largo:"Recurrentes", fondo:"var(--lav-soft)"},
   {id:"Proyección", ico:"🔮", txt:"Proyección", largo:"Proyección", fondo:"var(--lav-soft)"},
   {id:"Categorías", ico:"🏷️", txt:"Categorías", largo:"Categorías", fondo:"var(--mint-soft)"},

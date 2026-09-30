@@ -8,7 +8,7 @@ const assert = require("assert");
 
 const RAIZ = path.join(__dirname, "..");
 const HTML_PRUEBA = path.join(RAIZ, "index.pruebas.html");
-const PESTANAS = ["Inicio","Gastos","Resumen del mes","Presupuestos","Movimientos","Cuentas","Deudas","Inversiones","Objetivos","Proyección","Recurrentes","Categorías","Preferencias","Personalización","Notificaciones","Comunidad"];
+const PESTANAS = ["Inicio","Gastos","Resumen del mes","Presupuestos","Movimientos","Cuentas","Deudas","Inversiones","Objetivos","Hitos","Proyección","Recurrentes","Categorías","Preferencias","Personalización","Notificaciones","Comunidad"];
 
 const pruebas = [];
 const prueba = (nombre, fn)=>pruebas.push({nombre, fn});
@@ -541,6 +541,51 @@ prueba("cierre del mes: tarjeta que se guarda como imagen y PDF, con importes oc
   await p.waitForSelector("#cierre", {state:"detached"});
   await p.evaluate(()=>{ periodoAnio = periodoAnio-1; periodoMes = "8"; render(); });
   assert.ok(await p.$eval("#btnCierre", b=>b.disabled), "sin movimientos no hay cierre que ver");
+});
+
+prueba("hitos: se desbloquean solos, guardan la fecha y celebran los nuevos", async ()=>{
+  const p = await abrir();
+  const guardados = ()=>p.evaluate(()=>Object.fromEntries(__db.hitos.map(h=>[h.clave, h.fecha])));
+  // Al abrir se pone al día sin celebrar: patrimonio (~4.500 €) e inversión (1.200 €).
+  let g = await guardados();
+  for(const k of ["pat_500","pat_1000","pat_2500","inv_primera","inv_500","inv_1000"]) assert.ok(g[k], k);
+  for(const k of ["pat_5000","inv_5000","obj_viaje"]) assert.ok(!g[k], k);
+  assert.ok(!(await p.evaluate(()=>document.body.innerText.includes("hito desbloqueado"))));
+  // En la pestaña se carga todo el histórico y salen los que dependen de él (meses con ahorro e inversión).
+  await p.evaluate(()=>{ tab = "Hitos"; render(); });
+  await p.waitForFunction(()=>__db.hitos.some(h=>h.clave==="mes_ahorro"));
+  g = await guardados();
+  assert.ok(g.mes_inversion, "mes con inversión");
+  const texto = await p.evaluate(()=>document.getElementById("app").innerText);
+  assert.ok(texto.includes("MIS HITOS"));
+  assert.ok(texto.includes(`${Object.keys(g).length} / 34 desbloqueados`), texto.slice(0, 200));
+  assert.ok(/Racha de ahorro: [1-9]\d* mes/.test(texto), "racha de ahorro en marcha");
+  // Detalle: el conseguido dice cuándo; el bloqueado, qué falta.
+  await p.click('[data-hito="pat_500"]');
+  await p.waitForSelector("#hoja.abierta");
+  const [yy,mm,dd] = g.pat_500.split("-");
+  assert.ok((await p.textContent("#hoja")).includes(`Alcanzaste 500 € de patrimonio el ${dd}/${mm}/${yy}.`));
+  await p.click("#hojaOk");
+  await p.waitForSelector("#hoja", {state:"detached"});
+  await p.click('[data-hito="pat_100000"]');
+  await p.waitForSelector("#hoja.abierta");
+  assert.ok((await p.textContent("#hoja")).includes("Llega a 100.000 € de patrimonio"));
+  await p.keyboard.press("Escape");
+  await p.waitForSelector("#hoja", {state:"detached"});
+  // Llenar una hucha de viaje desbloquea dos hitos nuevos con la fecha de hoy y los celebra.
+  await p.evaluate(async ()=>{ __db.objetivos.push({id:"o9", nombre:"Japón", meta:100, ahorrado:100, tipo_vinculo:"ninguno", tema:"viaje", orden:2}); await recargar(["objetivos"]); });
+  await p.waitForFunction(()=>document.body.innerText.includes("¡Nuevos hitos desbloqueados!"));
+  g = await guardados();
+  const hoy = await p.evaluate(()=>today());
+  assert.strictEqual(g.obj_viaje, hoy);
+  assert.strictEqual(g.obj_primero, hoy);
+  // Una vez conseguido no se pierde, aunque la hucha se borre.
+  await p.evaluate(async ()=>{ __db.objetivos = __db.objetivos.filter(o=>o.id!=="o9"); await recargar(["objetivos","hitos"]); });
+  assert.ok(await p.evaluate(()=>!!hitosGuardados.obj_viaje));
+  // Sin la tabla «hitos» se guardan en este dispositivo.
+  const local = await p.evaluate(async ()=>{ delete __db.hitos; localStorage.removeItem("hitos"); await recargar(["hitos","movimientos"]); return {enBd:hitosEnBd, local:JSON.parse(localStorage.getItem("hitos")||"{}")}; });
+  assert.strictEqual(local.enBd, false);
+  assert.ok(local.local.pat_500 && local.local.mes_ahorro);
 });
 
 (async ()=>{
