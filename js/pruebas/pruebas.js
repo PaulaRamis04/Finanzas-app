@@ -99,29 +99,11 @@ prueba("renombrar una categoría actualiza movimientos, presupuestos y recurrent
   await p.waitForTimeout(200);
   assert.match(await textoError(p), /reservado/);
 });
-prueba("una cuenta con movimientos se puede borrar, avisa y se lleva sus movimientos; Añadir cuenta va arriba", async ()=>{
-  const p = await abrir();
-  await p.evaluate(()=>{ tab = "Cuentas"; render(); });
-  const html = await p.innerHTML("#app");
-  assert.ok(html.indexOf('id="fCuenta"') < html.indexOf('data-sort-id='), "Añadir cuenta está encima de las cuentas");
-  const n = await p.evaluate(()=>__db.movimientos.filter(m=>m.cuenta_id==="c2").length);
-  assert.ok(n>0);
-  await p.click('[data-del-cuenta="c2"]');
-  await p.waitForSelector("#hoja.abierta");
-  assert.match(await p.textContent("#hoja"), n===1 ? /también su movimiento/ : new RegExp(`también sus ${n} movimientos`));
-  await p.click("#hojaNo");
-  await p.waitForSelector("#hoja", {state:"detached"});
-  assert.ok(await p.evaluate(()=>__db.cuentas.some(c=>c.id==="c2")), "cancelar no borra");
-  await p.click('[data-del-cuenta="c2"]');
-  await p.click("#hojaOk");
-  await p.waitForFunction(()=>!__db.cuentas.some(c=>c.id==="c2"));
-  assert.strictEqual(await p.evaluate(()=>__db.movimientos.filter(m=>m.cuenta_id==="c2").length), 0);
-  await p.waitForFunction(()=>!cuentas.some(c=>c.id==="c2"));
-});
 prueba("archivar una cuenta la quita de los selects pero no del patrimonio", async ()=>{
   const p = await abrir();
   const patrimonio = await p.evaluate(()=>patrimonioActual());
   await p.evaluate(()=>{ tab = "Cuentas"; render(); });
+  assert.strictEqual(await p.$('[data-del-cuenta="c2"]'), null, "una cuenta con movimientos no se puede borrar");
   await p.click('[data-archivar-cuenta="c2"]');
   await aceptarHoja(p);
   await p.waitForFunction(()=>cuentas.find(c=>c.id==="c2").archivada);
@@ -343,7 +325,11 @@ prueba("sin premium: Proyección bloqueada (Inversiones no), Personalización so
   assert.strictEqual(await p.locator("#compartirEmail").count(), 0);
 });
 prueba("Comunidad: supporter, idea y fallo se guardan y dan las gracias", async ()=>{
-  const p = await abrir("", {width:1280, height:900});
+  const pp = await abrir("", {width:1280, height:900});
+  await pp.evaluate(()=>{ tab = "Comunidad"; render(); });
+  assert.match(await pp.innerText("#app"), /Ya eres premium/);
+  assert.strictEqual(await pp.locator('[data-comunidad-abrir="supporter"]').count(), 0, "un premium no puede volver a hacerse supporter");
+  const p = await abrir("?premium=0", {width:1280, height:900});
   await p.click(".menu-comunidad");
   assert.strictEqual(await p.evaluate(()=>tab), "Comunidad");
   await p.click('[data-comunidad-abrir="supporter"]');
