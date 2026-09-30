@@ -1,9 +1,9 @@
-const TABS = ["Inicio","Gastos","Resumen del mes","Presupuestos","Movimientos","Cuentas","Deudas","Inversiones","Objetivos","Hitos","Proyección","Recurrentes","Categorías","Preferencias"];
+const TABS = ["Inicio","Gastos","Resumen del mes","Presupuestos","Movimientos","Cuentas","Deudas","Inversiones","Objetivos","Hitos","Proyección","Simulador","Recurrentes","Categorías","Preferencias"];
 
 const GRUPOS_MENU = [
   {nombre:"Resumen", tabs:["Gastos","Resumen del mes","Presupuestos"]},
   {nombre:"Dinero", tabs:["Movimientos","Cuentas","Deudas","Recurrentes"]},
-  {nombre:"Ahorro", tabs:["Inversiones","Objetivos","Hitos","Proyección"]},
+  {nombre:"Ahorro", tabs:["Inversiones","Objetivos","Hitos","Proyección","Simulador"]},
   {nombre:"Ajustes", tabs:["Categorías","Preferencias","Personalización","Comunidad"]}
 ];
 
