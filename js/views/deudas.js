@@ -1,5 +1,56 @@
 // Pestaña «Deudas»: su render y sus eventos.
 
+// «Dividir un gasto» (premium): «Éramos 3 y pagué yo» → apunta el gasto entero y crea una deuda «Me deben» por cada amigo, vinculada a ese gasto.
+let dividirAbierto = false;
+TEXTO_PREMIUM.dividir = "Apunta una cena con amigos, di cuántos erais y la app calcula lo que te debe cada uno y te lo deja en «Me deben».";
+
+// Reparte en céntimos: cada amigo debe la parte redondeada hacia abajo y los céntimos sobrantes los pones tú.
+function repartoGasto(total, personas){
+  const cent = Math.round(total*100), n = Math.max(1, Math.floor(personas));
+  const parte = Math.floor(cent/n);
+  return {parte: parte/100, tuya: (cent - parte*(n-1))/100, meDeben: parte*(n-1)/100};
+}
+
+function nuevoId(){
+  if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c=>(c ^ (Math.random()*16) >> c/4).toString(16));
+}
+
+function bloqueDividirGasto(){
+  const cab = `<div class="pleg-cab ${dividirAbierto?"abierto":""}" data-toggle-dividir="1" role="button" aria-expanded="${dividirAbierto}">
+      <i style="background:var(--mint-soft)">🍕</i><h2>Dividir un gasto</h2>${esPremium? "" : `<span class="marca-premium">Premium</span>`}
+      <span class="chev"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+    </div>`;
+  if(!dividirAbierto) return `<div class="card">${cab}</div>`;
+  if(!esPremium) return `<div class="card">${cab}${avisoPremium("dividir")}</div>`;
+  const hayCuentas = cuentasActivas().length > 0;
+  return `
+  <div class="card">
+    ${cab}
+    <p class="meta" style="margin:12px 0 10px">¿Pagaste tú la cena? Di cuántos erais y se apunta el gasto entero en tu cuenta y una deuda «Me deben» por cada amigo. Cuando te hagan el Bizum, dale a «Abonar» y solo contará como gasto tuyo tu parte.</p>
+    <form id="fDividir">
+      <div class="row2">
+        <div><label>Importe total (€)</label><input name="importe" id="divImporte" type="number" step="0.01" min="0.01" required placeholder="ej. 60"></div>
+        <div><label>Éramos (contándote)</label><input name="personas" id="divPersonas" type="number" step="1" min="2" max="30" value="3" required></div>
+      </div>
+      <div><label>Concepto</label><input name="concepto" placeholder="ej. cena del viernes" required></div>
+      <div class="row2">
+        <div><label>Categoría</label><select name="categoria">${opcionesCategoriasGasto()}</select></div>
+        <div><label>Fecha</label><input name="fecha" type="date" value="${today()}" required></div>
+      </div>
+      <div><label>Pagué con</label>${hayCuentas? `<select name="cuentaId">${opcionesCuentas()}</select>` : `<div class="meta">Crea antes una cuenta en la pestaña "Cuentas".</div>`}</div>
+      <div><label>¿Quiénes te deben?</label><div id="divNombres" style="display:flex;flex-direction:column;gap:8px"></div></div>
+      <div class="meta" id="divResumen" style="font-weight:700;color:var(--ink)"></div>
+      <button class="btn" type="submit" ${hayCuentas?"":"disabled"}>Dividir y apuntar</button>
+    </form>
+  </div>`;
+}
+
+// Texto para pedir el Bizum a quien te debe (con el importe real aunque estén ocultos los saldos).
+function textoBizum(d){
+  return `¡Hola ${d.persona.trim()}! ${d.concepto? `De ${d.concepto}` : "De lo que te adelanté"} me debes ${Number(d.importe).toFixed(2).replace(".",",")} €. ¿Me haces un Bizum cuando puedas? 😊`;
+}
+
 function abonosDeDeuda(id){
   return movimientos.filter(m=>m.deudaId===id).sort((a,b)=>a.fecha.localeCompare(b.fecha));
 }
@@ -25,6 +76,7 @@ function deudaItem(d){
     </div>
     <div class="chips">
       ${pend && saldarId!==d.id?`<button class="chip ok" data-saldar="${d.id}">Abonar</button>`:''}
+      ${pend && esPremium && d.direccion==='me_deben'?`<button class="chip lav" data-pedir-bizum="${d.id}">Pedir Bizum</button>`:''}
       <button class="chip peligro" data-del-deuda="${d.id}">Borrar</button>
     </div>
   </div>
@@ -87,6 +139,7 @@ function renderDeudas(){
     ${tarjetaLado("me_deben","Me deben",totMe,pendMe.length,"pos")}
     ${tarjetaLado("debo","Debo",totDebo,pendDebo.length,"neg")}
   </div>
+  ${bloqueDividirGasto()}
   <div class="card">
     <h2>Nueva deuda</h2>
     <form id="fDeuda">
@@ -142,6 +195,60 @@ function wireEventosDeudas(){
       hideError(); fDeuda.reset(); await recargar(["deudas"]);
     });
   };
+  document.querySelectorAll("[data-toggle-dividir]").forEach(b=>b.onclick=()=>{ dividirAbierto = !dividirAbierto; if(dividirAbierto && esPremium) pendienteEnfoque = "divImporte"; render(); });
+  const fDividir = document.getElementById("fDividir");
+  if(fDividir){
+    const nombres = document.getElementById("divNombres");
+    const pintarNombres = ()=>{
+      const previos = [...nombres.querySelectorAll("input")].map(i=>i.value);
+      const n = Math.min(Math.max(Math.floor(parseFloat(fDividir.personas.value))||2, 2), 30);
+      nombres.innerHTML = Array.from({length:n-1}, (_,i)=>`<input name="amigo" placeholder="Amigo ${i+1}" aria-label="Amigo ${i+1}" value="${esc(previos[i]||"")}">`).join("");
+      pintarResumen();
+    };
+    const pintarResumen = ()=>{
+      const total = parseFloat(fDividir.importe.value), n = nombres.querySelectorAll("input").length + 1;
+      const r = repartoGasto(total, n);
+      document.getElementById("divResumen").textContent = total>0 ? `Tocáis a ${eur(r.parte)} cada uno · te deben ${eur(r.meDeben)}${r.tuya!==r.parte? ` (tú pones ${eur(r.tuya)} por el redondeo)` : ""}` : "";
+    };
+    pintarNombres();
+    fDividir.personas.oninput = pintarNombres;
+    fDividir.importe.oninput = pintarResumen;
+    fDividir.onsubmit = (e)=>{
+      e.preventDefault();
+      conCarga(fDividir.querySelector('button[type="submit"]'), "Guardando…", async ()=>{
+        const f = new FormData(fDividir);
+        const total = parseFloat(f.get("importe"));
+        const amigos = f.getAll("amigo").map((x,i)=>String(x).trim() || `Amigo ${i+1}`);
+        if(isNaN(total) || total<=0){ showError("Escribe un importe válido."); return; }
+        const r = repartoGasto(total, amigos.length+1);
+        if(r.parte<=0){ showError("El importe es demasiado pequeño para repartirlo entre tantos."); return; }
+        const concepto = String(f.get("concepto")||"").trim(), fecha = f.get("fecha");
+        const movId = nuevoId();
+        const {error} = await sb.from("movimientos").insert({id:movId, tipo:"gasto", categoria:f.get("categoria"), importe:total, fecha, nota:concepto, cuenta_id:f.get("cuentaId")||null});
+        if(error){ showError("No se pudo guardar el gasto: "+error.message); return; }
+        const filas = amigos.map(persona=>({persona, importe:r.parte, importe_inicial:r.parte, direccion:"me_deben", fecha, concepto, estado:"pendiente", movimiento_id:movId}));
+        const {error:eDeudas} = await sb.from("deudas").insert(filas);
+        if(eDeudas){
+          await sb.from("movimientos").delete().eq("id", movId);
+          showError("No se pudieron crear las deudas (el gasto no se ha guardado): "+eDeudas.message); return;
+        }
+        hideError(); dividirAbierto = false; deudaLado = "me_deben"; await recargar(["movimientos","deudas"]);
+      });
+    };
+  }
+  document.querySelectorAll("[data-pedir-bizum]").forEach(b=>b.onclick=async ()=>{
+    const d = deudas.find(x=>x.id===b.dataset.pedirBizum);
+    if(!d) return;
+    const texto = textoBizum(d);
+    try{
+      if(navigator.share){ await navigator.share({text:texto}); return; }
+      await navigator.clipboard.writeText(texto);
+      b.textContent = "¡Mensaje copiado!";
+    }catch(e){
+      if(e && e.name==="AbortError") return;
+      window.prompt("Copia este mensaje y envíaselo:", texto);
+    }
+  });
   document.querySelectorAll("[data-del-deuda]").forEach(b=>b.onclick=async ()=>{
     if(!(await confirmar("¿Borrar esta deuda?"))) return;
     conCarga(b, "Borrando…", async ()=>{
