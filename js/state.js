@@ -2,7 +2,7 @@ const TABS = ["Inicio","Gastos","Resumen del mes","Presupuestos","Movimientos","
 
 const GRUPOS_MENU = [
   {nombre:"Resumen", tabs:["Gastos","Resumen del mes","Presupuestos"]},
-  {nombre:"Movimientos", tabs:["Movimientos","Cuentas","Deudas","Recurrentes"]},
+  {nombre:"Dinero", tabs:["Movimientos","Cuentas","Deudas","Recurrentes"]},
   {nombre:"Ahorro", tabs:["Inversiones","Objetivos","Proyección"]},
   {nombre:"Ajustes", tabs:["Categorías","Preferencias","Personalización"]}
 ];

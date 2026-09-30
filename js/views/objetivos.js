@@ -4,7 +4,7 @@ function renderObjetivos(){
   const pendientes = objetivos.filter(o=>!objetivoCompletado(o));
   const conseguidos = objetivos.length - pendientes.length;
   const metaPend = pendientes.reduce((s,o)=>sumarDinero(s, o.meta),0);
-  const ahorradoPend = pendientes.reduce((s,o)=>sumarDinero(s, Math.min(Math.max(progresoObjetivo(o)),0), o.meta),0);
+  const ahorradoPend = pendientes.reduce((s,o)=>sumarDinero(s, Math.min(Math.max(progresoObjetivo(o),0), o.meta)),0);
   const pctPend = metaPend>0 ? ahorradoPend/metaPend*100 : 0;
   const resumen = objetivos.length ? `
   <div class="card">

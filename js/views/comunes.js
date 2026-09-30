@@ -165,18 +165,19 @@ function closeMenu(){
 }
 
 const TITULOS_TAB = {"Resumen del mes":"Análisis"};
+const ICONOS_MENU = {"Inicio":"🏠","Gastos":"💸","Resumen del mes":"📊","Presupuestos":"🧮","Movimientos":"📒","Cuentas":"👛","Deudas":"🤝","Recurrentes":"📅",
+  "Inversiones":"🌱","Objetivos":"🎯","Proyección":"🔮","Categorías":"🏷️","Preferencias":"⚙️","Personalización":"🎨"};
+const LOGO_HUCHA = `<svg viewBox="0 0 64 64" aria-hidden="true"><ellipse cx="32" cy="36" rx="22" ry="17" fill="#f7b3ac"/><circle cx="54" cy="36" r="6" fill="#f39c93"/><circle cx="52.5" cy="35" r="1.2" fill="#b8615a"/><circle cx="55.5" cy="35" r="1.2" fill="#b8615a"/><path d="M20 22l-2-9 9 5z" fill="#f39c93"/><circle cx="44" cy="30" r="2" fill="#4a3b3b"/><rect x="26" y="19" width="12" height="3" rx="1.5" fill="#b8615a"/><rect x="18" y="48" width="6" height="8" rx="3" fill="#f39c93"/><rect x="38" y="48" width="6" height="8" rx="3" fill="#f39c93"/></svg>`;
 
 function renderTabs(){
   document.getElementById("tabActual").textContent = TITULOS_TAB[tab] || tab;
   document.getElementById("ojoCab").innerHTML = botonOjo("btnOjo");
   document.getElementById("btnOjo").onclick = alternarPrivacidad;
+  const item = t=>`<button class="menu-item ${t===tab?"active":""}" data-tab="${t}"><span class="mi">${ICONOS_MENU[t]||"•"}</span>${TITULOS_TAB[t]||t}</button>`;
   document.getElementById("menuPanel").innerHTML =
-    `<button class="menu-item ${tab==="Inicio"?"active":""}" data-tab="Inicio" style="margin-bottom:16px">🏠 Inicio</button>` +
-    GRUPOS_MENU.map(g=>`
-    <div class="menu-group-title">${g.nombre}</div>
-    ${g.tabs.map(t=>`<button class="menu-item ${t===tab?'active':''}" data-tab="${t}">${t}</button>`).join("")}
-  `).join("") +
-    `<button class="menu-item" id="menuLogout" style="margin-top:18px;color:var(--neg)">Cerrar sesión</button>`;
+    `<div class="menu-marca">${LOGO_HUCHA}Mis finanzas</div>` + item("Inicio") +
+    GRUPOS_MENU.map(g=>`<div class="menu-group-title">${g.nombre}</div>${g.tabs.map(item).join("")}`).join("") +
+    `<button class="menu-item menu-salir" id="menuLogout"><span class="mi">↩</span>Cerrar sesión</button>`;
   document.querySelectorAll(".menu-item[data-tab]").forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; closeMenu(); render(); });
   document.getElementById("menuLogout").onclick = ()=> sb.auth.signOut();
   document.querySelectorAll("[data-nav]").forEach(b=>{

@@ -28,8 +28,9 @@ prueba("las sumas de dinero no arrastran decimales", ()=>{
 
 // ── En el navegador ──
 let navegador, errores = [];
-async function abrir(qs = ""){
-  const p = await navegador.newPage();
+const MOVIL = {width:390, height:844};
+async function abrir(qs = "", viewport = MOVIL){
+  const p = await navegador.newPage({viewport});
   p.on("pageerror", e=>errores.push(e.message));
   p.on("dialog", d=>d.accept());
   await p.goto("file://" + HTML_PRUEBA + qs);
@@ -142,14 +143,23 @@ prueba("restaurar no toca una cuenta con datos, deshace si falla y rechaza archi
   await restaurar(m, malo);
   assert.match(await textoError(m), /no es una copia/);
 });
-prueba("Inicio muestra saldo, gráfico de gasto, acciones y recientes", async ()=>{
+prueba("Inicio muestra saldo, barras del mes, acciones y recientes", async ()=>{
   const p = await abrir();
   const txt = await p.evaluate(()=>document.getElementById("app").innerText);
   assert.match(txt, /Hola, Paula/);
   assert.match(txt, /Saldo total/);
-  assert.match(txt, /Presupuesto:\s*€400,00/);
+  assert.match(txt, /Gastado\s*€[\d.,]+ de €400,00/);
+  assert.deepStrictEqual(await p.$$eval(".hero-grid span", s=>s.map(x=>x.textContent)), ["Disponible","Inversiones","Me deben","Debo"]);
+  assert.strictEqual(await p.$$eval(".barra-mes", b=>b.length), 3);
   assert.match(txt, /Movimientos recientes/);
   assert.ok(await p.isHidden("header"), "en Inicio no se ve la cabecera");
+  assert.strictEqual(await p.$$eval("[data-accion]", b=>b.length), 0, "las acciones rápidas empiezan vacías");
+  await p.click("#btnEditarAcciones");
+  await p.click('[data-elegir-accion="Deudas"]');
+  await p.click('[data-elegir-accion="mov"]');
+  await p.click("#hojaListo");
+  await p.waitForSelector("#hoja", {state:"detached"});
+  assert.deepStrictEqual(await p.$$eval("[data-accion]", b=>b.map(x=>x.dataset.accion)), ["Deudas","mov"]);
   await p.click('[data-accion="mov"]');
   assert.strictEqual(await p.evaluate(()=>tab), "Movimientos");
   assert.strictEqual(await p.evaluate(()=>document.activeElement.id), "movImporte");
@@ -157,14 +167,29 @@ prueba("Inicio muestra saldo, gráfico de gasto, acciones y recientes", async ()
   await p.click('[data-nav="Inicio"]');
   assert.strictEqual(await p.evaluate(()=>tab), "Inicio");
 });
+prueba("en pantalla ancha solo hay menú lateral agrupado, sin barra inferior", async ()=>{
+  const p = await abrir("", {width:1280, height:800});
+  assert.ok(await p.isHidden("#navInf"));
+  const panel = await p.$("#menuPanel");
+  assert.strictEqual((await panel.boundingBox()).x, 0, "el menú lateral está fijo a la vista");
+  assert.deepStrictEqual(await p.$$eval(".menu-group-title", t=>t.map(x=>x.textContent)), ["Resumen","Dinero","Ahorro","Ajustes"]);
+  await p.click('.menu-item[data-tab="Cuentas"]');
+  assert.strictEqual(await p.evaluate(()=>tab), "Cuentas");
+  assert.ok(await p.isHidden("#menuOverlay"));
+  const m = await p.$eval("main", el=>el.getBoundingClientRect().left);
+  assert.ok(m >= 248, "el contenido no queda debajo del menú");
+  const q = await abrir();
+  assert.ok(await q.isVisible("#navInf"), "en el móvil sigue la barra inferior");
+  assert.ok((await (await q.$("#menuPanel")).boundingBox()).x < 0, "y el menú está escondido");
+});
 prueba("al tocar una gráfica se ve el importe de ese punto", async ()=>{
   const p = await abrir();
-  const g = await p.$(".card.grafico .graf-int");
+  const g = await p.$(".graf-int");
+  await g.scrollIntoViewIfNeeded();
   const bb = await g.boundingBox();
   await p.mouse.click(bb.x + bb.width*0.3, bb.y + bb.height/2);
   const tip = await p.evaluate(()=>document.querySelector(".graf-int.activa .graf-tip").innerText);
-  assert.match(tip, /€[\d.,]+ de €400,00/);
-  assert.match(tip, /\d+ sep/);
+  assert.match(tip, /€[\d.,]+/);
   await p.mouse.click(5, 5);
   assert.strictEqual(await p.$(".graf-int.activa"), null, "al tocar fuera se oculta");
 });
@@ -194,6 +219,19 @@ prueba("el ojito oculta todos los importes y se recuerda", async ()=>{
   assert.ok(!/€\d/.test(await p.evaluate(()=>document.body.innerText)));
   await p.click("#btnOjo");
   assert.match(await p.evaluate(()=>document.getElementById("app").innerText), /€\d/);
+});
+prueba("Objetivos: el resumen de arriba suma lo ahorrado, no la meta", async ()=>{
+  const p = await abrir();
+  const txt = await p.evaluate(()=>{
+    objetivos = [{id:"o1", nombre:"Viaje", meta:1000, tipoVinculo:"cuenta", vinculoId:"c2", orden:0},
+                 {id:"o2", nombre:"Coche", meta:3000, tipoVinculo:"ninguno", vinculoId:null, orden:1}];
+    tab = "Objetivos"; render();
+    return document.getElementById("app").innerText;
+  });
+  const ahorrado = await p.evaluate(()=>saldoCuenta(cuentas.find(c=>c.id==="c2")));
+  assert.ok(ahorrado < 1000);
+  assert.match(txt, new RegExp(`${Math.round(ahorrado/4000*100)}% de la meta`));
+  assert.ok(!/Todos tus objetivos están conseguidos/.test(txt));
 });
 prueba("la campana abre la pantalla de notificaciones y solo al tocar un aviso va a su pestaña", async ()=>{
   const p = await abrir();
@@ -235,7 +273,7 @@ prueba("personalización: tema, color, fondo e imagen se aplican, se recuerdan y
   assert.strictEqual(await p.evaluate(()=>localStorage.getItem("personalizacion")), null);
 });
 prueba("acceso con contraseña: error, registro, recuperar y entrar", async ()=>{
-  const p = await navegador.newPage();
+  const p = await navegador.newPage({viewport:MOVIL});
   p.on("pageerror", e=>errores.push(e.message));
   await p.goto("file://" + HTML_PRUEBA + "?sinsesion=1");
   await p.waitForSelector("#fLogin", {state:"visible"});
@@ -263,7 +301,7 @@ prueba("acceso con contraseña: error, registro, recuperar y entrar", async ()=>
   assert.ok(await p.isHidden("#authScreen"));
 });
 prueba("el enlace de recuperar pide la contraseña nueva antes de entrar", async ()=>{
-  const p = await navegador.newPage();
+  const p = await navegador.newPage({viewport:MOVIL});
   p.on("pageerror", e=>errores.push(e.message));
   await p.goto("file://" + HTML_PRUEBA + "#access_token=x&type=recovery");
   await p.waitForSelector("#fNuevaPass", {state:"visible"});
