@@ -14,8 +14,8 @@ function renderInicio(){
   const ingresos = enP.filter(m=>m.tipo==="ingreso").reduce((s,m)=>sumarDinero(s, m.importe),0);
   const inversionMes = enP.filter(m=>m.tipo==="gasto" && m.categoria==="Inversión").reduce((s,m)=>sumarDinero(s, m.importe),0);
   const gastosReales = enP.filter(m=>m.tipo==="gasto" && m.categoria!=="Inversión").reduce((s,m)=>sumarDinero(s, m.importe),0);
-  const ahorroMes = restarDinero(ingresos, gastosReales);
-  const disponible = restarDinero(ahorroMes, inversionMes);
+  // Ahorro es lo apartado a propósito (movimientos de la categoría «Inversión»), no lo que sobra.
+  const disponible = restarDinero(restarDinero(ingresos, gastosReales), inversionMes);
 
   const mesAnt = mesAnteriorCargado();
   const tAnt = mesAnt ? totalesEfectivos(movimientosEfectivos(mesAnt.dentro)) : null;
@@ -113,7 +113,7 @@ function renderInicio(){
   </div>
   <div class="card barras-mes">
     <h2>${porMes ? MESES[Number(periodoMes)-1] : "Año "+periodoAnio} de un vistazo</h2>
-    ${barrasMes(gastosReales, presupuestoTotal, ingresos, ahorroMes, disponible, inversionMes, tAnt ? comparar(gastosReales, tAnt.gastos, false) : "")}
+    ${barrasMes(gastosReales, presupuestoTotal, ingresos, inversionMes, disponible, tAnt ? comparar(gastosReales, tAnt.gastos, false) : "")}
   </div>
   <div class="tit-fila" style="margin-top:22px"><h2>Acciones rápidas</h2>${accionesElegidas().length ? `<button class="auth-link" data-editar-acciones="1">Editar</button>` : ""}</div>
   <div class="acciones">
@@ -138,8 +138,8 @@ function renderInicio(){
   </div>`;
 }
 
-// Tres barras redondeadas del periodo: gastado frente al presupuesto (o a los ingresos si no hay), ahorro y disponible.
-function barrasMes(gastado, presupuesto, ingresos, ahorro, disponible, invertido, vsAnterior){
+// Tres barras redondeadas del periodo: gastado frente al presupuesto (o a los ingresos si no hay), ahorro apartado y disponible.
+function barrasMes(gastado, presupuesto, ingresos, ahorro, disponible, vsAnterior){
   const pct = (v, base)=>base>0 ? Math.max(0, Math.min(v/base*100, 100)) : 0;
   const base = presupuesto>0 ? presupuesto : ingresos;
   const uso = base>0 ? gastado/base*100 : 0;
@@ -154,8 +154,8 @@ function barrasMes(gastado, presupuesto, ingresos, ahorro, disponible, invertido
   return fila("Gastado", presupuesto>0 ? `${eur(gastado)} de ${eur(presupuesto)}` : eur(gastado), pct(gastado, base), colorGasto,
       presupuesto>0 ? (gastado>presupuesto ? `Te has pasado ${eur(restarDinero(gastado, presupuesto))}` : `Te quedan ${eur(restarDinero(presupuesto, gastado))} del presupuesto`)
         : (ingresos>0 ? `${Math.round(uso)} % de tus ingresos` : "Sin presupuesto ni ingresos"), vsAnterior)
-    + fila("Ahorro", eur(ahorro), pct(ahorro, ingresos), "#8b7fd6", deIngresos(ahorro))
-    + fila("Disponible", eur(disponible), pct(disponible, ingresos), "var(--accent)", invertido>0 ? `Tras invertir ${eur(invertido)}` : deIngresos(disponible));
+    + fila("Ahorro", eur(ahorro), pct(ahorro, ingresos), "#8b7fd6", ahorro>0 ? `Apartado a propósito · ${deIngresos(ahorro)}` : "Aún no has apartado nada en este periodo")
+    + fila("Disponible", eur(disponible), pct(disponible, ingresos), "var(--accent)", `Lo que sobra tras gastos y ahorro · ${deIngresos(disponible)}`);
 }
 
 // Acciones rápidas personalizables: empiezan vacías y cada uno elige las suyas (se guardan en este dispositivo).

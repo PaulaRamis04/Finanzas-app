@@ -12,7 +12,8 @@ function render(){
   renderPeriodo();
   const app = document.getElementById("app");
   if(!ready){ app.innerHTML = `<div class="status">Cargando...</div>`; return; }
-  if(tab==="Inicio") app.innerHTML = renderInicio();
+  if(TABS_PREMIUM.includes(tab) && !esPremium) app.innerHTML = avisoPremium(tab);
+  else if(tab==="Inicio") app.innerHTML = renderInicio();
   else if(tab==="Gastos") app.innerHTML = renderGastos();
   else if(tab==="Resumen del mes") app.innerHTML = renderResumen();
   else if(tab==="Presupuestos") app.innerHTML = renderPresupuestos();

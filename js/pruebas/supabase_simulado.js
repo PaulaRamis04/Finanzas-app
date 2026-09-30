@@ -1,6 +1,7 @@
 // Supabase simulado en memoria para las pruebas (sustituye a supabase-js del CDN).
 // Cada consulta respeta el tope de 1000 filas del Supabase real.
-// Parámetros de la URL: ?vacia=1 arranca sin datos; ?resumen=0 simula que falta la RPC de resumen; ?sinsesion=1 arranca sin sesión.
+// Parámetros de la URL: ?vacia=1 arranca sin datos; ?resumen=0 simula que falta la RPC de resumen; ?sinsesion=1 arranca sin sesión;
+// ?premium=0 usuario sin premium; ?compartida=1 añade la cuenta «Piso» que otro usuario (u2) comparte con este.
 // Acceso: la contraseña buena es "secreta123". window.__auth guarda las llamadas de acceso.
 // Desde la página: window.__db (los datos), window.__fallarEn = "tabla" (hace fallar los insert en esa tabla).
 (function(){
@@ -13,8 +14,9 @@
     categorias:[{id:"k1", tipo:"gasto", padre:"Imprescindible", nombre:"Comida"},{id:"k2", tipo:"gasto", padre:"Prescindible", nombre:"Ocio"},{id:"k3", tipo:"ingreso", padre:null, nombre:"Nómina"}],
     presupuestos:[{id:"p1", categoria:"Comida", limite:300, rollover:false},{id:"p2", categoria:"Ocio", limite:100, rollover:false}],
     recurrentes:[{id:"r1", tipo:"gasto", categoria:"Comida", importe:10, cuenta_id:"c1", dia_mes:1, activo:true, fecha_inicio:"2026-01-01", ultima_generada:"2026-09-01"}],
-    objetivos:[], movimientos_pendientes:[], preferencias:[]
+    objetivos:[], movimientos_pendientes:[], preferencias:[], cuentas_miembros:[]
   };
+  const usuarios = {"ana@x.com":"u2", "p@x.com":"u1"};
   const hoy = new Date(); const y = hoy.getFullYear(), mAct = hoy.getMonth()+1;
   const f = (yy,mm,dd)=>`${yy}-${String(mm).padStart(2,"0")}-${String(dd).padStart(2,"0")}`;
   let n = 0;
@@ -32,6 +34,11 @@
   db.inversiones.push({id:"i1", nombre:"Indexado", tipo:"fondo", valor_actual:1200, valor_inicial:1000, estado:"activa", es_grupo:false, padre_id:"g1", orden:1});
   db.aportaciones_inversion.push({id:"a1", inversion_id:"i1", importe:200, fecha:f(y,mAct,5), cuenta_id:"c1", movimiento_id:"ma"});
   db.objetivos.push({id:"o1", nombre:"Colchón", meta:5000, tipo_vinculo:"cuenta", vinculo_id:"c1", orden:1});
+  if(url.searchParams.get("compartida")==="1"){
+    db.cuentas.push({id:"c4", nombre:"Piso", saldo_inicial:100, orden:4, archivada:false, user_id:"u2"});
+    db.cuentas_miembros.push({cuenta_id:"c4", user_id:"u1", email:"p@x.com", propietario_id:"u2", propietario_email:"ana@x.com"});
+    db.movimientos.push({id:"mp1", tipo:"gasto", categoria:"Luz", importe:60, fecha:f(y,mAct,6), cuenta_id:"c4", user_id:"u2"});
+  }
   if(url.searchParams.get("vacia")==="1") Object.keys(db).forEach(k=>{ db[k] = []; });
   window.__queries = [];
 
@@ -80,7 +87,23 @@
   const avisar = ev=>listeners.forEach(fn=>fn(ev, session));
   window.supabase = { createClient(){ return {
     from:t=>new Q(t),
-    rpc: async (name)=>{
+    rpc: async (name, a)=>{
+      if(name==="es_premium") return {data:url.searchParams.get("premium")!=="0", error:null};
+      if(name==="compartir_cuenta"){
+        if(url.searchParams.get("premium")==="0") return {data:null, error:{message:"Compartir cuentas es una función premium"}};
+        const otro = usuarios[a.p_email.toLowerCase()];
+        if(!otro) return {data:null, error:{message:"Ese email no tiene cuenta en la app. Pídele que se registre primero."}};
+        db.cuentas_miembros.push({cuenta_id:a.p_cuenta, user_id:otro, email:a.p_email.toLowerCase(), propietario_id:"u1", propietario_email:"p@x.com"});
+        return {data:null, error:null};
+      }
+      if(name==="dejar_de_compartir"){
+        const m = db.cuentas_miembros.find(x=>x.cuenta_id===a.p_cuenta && x.user_id===a.p_user);
+        if(!m) return {data:null, error:null};
+        db.cuentas_miembros = db.cuentas_miembros.filter(x=>x!==m);
+        // Sin RLS: se simula que la cuenta deja de verse si el que sale es este usuario.
+        if(a.p_user==="u1"){ db.cuentas = db.cuentas.filter(c=>c.id!==a.p_cuenta); db.movimientos = db.movimientos.filter(x=>x.cuenta_id!==a.p_cuenta); }
+        return {data:null, error:null};
+      }
       if(name==="resumen_movimientos_mensual" && conResumen){
         const g = {};
         db.movimientos.forEach(m=>{ const k = m.cuenta_id+"|"+m.fecha.slice(0,7)+"-01"; g[k] = g[k] || {cuenta_id:m.cuenta_id, mes:m.fecha.slice(0,7)+"-01", ingresos:0, gastos:0, n:0}; g[k][m.tipo==="ingreso"?"ingresos":"gastos"] += m.importe; g[k].n++; });

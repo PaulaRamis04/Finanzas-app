@@ -52,6 +52,13 @@ let gruposAbiertos = {}, modoOrdenInv = false, rentasInvId = null, modoOrdenCuen
 
 let session = null, appStarted = false;
 
+// Premium (tabla perfiles, se activa a mano en Supabase) y cuentas compartidas (tabla cuentas_miembros).
+let esPremium = false;
+let cuentasMiembros = [], compartirCuentaId = null;
+const TABS_PREMIUM = ["Inversiones","Proyección"];
+function miembrosDe(cuentaId){ return cuentasMiembros.filter(m=>m.cuentaId===cuentaId); }
+function cuentaCompartida(c){ return !c.propia || miembrosDe(c.id).length>0; }
+
 // --- Configura aquí tu proyecto de Supabase ---
 
 let periodoMes = String(new Date().getMonth()+1); // "todos" o "1".."12"; por defecto el mes actual

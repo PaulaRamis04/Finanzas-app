@@ -4,6 +4,26 @@ function nMovCuenta(c){
   return movParcial ? movResumen.filter(r=>r.cuentaId===c.id).reduce((s,r)=>s+r.n,0) : movimientos.filter(m=>m.cuentaId===c.id).length;
 }
 
+function textoCompartida(c){
+  if(!c.propia) return `👥 Compartida por ${esc(cuentasMiembros.find(m=>m.cuentaId===c.id)?.propietarioEmail || "otra persona")}`;
+  const ms = miembrosDe(c.id);
+  return ms.length ? `👥 Compartida con ${ms.map(m=>esc(m.email)).join(", ")}` : "";
+}
+
+function panelCompartir(c){
+  if(!esPremium) return `${avisoPremium("compartir")}<button class="btn ghost" data-cerrar-compartir="1">Cerrar</button>`;
+  const ms = miembrosDe(c.id);
+  return `
+    ${ms.map(m=>`<div class="miembro"><span>${esc(m.email)}</span><button class="chip peligro" data-quitar-miembro="${m.userId}" data-cuenta="${c.id}">Quitar</button></div>`).join("")}
+    <label for="compartirEmail">Email de la otra persona</label>
+    <input type="email" id="compartirEmail" placeholder="nombre@correo.com" autocomplete="off">
+    <p class="meta" style="margin:0">Tiene que tener cuenta en la app. Los dos veréis la cuenta y podréis apuntar, editar y borrar sus movimientos. Solo tú puedes archivarla o quitar a alguien.</p>
+    <div style="display:flex;gap:8px">
+      <button class="btn" data-invitar="${c.id}">Compartir</button>
+      <button class="btn ghost" data-cerrar-compartir="1">Cerrar</button>
+    </div>`;
+}
+
 function renderCuentas(){
   const items = cuentasActivas().sort(porOrden);
   const archivadas = cuentas.filter(c=>c.archivada).sort(porOrden);
@@ -32,14 +52,18 @@ function renderCuentas(){
         <div style="display:flex;align-items:center;gap:12px;min-width:0">
           ${items.length>1? gripHtml() : ""}
           <div style="width:44px;height:44px;border-radius:50%;background:${col}26;color:${col};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;flex-shrink:0">${esc((c.nombre||"?").trim().charAt(0).toUpperCase())}</div>
-          <div style="min-width:0"><strong style="font-size:16px">${esc(c.nombre)}</strong><div class="meta">Inicial ${eur(c.saldoInicial||0)} · ${nMov} movimiento${nMov===1?"":"s"}</div></div>
+          <div style="min-width:0"><strong style="font-size:16px">${esc(c.nombre)}</strong><div class="meta">Inicial ${eur(c.saldoInicial||0)} · ${nMov} movimiento${nMov===1?"":"s"}</div>${cuentaCompartida(c) ? `<div class="meta">${textoCompartida(c)}</div>` : ""}</div>
         </div>
         <div style="font-size:19px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap" class="${saldo>=0?'':'neg'}">${eur(saldo)}</div>
       </div>
       <div class="chips" style="margin-top:14px">
         ${ajustarSaldoId!==c.id?`<button class="chip" data-ajustar-saldo="${c.id}">Ajustar saldo</button>`:""}
-        ${nMov ? `<button class="chip" data-archivar-cuenta="${c.id}" style="background:var(--line);color:var(--muted)">Archivar</button>` : `<button class="chip peligro" data-del-cuenta="${c.id}">Borrar</button>`}
+        ${c.propia && compartirCuentaId!==c.id ? `<button class="chip lav" data-compartir-cuenta="${c.id}">Compartir</button>` : ""}
+        ${!c.propia ? `<button class="chip peligro" data-salir-cuenta="${c.id}">Salir</button>`
+          : nMov ? `<button class="chip" data-archivar-cuenta="${c.id}" style="background:var(--line);color:var(--muted)">Archivar</button>` : `<button class="chip peligro" data-del-cuenta="${c.id}">Borrar</button>`}
       </div>
+      ${compartirCuentaId===c.id && c.propia ? `
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">${panelCompartir(c)}</div>` : ""}
       ${ajustarSaldoId===c.id? `
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
         <label>Saldo real actual (€)</label>
@@ -63,8 +87,9 @@ function renderCuentas(){
       <div class="item">
         <div style="min-width:0"><strong style="font-size:16px">${esc(c.nombre)}</strong><div class="meta">${eur(saldoCuenta(c))}</div></div>
         <div style="display:flex;gap:6px">
+          ${!c.propia ? `<button class="btn ghost" data-salir-cuenta="${c.id}">Salir</button>` : `
           <button class="btn ghost" data-desarchivar-cuenta="${c.id}" style="color:var(--accent)">Reactivar</button>
-          ${nMovCuenta(c) ? "" : `<button class="btn ghost" data-del-cuenta="${c.id}">Borrar</button>`}
+          ${nMovCuenta(c) ? "" : `<button class="btn ghost" data-del-cuenta="${c.id}">Borrar</button>`}`}
         </div>
       </div>`).join("")}</div>
   </div>` : ""}
@@ -114,13 +139,43 @@ function wireEventosCuentas(){
       hideError(); await recargar(["cuentas","movimientos","recurrentes","objetivos"]);
     });
   });
+  document.querySelectorAll("[data-compartir-cuenta]").forEach(b=>b.onclick=()=>{ compartirCuentaId = b.dataset.compartirCuenta; pendienteEnfoque = esPremium ? "compartirEmail" : null; render(); });
+  document.querySelectorAll("[data-cerrar-compartir]").forEach(b=>b.onclick=()=>{ compartirCuentaId = null; render(); });
+  const recargarCompartidas = ()=>recargar(["cuentas","cuentas_miembros","movimientos","recurrentes"]);
+  document.querySelectorAll("[data-invitar]").forEach(b=>b.onclick=()=>conCarga(b, "Compartiendo…", async ()=>{
+    const email = document.getElementById("compartirEmail")?.value.trim();
+    if(!email){ showError("Escribe el email de la otra persona."); return; }
+    const {error} = await sb.rpc("compartir_cuenta", {p_cuenta: b.dataset.invitar, p_email: email});
+    if(error){ showError(error.code==="PGRST202" ? "Falta ejecutar schema_cuentas_compartidas.sql en Supabase." : error.message); return; }
+    hideError(); await recargarCompartidas();
+  }));
+  const dejar = (b, cuentaId, userId)=>conCarga(b, "Guardando…", async ()=>{
+    const {error} = await sb.rpc("dejar_de_compartir", {p_cuenta: cuentaId, p_user: userId});
+    if(error){ showError("No se pudo: "+error.message); return; }
+    hideError(); await recargarCompartidas();
+  });
+  document.querySelectorAll("[data-quitar-miembro]").forEach(b=>b.onclick=async ()=>{
+    if(!(await confirmar("¿Dejar de compartir esta cuenta con esta persona? Lo que apuntó se queda en la cuenta."))) return;
+    dejar(b, b.dataset.cuenta, b.dataset.quitarMiembro);
+  });
+  document.querySelectorAll("[data-salir-cuenta]").forEach(b=>b.onclick=async ()=>{
+    if(!(await confirmar("¿Salir de esta cuenta compartida? Dejarás de verla y lo que apuntaste se queda en ella."))) return;
+    if(cuentaDefecto===b.dataset.salirCuenta) await guardarCuentaDefecto("");
+    dejar(b, b.dataset.salirCuenta, session.user.id);
+  });
   document.querySelectorAll("[data-ajustar-saldo]").forEach(b=>b.onclick=()=>{ ajustarSaldoId = b.dataset.ajustarSaldo; pendienteEnfoque = "saldoRealInput"; render(); });
   document.querySelectorAll("[data-cancelar-ajuste]").forEach(b=>b.onclick=()=>{ ajustarSaldoId = null; render(); });
   document.querySelectorAll("[data-confirmar-ajuste]").forEach(b=>b.onclick=()=>conCarga(b, "Guardando…", async ()=>{
     const cuentaId = b.dataset.confirmarAjuste;
     const nuevo = parseFloat(document.getElementById("saldoRealInput")?.value);
     if(isNaN(nuevo)) return;
-    const {error} = await sb.rpc("ajustar_saldo_cuenta", {p_cuenta_id: cuentaId, p_saldo_real: nuevo});
+    const c = cuentas.find(x=>x.id===cuentaId);
+    // En una compartida el saldo incluye lo que apunta la otra persona, que la RPC no ve: el ajuste se calcula aquí.
+    const dif = c && cuentaCompartida(c) ? restarDinero(nuevo, saldoCuenta(c)) : null;
+    if(dif===0){ ajustarSaldoId = null; render(); return; }
+    const {error} = dif!=null
+      ? await sb.from("movimientos").insert({tipo:dif>0?"ingreso":"gasto", categoria:"Ajuste", importe:Math.abs(dif), fecha:today(), nota:"Ajuste de saldo", cuenta_id:cuentaId})
+      : await sb.rpc("ajustar_saldo_cuenta", {p_cuenta_id: cuentaId, p_saldo_real: nuevo});
     if(error){ showError("No se pudo ajustar el saldo: "+error.message); return; }
     hideError(); ajustarSaldoId = null; await recargar(["cuentas","movimientos"]);
   }));
