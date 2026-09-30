@@ -1,9 +1,9 @@
-const TABS = ["Inicio","Gastos","Resumen del mes","Presupuestos","Movimientos","Cuentas","Deudas","Inversiones","Objetivos","Hitos","Proyección","Simulador","Recurrentes","Categorías","Preferencias"];
+const TABS = ["Inicio","Gastos","Resumen del mes","Presupuestos","Movimientos","Cuentas","Deudas","Inversiones","Objetivos","Vivienda","Hitos","Proyección","Simulador","Recurrentes","Categorías","Preferencias"];
 
 const GRUPOS_MENU = [
   {nombre:"Resumen", tabs:["Gastos","Resumen del mes","Presupuestos"]},
   {nombre:"Dinero", tabs:["Movimientos","Cuentas","Deudas","Recurrentes"]},
-  {nombre:"Ahorro", tabs:["Inversiones","Objetivos","Hitos","Proyección","Simulador"]},
+  {nombre:"Ahorro", tabs:["Inversiones","Objetivos","Vivienda","Hitos","Proyección","Simulador"]},
   {nombre:"Ajustes", tabs:["Categorías","Preferencias","Personalización","Comunidad"]}
 ];
 
@@ -37,6 +37,10 @@ let editarMovId = null, movAbiertoId = null, transferenciaAbierta = false, movBu
 let proy = {inicial:null, aporte:0, anios:10, tasa:5, detalle:false};
 
 let proyResultado = null;
+
+// Simulador de vivienda. ahorro/mensual null = se toman de la hucha de vivienda al abrir la pestaña.
+let viv = {precio:300000, entrada:20, gastos:10, ahorro:null, mensual:null, conOtra:false, otraNombre:"", otraAhorro:0, otraMensual:0};
+try{ viv = {...viv, ...(JSON.parse(localStorage.getItem("simVivienda") || "{}") || {})}; }catch(e){}
 
 let cuentaDefecto = "";
 try{ cuentaDefecto = localStorage.getItem("cuentaDefecto") || ""; }catch(e){}
