@@ -4,7 +4,7 @@ const GRUPOS_MENU = [
   {nombre:"Resumen", tabs:["Gastos","Resumen del mes","Presupuestos"]},
   {nombre:"Movimientos", tabs:["Movimientos","Cuentas","Deudas","Importar","Recurrentes"]},
   {nombre:"Ahorro", tabs:["Inversiones","Objetivos","Proyección"]},
-  {nombre:"Ajustes", tabs:["Categorías","Preferencias"]}
+  {nombre:"Ajustes", tabs:["Categorías","Preferencias","Personalización"]}
 ];
 
 let tab = "Inicio";

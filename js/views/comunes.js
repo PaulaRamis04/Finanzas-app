@@ -149,11 +149,11 @@ function hideError(){ document.getElementById("errBar").classList.remove("show")
 function renderPeriodo(){
   const years = Array.from(new Set([...movimientos.map(m=>Number((m.fecha||"").slice(0,4))), ...movResumen.map(r=>Number(r.mes.slice(0,4))), periodoAnio].filter(Boolean))).sort((a,b)=>b-a);
   document.getElementById("periodoBox").innerHTML = `
-    <select id="selMes">
+    <span class="pill-sel"><select id="selMes">
       <option value="todos" ${periodoMes==="todos"?"selected":""}>Total del año</option>
       ${MESES.map((m,i)=>`<option value="${i+1}" ${periodoMes===String(i+1)?"selected":""}>${m}</option>`).join("")}
-    </select>
-    <select id="selAnio">${years.map(y=>`<option value="${y}" ${y===periodoAnio?"selected":""}>${y}</option>`).join("")}</select>
+    </select></span>
+    <span class="pill-sel"><select id="selAnio">${years.map(y=>`<option value="${y}" ${y===periodoAnio?"selected":""}>${y}</option>`).join("")}</select></span>
   `;
   document.getElementById("selMes").onchange = e=>{periodoMes=e.target.value; render();};
   document.getElementById("selAnio").onchange = e=>{periodoAnio=Number(e.target.value); if(!asegurarMovimientosDesde(`${periodoAnio}-01-01`)) render();};
