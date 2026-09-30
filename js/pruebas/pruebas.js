@@ -8,7 +8,7 @@ const assert = require("assert");
 
 const RAIZ = path.join(__dirname, "..");
 const HTML_PRUEBA = path.join(RAIZ, "index.pruebas.html");
-const PESTANAS = ["Inicio","Gastos","Resumen del mes","Presupuestos","Movimientos","Cuentas","Deudas","Importar","Inversiones","Objetivos","Proyección","Recurrentes","Categorías","Preferencias"];
+const PESTANAS = ["Inicio","Gastos","Resumen del mes","Presupuestos","Movimientos","Cuentas","Deudas","Importar","Inversiones","Objetivos","Proyección","Recurrentes","Categorías","Preferencias","Personalización"];
 
 const pruebas = [];
 const prueba = (nombre, fn)=>pruebas.push({nombre, fn});
@@ -160,6 +160,31 @@ prueba("Inicio muestra saldo, gráfico de gasto, acciones y recientes", async ()
   assert.ok(await p.isVisible("header"));
   await p.click('[data-nav="Inicio"]');
   assert.strictEqual(await p.evaluate(()=>tab), "Inicio");
+});
+prueba("personalización: tema, color, fondo e imagen se aplican, se recuerdan y se borran al salir", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>{ tab = "Personalización"; render(); });
+  await p.click('[data-tema="dark"]');
+  await p.click('[data-acento="#3fae92"]');
+  await p.click('[data-fondo="lavanda"]');
+  const estilo = ()=>p.evaluate(()=>({tema:document.documentElement.getAttribute("data-theme"),
+    acento:getComputedStyle(document.documentElement).getPropertyValue("--accent").trim(),
+    paper:getComputedStyle(document.documentElement).getPropertyValue("--paper").trim(), img:document.documentElement.classList.contains("con-imagen")}));
+  assert.deepStrictEqual(await estilo(), {tema:"dark", acento:"#3fae92", paper:"#1b1925", img:false});
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFklEQVR4nGP4z8Dwn4GBgYGJAQoAAB0+AQJ3fQ3pAAAAAElFTkSuQmCC", "base64");
+  const [fc] = await Promise.all([p.waitForEvent("filechooser"), p.click("#btnSubirFondo")]);
+  await fc.setFiles({name:"foto.png", mimeType:"image/png", buffer:png});
+  await p.waitForSelector("#btnQuitarFondo");
+  assert.ok((await estilo()).img);
+  assert.match(await p.evaluate(()=>localStorage.getItem("fondoImagen")), /^data:image\/jpeg/);
+  await p.reload(); await p.waitForFunction(()=>typeof ready!=="undefined" && ready);
+  assert.deepStrictEqual(await estilo(), {tema:"dark", acento:"#3fae92", paper:"#1b1925", img:true});
+  await p.evaluate(()=>{ tab = "Personalización"; render(); });
+  await p.click("#btnQuitarFondo");
+  assert.strictEqual((await estilo()).img, false);
+  await p.click("#navMas");
+  await Promise.all([p.waitForNavigation(), p.click("#menuLogout")]);
+  assert.strictEqual(await p.evaluate(()=>localStorage.getItem("personalizacion")), null);
 });
 prueba("acceso con contraseña: error, registro, recuperar y entrar", async ()=>{
   const p = await navegador.newPage();

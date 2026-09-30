@@ -404,7 +404,7 @@ async function init(){
   // Al cerrar sesión o cambiar de usuario no puede quedar nada del anterior: ni datos
   // en memoria, ni el canal realtime, ni preferencias locales.
   const cambiarDeUsuario = ()=>{
-    ["cuentaDefecto","objCompletados","catsContraidas","formsPorDefecto"].forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
+    ["cuentaDefecto","objCompletados","catsContraidas","formsPorDefecto","personalizacion","fondoImagen"].forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
     location.reload();
   };
 

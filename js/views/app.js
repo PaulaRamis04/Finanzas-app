@@ -25,6 +25,7 @@ function render(){
   else if(tab==="Proyección") app.innerHTML = renderProyeccion();
   else if(tab==="Recurrentes") app.innerHTML = renderRecurrentes();
   else if(tab==="Preferencias") app.innerHTML = renderPreferencias();
+  else if(tab==="Personalización") app.innerHTML = renderPersonalizacion();
   else app.innerHTML = renderCategorias();
   wireEvents();
   aplicarPlegables();
@@ -54,6 +55,7 @@ function wireEvents(){
   wireEventosProyeccion();
   wireEventosRecurrentes();
   wireEventosPreferencias();
+  wireEventosPersonalizacion();
   wireEventosPresupuestos();
   wireEventosObjetivos();
   wireEventosImportar();
