@@ -328,6 +328,47 @@ prueba("sin premium: Proyección bloqueada (Inversiones no), Personalización so
   assert.match(await p.innerText("#app"), /Esto es de Premium/);
   assert.strictEqual(await p.locator("#compartirEmail").count(), 0);
 });
+prueba("dividir un gasto: apunta el gasto entero y una deuda «Me deben» por amigo", async ()=>{
+  const p = await abrir();
+  assert.deepStrictEqual(await p.evaluate(()=>repartoGasto(10, 3)), {parte:3.33, tuya:3.34, meDeben:6.66});
+  await p.evaluate(()=>{ tab = "Deudas"; render(); });
+  assert.strictEqual(await p.locator("#fDividir").count(), 0, "empieza plegado");
+  await p.click("[data-toggle-dividir]");
+  await p.fill("#divImporte", "60");
+  await p.fill("#divPersonas", "3");
+  assert.strictEqual(await p.locator('#divNombres input').count(), 2);
+  await p.fill('#divNombres input >> nth=0', "Marta");
+  assert.match(await p.innerText("#divResumen"), /20,00 cada uno · te deben €40,00/);
+  await p.fill('#fDividir [name="concepto"]', "cena viernes");
+  const antes = await p.evaluate(()=>({m:__db.movimientos.length, d:__db.deudas.length}));
+  await p.click('#fDividir button[type="submit"]');
+  await p.waitForFunction(n=>__db.deudas.length===n+2, antes.d);
+  const r = await p.evaluate(()=>{
+    const m = __db.movimientos[__db.movimientos.length-1];
+    return {m:{tipo:m.tipo, importe:m.importe, nota:m.nota}, d:__db.deudas.slice(-2).map(d=>[d.persona, d.importe, d.direccion, d.movimiento_id===m.id])};
+  });
+  assert.deepStrictEqual(r.m, {tipo:"gasto", importe:60, nota:"cena viernes"});
+  assert.deepStrictEqual(r.d, [["Marta",20,"me_deben",true],["Amigo 2",20,"me_deben",true]]);
+  await p.waitForFunction(()=>deudas.some(d=>d.persona==="Marta"));
+  assert.strictEqual(await p.locator("#fDividir").count(), 0, "se pliega al guardar");
+  assert.ok(await p.locator("[data-pedir-bizum]").count() >= 3);
+  assert.match(await p.evaluate(()=>textoBizum(deudas.find(d=>d.persona==="Marta"))), /Marta.*cena viernes me debes 20,00 €.*Bizum/);
+  // Si fallan las deudas no queda el gasto suelto.
+  await p.click("[data-toggle-dividir]");
+  await p.fill("#divImporte", "9");
+  await p.fill('#fDividir [name="concepto"]', "pizzas");
+  await p.evaluate(()=>{ window.__fallarEn = "deudas"; });
+  await p.click('#fDividir button[type="submit"]');
+  await p.waitForFunction(()=>document.getElementById("errBar").classList.contains("show"));
+  assert.ok(!(await p.evaluate(()=>__db.movimientos.some(m=>m.nota==="pizzas"))));
+  // También sin premium.
+  const pp = await abrir("?premium=0");
+  await pp.evaluate(()=>{ tab = "Deudas"; render(); });
+  await pp.click("[data-toggle-dividir]");
+  assert.doesNotMatch(await pp.innerText("#app"), /Esto es de Premium/);
+  assert.strictEqual(await pp.locator("#fDividir").count(), 1);
+  assert.ok(await pp.locator("[data-pedir-bizum]").count() >= 1);
+});
 prueba("premium: estrella junto al nombre en Inicio y en las secciones premium", async ()=>{
   const p = await abrir("");
   await p.waitForFunction(()=>esPremium);
