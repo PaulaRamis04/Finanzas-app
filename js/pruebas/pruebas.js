@@ -304,21 +304,21 @@ prueba("cuentas compartidas: se ven, se ajustan, se comparten, no van en la copi
   await aceptarHoja(p);
   await p.waitForFunction(()=>!cuentas.some(c=>c.id==="c4"));
 });
-prueba("sin premium: Inversiones y Proyección bloqueadas, Personalización solo tema y compartir avisa", async ()=>{
+prueba("sin premium: Proyección bloqueada (Inversiones no), Personalización solo tema y compartir avisa", async ()=>{
   const p = await abrir("?premium=0");
   await p.evaluate(()=>localStorage.setItem("personalizacion", JSON.stringify({tema:"dark", acento:"#3fae92", fondo:"lavanda"})));
   await p.reload(); await p.waitForFunction(()=>typeof ready!=="undefined" && ready);
   await p.waitForFunction(()=>!getComputedStyle(document.documentElement).getPropertyValue("--paper-l").trim());
   assert.deepStrictEqual(await p.evaluate(()=>JSON.parse(localStorage.getItem("personalizacion"))), {tema:"dark"});
   assert.strictEqual(await p.evaluate(()=>document.documentElement.getAttribute("data-theme")), "dark");
-  for(const t of ["Inversiones","Proyección"]){
-    await p.evaluate(t=>{ tab = t; render(); }, t);
-    assert.match(await p.innerText("#app"), /Esto es de Premium/, t);
-  }
+  await p.evaluate(()=>{ tab = "Proyección"; render(); });
+  assert.match(await p.innerText("#app"), /Esto es de Premium/);
+  await p.evaluate(()=>{ tab = "Inversiones"; render(); });
+  assert.doesNotMatch(await p.innerText("#app"), /Esto es de Premium/);
   await p.evaluate(()=>{ tab = "Personalización"; render(); });
   assert.ok(await p.locator("[data-tema]").count() > 0);
   assert.strictEqual(await p.locator("[data-acento], #btnSubirFondo").count(), 0);
-  assert.ok(await p.locator(".marca-premium").count() >= 3);
+  assert.strictEqual(await p.locator(".marca-premium").count(), 2);
   await p.evaluate(()=>{ tab = "Cuentas"; render(); });
   await p.click('[data-sort-id="c1"] [data-compartir-cuenta]');
   assert.match(await p.innerText("#app"), /Esto es de Premium/);
@@ -329,7 +329,7 @@ prueba("Comunidad: supporter, idea y fallo se guardan y dan las gracias", async 
   await p.click(".menu-comunidad");
   assert.strictEqual(await p.evaluate(()=>tab), "Comunidad");
   await p.click('[data-comunidad-abrir="supporter"]');
-  assert.match(await p.innerText("#app"), /Mini asesoría personalizada/);
+  assert.match(await p.innerText("#app"), /opciones premium/);
   await p.click('[data-supporter-importe="10"]');
   await p.click('[data-comunidad-enviar="supporter"]');
   await p.waitForSelector(".comunidad-ok");

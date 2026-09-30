@@ -6,8 +6,8 @@ let comunidadEnviado = null; // el mismo valor, tras enviar
 let supporterImporte = 5;
 
 const NIVELES_SUPPORTER = [
-  ["☕","Desde 1 €/mes","Acceso directo para resolver tus dudas de la app conmigo y agradecimiento especial en tu perfil."],
-  ["🌸","A partir de 5 €/mes","Mini asesoría personalizada incluida. Revisamos juntos tus presupuestos del mes, te doy consejos para optimizar tus categorías de gasto y resolvemos tus metas de ahorro paso a paso."]
+  ["☕","Desde 1 €/mes","Dispones de todas las opciones premium: personalización, proyección y cuentas compartidas."],
+  ["🌸","A partir de 5 €/mes","Todas las opciones premium y además una mini asesoría personalizada. Revisamos juntos tus presupuestos del mes, te doy consejos para optimizar tus categorías de gasto y resolvemos tus metas de ahorro paso a paso."]
 ];
 const IMPORTES_SUPPORTER = [1, 3, 5, 10];
 const GRACIAS_COMUNIDAD = {
@@ -55,7 +55,7 @@ function renderComunidad(){
   return `
   <div class="comunidad-hero">🌸 Rincón de la Comunidad &amp; Soporte</div>
   ${tarjetaComunidad("supporter", "✨", "Apoyo personal (Supporters)",
-    "Apoya el proyecto desde 1 €/mes. Si aportas 5 € o más, ¡tienes incluida una mini asesoría personalizada para ayudarte a organizar tus presupuestos del mes! 💌",
+    "Apoya el proyecto desde 1 €/mes y dispón de las opciones premium. Si aportas 5 € o más, ¡tienes incluida una mini asesoría personalizada para ayudarte a organizar tus presupuestos del mes! 💌",
     "Hacerse supporter", supporter)}
   ${tarjetaComunidad("idea", "💬", "Buzón de ideas y feedback <span class=\"gratis\">Gratis</span>",
     "¿Qué función te gustaría ver en la app? Cuéntamelo.",
