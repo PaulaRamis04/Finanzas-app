@@ -171,7 +171,6 @@ const LOGO_HUCHA = `<svg viewBox="0 0 64 64" aria-hidden="true"><ellipse cx="32"
 
 // Aviso amable en lo que es solo para premium. Aún no hay pago: premium se activa desde Supabase.
 const TEXTO_PREMIUM = {
-  "Inversiones":"Sigue tu cartera: aportaciones, rescates, rentabilidad y grupos de inversiones.",
   "Proyección":"Mira cómo puede crecer tu dinero con escenarios a futuro.",
   "Personalización":"Elige tu color, un fondo a tu gusto o una foto tuya.",
   "compartir":"Lleva una cuenta a medias con tu pareja o tu piso: los dos veis y apuntáis sus movimientos."
