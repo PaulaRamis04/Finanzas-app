@@ -151,6 +151,7 @@ prueba("Inicio muestra saldo, barras del mes, acciones y recientes", async ()=>{
   assert.match(txt, /Gastado\s*€[\d.,]+ de €400,00/);
   assert.deepStrictEqual(await p.$$eval(".hero-grid span", s=>s.map(x=>x.textContent)), ["Disponible","Inversiones","Me deben","Debo"]);
   assert.strictEqual(await p.$$eval(".barra-mes", b=>b.length), 3);
+  assert.match(await p.$$eval(".barra-cab", b=>b[1].innerText), /Ahorro\s*€200,00/, "el ahorro es lo apartado, no lo que sobra");
   assert.match(txt, /Movimientos recientes/);
   assert.ok(await p.isHidden("header"), "en Inicio no se ve la cabecera");
   assert.strictEqual(await p.$$eval("[data-accion]", b=>b.length), 0, "las acciones rápidas empiezan vacías");
@@ -271,6 +272,57 @@ prueba("personalización: tema, color, fondo e imagen se aplican, se recuerdan y
   await p.click("#navMas");
   await Promise.all([p.waitForNavigation(), p.click("#menuLogout")]);
   assert.strictEqual(await p.evaluate(()=>localStorage.getItem("personalizacion")), null);
+});
+prueba("cuentas compartidas: se ven, se ajustan, se comparten, no van en la copia y se puede salir", async ()=>{
+  const p = await abrir("?compartida=1");
+  await p.evaluate(()=>{ tab = "Cuentas"; render(); });
+  const tarjeta = id=>p.locator(`[data-sort-id="${id}"]`);
+  assert.match(await tarjeta("c4").innerText(), /Compartida por ana@x\.com/);
+  assert.strictEqual(await tarjeta("c4").locator("[data-compartir-cuenta], [data-archivar-cuenta], [data-del-cuenta]").count(), 0);
+  assert.deepStrictEqual(await saldosApp(p), await saldosEsperados(p));
+  assert.strictEqual(await p.evaluate(()=>saldoCuenta(cuentas.find(c=>c.id==="c4"))), 40);
+  // Ajustar saldo en una compartida crea el ajuste desde la app (la RPC no ve lo que apunta la otra persona).
+  await tarjeta("c4").locator("[data-ajustar-saldo]").click();
+  await p.fill("#saldoRealInput", "25");
+  await p.click("[data-confirmar-ajuste]");
+  await p.waitForFunction(()=>saldoCuenta(cuentas.find(c=>c.id==="c4"))===25);
+  // Compartir una cuenta propia.
+  await tarjeta("c1").locator("[data-compartir-cuenta]").click();
+  await p.fill("#compartirEmail", "nadie@x.com");
+  await p.click("[data-invitar]");
+  assert.match(await textoError(p), /no tiene cuenta/);
+  await p.fill("#compartirEmail", "Ana@x.com");
+  await p.click("[data-invitar]");
+  await p.waitForFunction(()=>/Compartida con ana@x\.com/.test(document.querySelector('[data-sort-id="c1"]').innerText));
+  // La copia no lleva la cuenta ajena ni sus movimientos.
+  const copia = JSON.parse(fs.readFileSync(await descargarCopia(p), "utf8"));
+  assert.ok(!copia.cuentas.some(c=>c.id==="c4"));
+  assert.ok(!copia.movimientos.some(m=>m.cuentaId==="c4"));
+  // Salir de la compartida.
+  await p.evaluate(()=>{ tab = "Cuentas"; render(); });
+  await tarjeta("c4").locator("[data-salir-cuenta]").click();
+  await aceptarHoja(p);
+  await p.waitForFunction(()=>!cuentas.some(c=>c.id==="c4"));
+});
+prueba("sin premium: Inversiones y Proyección bloqueadas, Personalización solo tema y compartir avisa", async ()=>{
+  const p = await abrir("?premium=0");
+  await p.evaluate(()=>localStorage.setItem("personalizacion", JSON.stringify({tema:"dark", acento:"#3fae92", fondo:"lavanda"})));
+  await p.reload(); await p.waitForFunction(()=>typeof ready!=="undefined" && ready);
+  await p.waitForFunction(()=>!getComputedStyle(document.documentElement).getPropertyValue("--paper-l").trim());
+  assert.deepStrictEqual(await p.evaluate(()=>JSON.parse(localStorage.getItem("personalizacion"))), {tema:"dark"});
+  assert.strictEqual(await p.evaluate(()=>document.documentElement.getAttribute("data-theme")), "dark");
+  for(const t of ["Inversiones","Proyección"]){
+    await p.evaluate(t=>{ tab = t; render(); }, t);
+    assert.match(await p.innerText("#app"), /Esto es de Premium/, t);
+  }
+  await p.evaluate(()=>{ tab = "Personalización"; render(); });
+  assert.ok(await p.locator("[data-tema]").count() > 0);
+  assert.strictEqual(await p.locator("[data-acento], #btnSubirFondo").count(), 0);
+  assert.ok(await p.locator(".marca-premium").count() >= 3);
+  await p.evaluate(()=>{ tab = "Cuentas"; render(); });
+  await p.click('[data-sort-id="c1"] [data-compartir-cuenta]');
+  assert.match(await p.innerText("#app"), /Esto es de Premium/);
+  assert.strictEqual(await p.locator("#compartirEmail").count(), 0);
 });
 prueba("acceso con contraseña: error, registro, recuperar y entrar", async ()=>{
   const p = await navegador.newPage({viewport:MOVIL});

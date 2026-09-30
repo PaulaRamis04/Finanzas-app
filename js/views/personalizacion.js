@@ -50,7 +50,8 @@ function renderPersonalizacion(){
     </div>
     <p class="meta" style="margin:10px 0 0">Automático sigue el modo claro u oscuro de tu móvil.</p>
   </div>
-  <div class="card">
+  ${esPremium ? "" : avisoPremium("Personalización")}
+  ${esPremium ? `  <div class="card">
     <h2>Color principal</h2>
     <div class="colores">
       ${ACENTOS.map(([v,t,c])=>`<button class="color ${p.acento===v?"sel":""}" data-acento="${v}" title="${t}" aria-label="${t}" style="background:${c}"></button>`).join("")}
@@ -79,7 +80,15 @@ function renderPersonalizacion(){
     <p class="meta" style="margin:4px 0 0">Cuanto más suave, mejor se leen los textos encima.</p>` : ""}
     <p class="meta" style="margin:10px 0 0">La imagen se guarda solo en este dispositivo y se borra al cerrar sesión.</p>
   </div>
-  <button class="btn ghost" id="btnRestablecerAspecto" style="color:var(--muted)">Restablecer aspecto original</button>`;
+  <button class="btn ghost" id="btnRestablecerAspecto" style="color:var(--muted)">Restablecer aspecto original</button>` : ""}`;
+}
+
+// Sin premium solo se conserva el tema (claro, oscuro o automático).
+function quitarPersonalizacionPremium(){
+  const p = leerPersonalizacion();
+  if(!p.acento && p.fondo==="crema" && !p.imagen) return;
+  try{ localStorage.setItem("personalizacion", JSON.stringify({tema:p.tema})); localStorage.removeItem("fondoImagen"); }catch(e){}
+  aplicarPersonalizacion();
 }
 
 function wireEventosPersonalizacion(){

@@ -176,7 +176,14 @@ async function deshacerRestauracion(insertados){
 
 const TABLAS = {
   cuentas: { q:()=>todas(()=>sb.from("cuentas").select("*").order("nombre")),
-    set:d=>{ cuentas = d.map(c=>({id:c.id, nombre:c.nombre, saldoInicial:Number(c.saldo_inicial), orden:c.orden||0, archivada:!!c.archivada})).sort(porOrden); } },
+    set:d=>{ cuentas = d.map(c=>({id:c.id, nombre:c.nombre, saldoInicial:Number(c.saldo_inicial), orden:c.orden||0, archivada:!!c.archivada,
+      propia:!c.user_id || c.user_id===session?.user?.id, propietarioId:c.user_id||null})).sort(porOrden); } },
+  // Sin schema_cuentas_compartidas.sql la tabla no existe: no hay cuentas compartidas.
+  cuentas_miembros: { q:()=>sb.from("cuentas_miembros").select("*"), opcional:true, sinRealtime:true,
+    set:d=>{ cuentasMiembros = d.map(m=>({cuentaId:m.cuenta_id, userId:m.user_id, email:m.email, propietarioId:m.propietario_id, propietarioEmail:m.propietario_email})); } },
+  // Sin schema_premium.sql (o si falla la consulta) no se cambia nada.
+  perfil: { q:async ()=>{ const r = await sb.rpc("es_premium"); return {data:r.error ? null : {premium:r.data===true}, error:r.error}; }, opcional:true, sinRealtime:true,
+    set:d=>{ if(Array.isArray(d)) return; esPremium = d.premium; if(!esPremium) quitarPersonalizacionPremium(); } },
   movimientos: { q: async ()=>{
       const desde = calcularMovDesde();
       const [res, lista] = await Promise.all([
@@ -213,7 +220,7 @@ const TABLAS = {
   objetivos: { q:()=>todas(()=>sb.from("objetivos").select("*")),
     set:d=>{ objetivos = d.map(o=>({id:o.id, nombre:o.nombre, meta:Number(o.meta), tipoVinculo:o.tipo_vinculo, vinculoId:o.vinculo_id, orden:o.orden||0,
       autoActivo:!!o.auto_activo, autoCuota:o.auto_cuota!=null?Number(o.auto_cuota):null, autoDiaMes:o.auto_dia_mes||null, autoCuentaOrigen:o.auto_cuenta_origen||null, autoUltimaGenerada:o.auto_ultima_generada||null})).sort(porOrden); } },
-  preferencias: { q:()=>sb.from("preferencias").select("*"), opcional:true,
+  preferencias: { q:()=>sb.from("preferencias").select("*"), opcional:true, sinRealtime:true,
     set:d=>{ if(!d[0]) return;
       cuentaDefecto = d[0].cuenta_defecto || "";
       try{ if(cuentaDefecto) localStorage.setItem("cuentaDefecto", cuentaDefecto); else localStorage.removeItem("cuentaDefecto"); }catch(e){} } }
@@ -380,7 +387,7 @@ async function startApp(){
   await fetchAll();
   let primeraSub = true;
   const canal = sb.channel("cambios");
-  Object.keys(TABLAS).filter(t=>t!=="preferencias").forEach(t=>
+  Object.keys(TABLAS).filter(t=>!TABLAS[t].sinRealtime).forEach(t=>
     canal.on("postgres_changes", {event:"*", schema:"public", table:t}, ()=>refrescarTabla(t)));
   canal
     .subscribe((status)=>{

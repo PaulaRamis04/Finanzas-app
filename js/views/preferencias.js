@@ -31,10 +31,19 @@ function wireEventosPreferencias(){
   const btnExportar = document.getElementById("btnExportar");
   if(btnExportar) btnExportar.onclick = ()=>conCarga(btnExportar, "Preparando…", async ()=>{
     await cargarHistoricoCompleto();
+    // Las cuentas que otra persona comparte contigo no son tuyas: no van en la copia.
+    const ajenas = new Set(cuentas.filter(c=>!c.propia).map(c=>c.id));
+    const movs = movimientos.filter(m=>!ajenas.has(m.cuentaId));
+    const ids = new Set(movs.map(m=>m.id));
+    const soloPropio = a=>ajenas.has(a.cuentaId) || (a.movimientoId && !ids.has(a.movimientoId)) ? {...a, cuentaId:ajenas.has(a.cuentaId)?null:a.cuentaId, movimientoId:ids.has(a.movimientoId)?a.movimientoId:null} : a;
     const datos = {
       exportado_en: new Date().toISOString(),
-      cuentas, movimientos, deudas, inversiones, aportaciones, retiros,
-      categorias, presupuestos, objetivos, recurrentes
+      cuentas: cuentas.filter(c=>c.propia),
+      movimientos: movs.map(m=>m.reembolsoDe && !ids.has(m.reembolsoDe) ? {...m, reembolsoDe:null} : m),
+      deudas: deudas.map(d=>d.movimientoId && !ids.has(d.movimientoId) ? {...d, movimientoId:null} : d),
+      aportaciones: aportaciones.map(soloPropio), retiros: retiros.map(soloPropio),
+      inversiones, categorias, presupuestos, objetivos,
+      recurrentes: recurrentes.map(r=>ajenas.has(r.cuentaId) ? {...r, cuentaId:null} : r)
     };
     const blob = new Blob([JSON.stringify(datos, null, 2)], {type:"application/json"});
     const url = URL.createObjectURL(blob);
