@@ -8,10 +8,11 @@ const assert = require("assert");
 
 const RAIZ = path.join(__dirname, "..");
 const HTML_PRUEBA = path.join(RAIZ, "index.pruebas.html");
-const PESTANAS = ["Inicio","Salud","Gastos","Resumen del mes","Presupuestos","Movimientos","Cuentas","Deudas","Inversiones","Objetivos","Vivienda","Hitos","Proyección","Simulador","Recurrentes","Categorías","Preferencias","Personalización","Notificaciones","Comunidad"];
+const PESTANAS = ["Inicio","Salud","Gastos","Resumen del mes","Presupuestos","Permitir","Movimientos","Cuentas","Deudas","Inversiones","Objetivos","Vivienda","Hitos","Proyección","Simulador","Recurrentes","Categorías","Preferencias","Personalización","Notificaciones","Comunidad"];
 
 const pruebas = [];
 const prueba = (nombre, fn)=>pruebas.push({nombre, fn});
+const restarDineroPrueba = (a, b)=>Math.round(a*100 - b*100)/100;
 
 // ── Funciones puras (sin navegador) ──
 function cargarHelpers(){
@@ -586,6 +587,42 @@ prueba("hitos: se desbloquean solos, guardan la fecha y celebran los nuevos", as
   const local = await p.evaluate(async ()=>{ delete __db.hitos; localStorage.removeItem("hitos"); await recargar(["hitos","movimientos"]); return {enBd:hitosEnBd, local:JSON.parse(localStorage.getItem("hitos")||"{}")}; });
   assert.strictEqual(local.enBd, false);
   assert.ok(local.local.pat_500 && local.local.mes_ahorro);
+});
+
+prueba("¿me lo puedo permitir?: enseña cómo quedaría todo después de la compra", async ()=>{
+  const p = await abrir();
+  await p.evaluate(async ()=>{
+    __db.objetivos.push({id:"o8", nombre:"Japón", meta:3000, ahorrado:200, tipo_vinculo:"ninguno", tema:"viaje", orden:2, auto_activo:true, auto_cuota:100, auto_dia_mes:1, auto_cuenta_origen:"c2"});
+    await recargar(["objetivos"]);
+    tab = "Inicio"; render();
+  });
+  await p.click('[data-ir-tab="Permitir"]');
+  assert.strictEqual(await p.$eval("#permCategoria", s=>s.value), "Ocio", "por defecto propone la categoría de ocio");
+  await p.selectOption("#permCuenta", "c1");
+  await p.fill("#permConcepto", "Móvil");
+  await p.fill("#permImporte", "650");
+  const r = await p.evaluate(()=>calcularPermitir(650, "Ocio", "c1"));
+  assert.strictEqual(r.patrimonio.despues, restarDineroPrueba(r.patrimonio.antes, 650));
+  assert.ok(r.fondo.toca, "el Colchón está en la cuenta con la que se paga");
+  assert.strictEqual(r.fondo.despues, restarDineroPrueba(r.fondo.antes, Math.min(650, r.fondo.antes)));
+  assert.strictEqual(r.presupuesto.despues, restarDineroPrueba(r.presupuesto.queda, 650));
+  const japon = r.objetivos.huchas.find(h=>h.nombre==="Japón");
+  assert.strictEqual(japon.meses, 6.5, "a 100 €/mes, 650 € son 6,5 meses");
+  assert.ok(!r.objetivos.huchas.some(h=>h.nombre==="Colchón"), "el fondo de emergencia no cuenta como objetivo");
+  const texto = await p.innerText("#permResultado");
+  assert.ok(texto.includes("Después de Móvil"), texto);
+  for(const t of ["Patrimonio","Fondo de emergencia","Objetivos","Presupuesto ocio","+6,5 meses"]) assert.ok(texto.includes(t), t);
+  // Pagando desde otra cuenta el fondo no se toca.
+  await p.selectOption("#permCuenta", "c2");
+  assert.ok((await p.innerText("#permResultado")).includes("No lo toca"));
+  assert.strictEqual(await p.evaluate(()=>calcularPermitir(650, "Ocio", "c2").fondo.toca), false);
+  // Sin importe no hay resultado, y lo escrito se mantiene al volver a la pestaña.
+  await p.fill("#permImporte", "");
+  assert.ok((await p.innerText("#permResultado")).includes("Escribe un importe"));
+  await p.fill("#permImporte", "650");
+  await p.evaluate(()=>{ tab = "Inicio"; render(); tab = "Permitir"; render(); });
+  assert.strictEqual(await p.$eval("#permImporte", i=>i.value), "650");
+  assert.ok((await p.innerText("#permResultado")).includes("Después de Móvil"));
 });
 
 prueba("¿cómo estoy?: semáforo con nota y objetivos configurables", async ()=>{

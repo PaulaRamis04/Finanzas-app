@@ -469,6 +469,16 @@ button:not(:disabled):active, .fila:active, .cat-fila:active, .color-propio:acti
   button, .fila, .cat-fila, .color-propio, .pleg-cab, .item{transition:none!important}
   button:active, .fila:active, .cat-fila:active, .pleg-cab:active, .item:active, .color-propio:active{transform:none!important}
 }
+/* ¿Me lo puedo permitir? */
+.permitir-lista{display:flex; flex-direction:column; gap:14px; margin-top:10px}
+.permitir-fila{display:flex; gap:12px; align-items:flex-start}
+.permitir-tit{font-size:13.5px; font-weight:700; color:var(--muted)}
+.permitir-cifras{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; font-variant-numeric:tabular-nums}
+.permitir-cifras strong{font-size:20px; font-weight:800}
+.permitir-huchas{display:flex; flex-direction:column; gap:6px; margin:-4px 0 0 56px}
+.permitir-hucha{display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; font-size:14px}
+.permitir-hucha b{margin-left:auto}
+
 /* Simulador de vivienda */
 .viv-col{min-width:92px; font-variant-numeric:tabular-nums}
 
@@ -598,6 +608,7 @@ button:not(:disabled):active, .fila:active, .cat-fila:active, .color-propio:acti
 <script src="js/views/resumen.js"></script>
 <script src="js/views/cierre.js"></script>
 <script src="js/views/presupuestos.js"></script>
+<script src="js/views/permitir.js"></script>
 <script src="js/views/movimientos.js"></script>
 <script src="js/views/cuentas.js"></script>
 <script src="js/views/deudas.js"></script>
