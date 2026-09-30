@@ -95,7 +95,7 @@ function renderInicio(){
 
   return `
   <div class="hola">
-    <h1>Hola${nombre ? ", "+esc(nombre) : ""}${esPremium ? ESTRELLA_PREMIUM : ""} 👋</h1>
+    <h1><button class="hola-perfil" id="btnPerfiles" aria-haspopup="dialog" aria-label="Cambiar de perfil">Hola${nombre ? ", "+esc(nombre) : ""}${esPremium ? ESTRELLA_PREMIUM : ""} 👋<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button></h1>
     <span style="display:flex;gap:10px">${botonOjo("btnOjoInicio")}<button class="campana" id="btnAvisos" aria-label="Notificaciones"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>${avisos ? `<span class="punto"></span>` : ""}</button></span>
   </div>
   <div class="hero">
@@ -221,7 +221,41 @@ function elegirAcciones(){
   cont.querySelector("#hojaListo").onclick = cerrar;
 }
 
+// Hoja inferior de perfiles: cambiar a otro, añadir otra cuenta o cerrar la sesión de este.
+function elegirPerfil(){
+  const yo = session?.user?.id;
+  const perfiles = leerPerfiles();
+  if(!perfiles.some(p=>p.id===yo)) perfiles.unshift({id:yo, email:session.user.email, nombre:(session.user.user_metadata?.full_name||"").trim()});
+  document.getElementById("hoja")?.remove();
+  const cont = document.createElement("div");
+  cont.id = "hoja";
+  cont.innerHTML = `
+    <div class="hoja-fondo"></div>
+    <div class="hoja" role="dialog" aria-modal="true" aria-labelledby="hojaTitulo">
+      <div class="hoja-asa"></div>
+      <h2 id="hojaTitulo">Perfiles</h2>
+      <div class="perfiles-lista">${perfiles.map(p=>`<button class="perfil-btn ${p.id===yo?"actual":""}" data-cambiar-perfil="${esc(p.id)}" ${p.id===yo?'aria-current="true"':""}>${avatarPerfil(p)}<span><b>${esc(p.nombre||p.email)}</b>${p.nombre?`<small>${esc(p.email)}</small>`:""}</span>${p.id===yo?`<span class="check">✓</span>`:""}</button>`).join("")}</div>
+      <button class="perfil-accion" id="btnAnadirPerfil">＋ Añadir otra cuenta</button>
+      <button class="perfil-accion salir" id="btnSalirPerfil">Cerrar sesión de este perfil</button>
+    </div>`;
+  document.body.appendChild(cont);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>cont.classList.add("abierta")));
+  const cerrar = ()=>{
+    document.removeEventListener("keydown", tecla);
+    cont.classList.remove("abierta");
+    setTimeout(()=>cont.remove(), 260);
+  };
+  const tecla = e=>{ if(e.key==="Escape") cerrar(); };
+  document.addEventListener("keydown", tecla);
+  cont.querySelector(".hoja-fondo").onclick = cerrar;
+  cont.querySelector(".perfiles-lista").onclick = e=>{ const b = e.target.closest("[data-cambiar-perfil]"); if(b && b.dataset.cambiarPerfil!==yo) cambiarAPerfil(b.dataset.cambiarPerfil); };
+  cont.querySelector("#btnAnadirPerfil").onclick = anadirPerfil;
+  cont.querySelector("#btnSalirPerfil").onclick = ()=> sb.auth.signOut();
+}
+
 function wireEventosInicio(){
+  const perf = document.getElementById("btnPerfiles");
+  if(perf) perf.onclick = elegirPerfil;
   document.querySelectorAll("[data-accion]").forEach(b=>b.onclick=()=>{
     const d = b.dataset.accion;
     if(d==="mov" || d==="transferencia"){

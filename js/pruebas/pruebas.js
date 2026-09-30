@@ -342,7 +342,11 @@ prueba("premium: estrella junto al nombre en Inicio y en las secciones premium",
   assert.strictEqual(await p.locator("#tabActual .estrella-premium").count(), 0);
 });
 prueba("Comunidad: supporter, idea y fallo se guardan y dan las gracias", async ()=>{
-  const p = await abrir("", {width:1280, height:900});
+  const pp = await abrir("", {width:1280, height:900});
+  await pp.evaluate(()=>{ tab = "Comunidad"; render(); });
+  assert.match(await pp.innerText("#app"), /Ya eres premium/);
+  assert.strictEqual(await pp.locator('[data-comunidad-abrir="supporter"]').count(), 0, "un premium no puede volver a hacerse supporter");
+  const p = await abrir("?premium=0", {width:1280, height:900});
   await p.click(".menu-comunidad");
   assert.strictEqual(await p.evaluate(()=>tab), "Comunidad");
   await p.click('[data-comunidad-abrir="supporter"]');
@@ -408,6 +412,31 @@ prueba("cerrar sesión recarga y borra los datos locales", async ()=>{
   await p.click("#navMas");
   await Promise.all([p.waitForNavigation(), p.click("#menuLogout")]);
   assert.strictEqual(await p.evaluate(()=>localStorage.getItem("cuentaDefecto")), null);
+});
+prueba("perfiles: añadir otra cuenta, cambiar con la flecha y cerrar solo uno", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>localStorage.setItem("accionesRapidas", '["Gastos"]'));
+  await p.click("#btnPerfiles");
+  await Promise.all([p.waitForNavigation(), p.click("#btnAnadirPerfil")]);
+  await p.waitForSelector("#fLogin", {state:"visible"});
+  assert.match(await p.innerText("#authPerfiles"), /Paula/, "el perfil anterior sale en el acceso");
+  await p.fill("#loginEmail", "ana@x.com"); await p.fill("#loginPass", "secreta123");
+  await p.click("#fLogin button[type=submit]");
+  await p.waitForFunction(()=>typeof ready!=="undefined" && ready && session?.user?.id==="u2");
+  assert.match(await p.innerText(".hola"), /Ana/);
+  assert.strictEqual(await p.evaluate(()=>localStorage.getItem("accionesRapidas")), null, "Ana no hereda las preferencias de Paula");
+  await p.click("#btnPerfiles");
+  await p.waitForSelector('[data-cambiar-perfil="u1"]');
+  await Promise.all([p.waitForNavigation(), p.click('[data-cambiar-perfil="u1"]')]);
+  await p.waitForFunction(()=>typeof ready!=="undefined" && ready);
+  assert.strictEqual(await p.evaluate(()=>session.user.id), "u1");
+  assert.strictEqual(await p.evaluate(()=>localStorage.getItem("accionesRapidas")), '["Gastos"]', "Paula recupera sus preferencias");
+  await p.click("#btnPerfiles");
+  await Promise.all([p.waitForNavigation(), p.click("#btnSalirPerfil")]);
+  await p.waitForSelector("#fLogin", {state:"visible"});
+  assert.deepStrictEqual(await p.evaluate(()=>leerPerfiles().map(x=>x.id)), ["u2"], "solo se olvida el perfil que cierra sesión");
+  await Promise.all([p.waitForNavigation(), p.click('[data-perfil="u2"]')]);
+  await p.waitForFunction(()=>typeof ready!=="undefined" && ready && session?.user?.id==="u2");
 });
 
 (async ()=>{
