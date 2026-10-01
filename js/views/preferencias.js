@@ -24,6 +24,13 @@ function renderPreferencias(){
     <p class="meta" style="margin:16px 0 10px">Para recuperar una copia, ábrela aquí. Solo funciona en una cuenta sin datos, para no duplicar nada.</p>
     <input type="file" id="copiaArchivo" accept=".json,application/json" style="display:none">
     <button class="btn gold" id="btnRestaurar">Restaurar copia…</button>
+  </div>
+  <div class="card">
+    <h2>Eliminar cuenta y datos</h2>
+    <p class="meta" style="margin:0 0 10px">Borra para siempre tu cuenta y todo lo que has guardado en la app: movimientos, cuentas, deudas, inversiones, objetivos, mensajes, suscripción... Las cuentas que compartías dejarán de verse para las demás personas. No se puede deshacer, así que si quieres conservar algo descarga antes una copia.</p>
+    <p class="meta" style="margin:0 0 6px">Para confirmar, escribe <b>ELIMINAR</b>:</p>
+    <input id="borrarCuentaTexto" autocomplete="off" autocapitalize="characters" placeholder="ELIMINAR" style="margin-bottom:10px">
+    <button class="btn ghost" id="btnBorrarCuenta" disabled>Eliminar mi cuenta y mis datos</button>
   </div>`;
 }
 
@@ -69,6 +76,20 @@ function wireEventosPreferencias(){
           await restaurarCopia(copia, txt=>{ btnRestaurar.textContent = txt; });
         }catch(e){ showError("No se pudo restaurar y no se ha guardado nada: "+e.message); return; }
         hideError(); tab = "Inicio"; await fetchAll();
+      });
+    };
+  }
+  const borrarTexto = document.getElementById("borrarCuentaTexto");
+  const btnBorrar = document.getElementById("btnBorrarCuenta");
+  if(borrarTexto && btnBorrar){
+    borrarTexto.oninput = ()=>{ btnBorrar.disabled = borrarTexto.value.trim().toUpperCase() !== "ELIMINAR"; };
+    btnBorrar.onclick = async ()=>{
+      if(!(await confirmar("¿Borrar tu cuenta y todos tus datos? Se eliminarán para siempre y no podrás recuperarlos.", {ok:"Sí, borrar mi cuenta"}))) return;
+      conCarga(btnBorrar, "Eliminando…", async ()=>{
+        const {error} = await sb.rpc("borrar_mi_cuenta");
+        if(error){ showError("No se pudo eliminar la cuenta: "+error.message); return; }
+        // El usuario ya no existe en el servidor: se cierra la sesión solo en este dispositivo.
+        await sb.auth.signOut({scope:"local"});
       });
     };
   }
