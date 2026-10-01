@@ -196,6 +196,14 @@ const TABLAS = {
   // Sin schema_premium.sql (o si falla la consulta) no se cambia nada.
   perfil: { q:async ()=>{ const r = await sb.rpc("es_premium"); return {data:r.error ? null : {premium:r.data===true}, error:r.error}; }, opcional:true, sinRealtime:true,
     set:d=>{ if(Array.isArray(d)) return; esPremium = d.premium; if(!esPremium) quitarPersonalizacionPremium(); } },
+  // Sin schema_gestion.sql estas tres no existen o vienen vacías: no se enseña nada nuevo.
+  suscripcion: { q:()=>sb.from("suscripciones").select("*"), opcional:true, sinRealtime:true,
+    set:d=>{ miSuscripcion = d[0] || null; } },
+  comunidad: { q:()=>sb.from("comunidad").select("*"), opcional:true, sinRealtime:true,
+    set:d=>{ misMensajesComunidad = d.filter(f=>f.tipo!=="supporter" && (!f.user_id || f.user_id===session?.user?.id))
+      .sort((a,b)=>String(b.creado_en||b.created_at||"").localeCompare(String(a.creado_en||a.created_at||""))); } },
+  asesoria: { q:()=>sb.from("asesoria_mensajes").select("*").order("creado_en"), opcional:true, sinRealtime:true,
+    set:d=>{ mensajesAsesoria = d; } },
   movimientos: { q: async ()=>{
       const desde = calcularMovDesde();
       const [res, lista] = await Promise.all([
@@ -464,6 +472,10 @@ async function startApp(){
     .subscribe((status)=>{
       if(status==="SUBSCRIBED"){ if(primeraSub) primeraSub = false; else refrescar(); }
     });
+  // La asesoría va en su propio canal: solo existe si se ha ejecutado schema_gestion.sql.
+  if(tieneAsesoria()) sb.channel("asesoria")
+    .on("postgres_changes", {event:"*", schema:"public", table:"asesoria_mensajes", filter:`user_id=eq.${session.user.id}`}, ()=>refrescarTabla("asesoria"))
+    .subscribe();
   document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") refrescar(); });
   window.addEventListener("online", refrescar);
 }

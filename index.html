@@ -130,6 +130,14 @@ header .mini{margin-bottom:0}
 .nivel > span{font-size:22px} .nivel p{margin:4px 0 0}
 .nivel:last-of-type{border-bottom:none; margin-bottom:8px}
 .comunidad-btns{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px}
+.comunidad .chat{display:flex; flex-direction:column; gap:8px; max-height:340px; overflow-y:auto; margin-bottom:12px}
+.burbuja{max-width:85%; padding:9px 13px; border-radius:16px; white-space:pre-wrap; font-size:14px}
+.burbuja.de-admin{background:var(--accent-soft); align-self:flex-start; border-bottom-left-radius:4px}
+.burbuja.mia{background:var(--paper); border:1px solid var(--line); align-self:flex-end; border-bottom-right-radius:4px}
+.burbuja small{display:block; color:var(--muted); font-size:11px; margin-top:3px}
+.mi-mensaje{padding:10px 0; border-bottom:1px solid var(--line)} .mi-mensaje:last-child{border-bottom:none}
+.mi-mensaje p{margin:4px 0; white-space:pre-wrap}
+.mi-mensaje .respuesta{background:var(--mint-soft); border-radius:12px; padding:10px 12px; font-size:14px; white-space:pre-wrap}
 .comunidad-ok{background:var(--mint-soft); color:var(--ink); border-radius:16px; padding:14px; font-weight:600}
 .menu-item.active{background:var(--accent-soft); color:var(--accent); font-weight:700}
 .menu-salir{margin-top:14px; color:var(--muted)}
