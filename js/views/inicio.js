@@ -57,10 +57,7 @@ function renderInicio(){
         const pct = o.meta>0 ? Math.min(actual/o.meta*100,100) : 0;
         return `
         <div>
-          <div style="display:flex;justify-content:space-between;font-size:14px;margin-bottom:5px">
-            <span>${emojiObjetivo(o)} ${esc(o.nombre)}</span>
-            <strong>${pct.toFixed(0)}%</strong>
-          </div>
+          <div style="font-size:14px;margin-bottom:2px">${esc(o.nombre)}</div>
           ${barraHucha(o, pct, true)}
         </div>`;
       }).join("")}
