@@ -1,6 +1,8 @@
 // Pantalla «Notificaciones» (se abre con la campana del Inicio). Lista los avisos y solo al tocar uno
 // lleva a su pestaña. Los ya vistos se recuerdan en este dispositivo para que la campana no marque punto.
 
+const ICONO_AVISO_SUAVE = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:.75"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.5h.01"/></svg>`;
+
 function avisosActuales(){
   const hoy = today();
   const en3 = new Date(); en3.setDate(en3.getDate()+3);
@@ -10,9 +12,11 @@ function avisosActuales(){
   const avisos = [];
   presupuestosEnAlerta().forEach(a=>{
     const pasado = a.gastado>a.limite;
-    avisos.push({id:`pres-${a.categoria}-${periodoAnio}-${periodoMes}-${pasado?"pasado":"80"}`, tab:"Presupuestos", ico:pasado?"🚨":"⚠️", fondo:pasado?"var(--accent-soft)":"var(--peach-soft)",
-      titulo: pasado ? `Te has pasado en ${a.categoria}` : `${a.categoria} casi al límite`,
-      texto:`${eur(a.gastado)} de ${eur(a.limite)} (${isFinite(a.pct)?a.pct.toFixed(0):"—"} %)`});
+    // Si aún no te has pasado es solo un aviso tranquilo: icono suave en vez de una señal de alarma.
+    avisos.push({id:`pres-${a.categoria}-${periodoAnio}-${periodoMes}-${pasado?"pasado":"80"}`, tab:"Presupuestos", ico:pasado?"🚨":ICONO_AVISO_SUAVE, fondo:pasado?"var(--accent-soft)":"var(--mint-soft)",
+      titulo: pasado ? `Te has pasado en ${a.categoria}` : `${a.categoria} se acerca al límite`,
+      texto: pasado ? `${eur(a.gastado)} de ${eur(a.limite)} (${isFinite(a.pct)?a.pct.toFixed(0):"—"} %)`
+        : `Llevas ${eur(a.gastado)} de ${eur(a.limite)} (${a.pct.toFixed(0)} %). Aún te quedan ${eur(restarDinero(a.limite, a.gastado))}.`});
   });
   recurrentes.filter(r=>r.activo).forEach(r=>{
     const f = proximaFechaRecurrente(r);

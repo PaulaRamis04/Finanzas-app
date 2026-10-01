@@ -26,24 +26,22 @@ function renderInicio(){
     const bueno = (pct>0)===masEsBueno;
     return `<div class="meta" style="color:var(${bueno?'--pos':'--neg'})">${pct>0?"▲":"▼"} ${Math.abs(pct).toFixed(0)}% vs ${MESES[mesAnt.m-1].toLowerCase()}</div>`;
   };
-  const alertas = presupuestosEnAlerta();
+  // En Inicio solo se avisa cuando ya te has pasado; lo de «cerca del límite» va a Notificaciones.
+  const alertas = presupuestosEnAlerta().filter(a=>a.gastado>a.limite);
   const bloqueAlertas = alertas.length ? `
   <div class="card">
-    <h2>⚠️ Presupuestos al límite</h2>
+    <h2>⚠️ Presupuestos superados</h2>
     <div class="list" style="margin-top:8px">
-      ${alertas.map(a=>{
-        const pasado = a.gastado>a.limite;
-        return `
+      ${alertas.map(a=>`
         <div>
           <div style="display:flex;justify-content:space-between;font-size:14px;margin-bottom:5px">
             <span>${esc(a.categoria)}</span>
-            <strong class="${pasado?'neg':''}">${eur(a.gastado)} de ${eur(a.limite)}</strong>
+            <strong class="neg">${eur(a.gastado)} de ${eur(a.limite)}</strong>
           </div>
           <div style="height:7px;background:var(--line);border-radius:999px;overflow:hidden">
-            <div style="height:100%;width:${Math.min(a.pct,100)}%;background:${pasado?'var(--neg)':'#e0ac4e'};border-radius:999px"></div>
+            <div style="height:100%;width:${Math.min(a.pct,100)}%;background:var(--neg);border-radius:999px"></div>
           </div>
-        </div>`;
-      }).join("")}
+        </div>`).join("")}
     </div>
     <button class="btn ghost" data-ir-tab="Presupuestos" style="margin-top:14px">Ver presupuestos</button>
   </div>` : "";
