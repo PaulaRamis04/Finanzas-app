@@ -1,5 +1,5 @@
 // Bienvenida: al entrar por primera vez después de registrarse, tres tarjetas con el resumen de cómo usar la app.
-// Los textos son de Paula, tal cual. Solo la ven las cuentas nuevas: al registrarse se guarda
+// Los textos son de Paula (con los nombres ajustados a los de la app, con su visto bueno). Solo la ven las cuentas nuevas: al registrarse se guarda
 // «bienvenida: pendiente» en los datos del usuario (user_metadata) y al terminar pasa a «vista».
 // Además se apunta en este dispositivo por si no se pudiera guardar en la cuenta. No necesita SQL.
 
@@ -38,14 +38,14 @@ const TARJETAS_BIENVENIDA = [
       ${bvItem("Qué verás:", "Una tarjeta principal suave (Tarjeta Hero) que reúne tu saldo total y lo divide de forma realista en Disponible para gastar, Inversiones, Me deben y Debo. Así sabes exactamente con qué dinero cuentas sin engañarte.")}
       ${bvItem("Cómo usarlo:", "Échale un vistazo rápido al empezar el día o la semana para ver tus barras de presupuesto mensual sin agobios ni números rojos estridentes.")}
     </ul>
-    <h3>2. Apuntar gastos e ingresos al instante (${bvTag("+ Gasto rápido")})</h3>
+    <h3>2. Apuntar gastos e ingresos al instante (${bvTag("Movimientos")})</h3>
     <ul>
-      ${bvItem("Dónde está:", `En el botón flotante ${bvTag("+")} accesible desde cualquier pantalla.`)}
-      ${bvItem("Cómo usarlo:", `No necesitas formularios eternos ni conectar bancos. Solo tocas el ${bvTag("+")}, pones la cantidad, pulsas la burbuja de la categoría (Comer, Ocio, Supermercado...) y listo en dos toques.`)}
+      ${bvItem("Dónde está:", `En la pestaña Movimientos de la barra de abajo. Si quieres tenerlo aún más a mano, en Inicio puedes añadir el acceso rápido «Apuntar» con el botón ${bvTag("＋ Añadir")}.`)}
+      ${bvItem("Cómo usarlo:", "No necesitas formularios eternos ni conectar bancos. Pones la cantidad, eliges la categoría (Comer, Salidas, Compras...) y listo.")}
     </ul>
     <h3>3. El desglose y tus límites (${bvTag("Gastos &amp; Presupuestos")})</h3>
     <ul>
-      ${bvItem("Dónde está:", "En la sección Resumen / Gastos.")}
+      ${bvItem("Dónde está:", "En el menú «Más», dentro del grupo Resumen (pestañas Gastos y Presupuestos).")}
       <li><b>Cómo usarlo:</b>
         <ul>
           <li>Puedes filtrar al instante tocando cualquier categoría para ver solo esos movimientos (y volver a tocarla para quitar el filtro).</li>
@@ -55,22 +55,22 @@ const TARJETAS_BIENVENIDA = [
     </ul>
     <h3>4. Metas y caprichos (${bvTag("Huchas de Ahorro")})</h3>
     <ul>
-      ${bvItem("Dónde está:", "En la pestaña Objetivos / Huchas.")}
+      ${bvItem("Dónde está:", "En el menú «Más», dentro del grupo Ahorro (pestaña Objetivos).")}
       ${bvItem("Cómo usarlo:", "Crea tus huchas para viajes, conciertos o tu fondo de tranquilidad. Elige su icono temático y añade dinero poco a poco viendo cómo avanza la barrita hacia tu meta.")}
     </ul>
-    <h3>5. El buzón y tu contacto conmigo (${bvTag("Ajustes &amp; Comunidad")})</h3>
+    <h3>5. El buzón y tu contacto conmigo (${bvTag("Comunidad &amp; Feedback")})</h3>
     <ul>
-      ${bvItem("Dónde está:", "En el menú inferior o lateral, en Ajustes (sección Rincón de la Comunidad).")}
+      ${bvItem("Dónde está:", "En el menú «Más», dentro del grupo Ajustes (Comunidad &amp; Feedback).")}
       ${bvItem("Cómo usarlo:", "Ahí tienes el Buzón gratuito para mandarme ideas o reportar cualquier problema técnico. Y si quieres apoyar el mantenimiento de la app libre de anuncios, puedes hacerlo desde 1 €/mes (¡y a partir de 5 € me siento contigo a organizar tus presupuestos del mes paso a paso!).")}
     </ul>
     <div class="bv-extra">
       <h3>✨ ¡Hay muchísimos detalles interesantes por investigar!</h3>
-      <p>Esto es solo lo básico, pero si curoseas por la app irás descubriendo pequeñas sorpresas diseñadas para hacerte la vida fácil:</p>
+      <p>Esto es solo lo básico, pero si curioseas por la app irás descubriendo pequeñas sorpresas diseñadas para hacerte la vida fácil:</p>
       <ul>
         ${bvItem("👁️ Modo Privacidad:", "Toca el icono del ojito en la cabecera para esconder tus saldos con bolitas si estás en el bus o rodeada de gente.")}
         ${bvItem("🍕 Dividir gastos y Bizum:", "Al registrar una cena o viaje con amigos, calcula automáticamente la parte de cada uno y crea el recordatorio en «Me deben» con el texto listo para pedir Bizum.")}
         ${bvItem("💭 ¿Me lo puedo permitir?:", "Una herramienta que te calcula si ese capricho retrasará tus huchas de ahorro antes de comprarlo.")}
-        ${bvItem("🔄 Arrastre de remanente (Rollover):", "Al cambiar de mes, la app te preguntará con cariño si quieres sumar el dinerito que te sobró el mes pasado a tu nuevo disponible o guardarlo en una hucha.")}
+        ${bvItem("🔄 Arrastre de remanente (Rollover):", "Al cambiar de mes, la app te preguntará con cariño si quieres sumar el dinerito que te sobró el mes pasado a tu nuevo disponible o dejarlo como ahorro.")}
         ${bvItem("📸 Cierre del mes descargable:", "A final de mes podrás generar una tarjeta bonita resumen estilo Wrapped con tus progresos para guardarla de recuerdo.")}
       </ul>
     </div>
@@ -78,7 +78,7 @@ const TARJETAS_BIENVENIDA = [
   { ico:"💌", titulo:"Habla conmigo cuando quieras 💌", boton:"¡Empezar a organizar mi dinero! ✨", html:`
     <p class="bv-cita">«Detrás de esta pantalla estoy yo ☕»</p>
     <p>Si encuentras algún fallo, tienes una idea para mejorar la app o simplemente quieres comentarme algo, escríbeme desde el buzón de la app.</p>
-    <p>Leo todo personalmente y te contestaré enseguida que me sea posible.</p>` }
+    <p>Leo todo personalmente y te contestaré en cuanto me sea posible.</p>` }
 ];
 
 // Hoja con las tres tarjetas. Se resuelve al pulsar el último botón (o al cerrarla con Escape).
