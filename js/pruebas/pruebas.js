@@ -288,6 +288,22 @@ prueba("la campana abre la pantalla de notificaciones y solo al tocar un aviso v
   await p.click('[data-ir-aviso="Presupuestos"]');
   assert.strictEqual(await p.evaluate(()=>tab), "Presupuestos");
 });
+prueba("las novedades con texto salen en notificaciones y las vacías no", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>{ localStorage.setItem("avisosVistos", JSON.stringify(avisosActuales().map(a=>a.id)));
+    NOVEDADES.length = 0; NOVEDADES.push({id:"n1", fecha:today(), tab:"Simulador", titulo:"Título de prueba", texto:"Texto de prueba"}, {id:"n2", fecha:today(), tab:"", titulo:"Sin texto", texto:""});
+    tab = "Inicio"; render(); });
+  assert.ok(await p.isVisible("#btnAvisos .punto"), "novedad nueva: punto en la campana");
+  await p.click("#btnAvisos");
+  const txt = await p.evaluate(()=>document.getElementById("app").innerText);
+  assert.match(txt, /Texto de prueba/);
+  assert.doesNotMatch(txt, /Sin texto/);
+  await p.click("#btnVolverAvisos");
+  assert.ok(await p.isHidden("#btnAvisos .punto"), "ya vista: sin punto");
+  await p.click("#btnAvisos");
+  await p.click('[data-ir-aviso="Simulador"]');
+  assert.strictEqual(await p.evaluate(()=>tab), "Simulador");
+});
 prueba("personalización: tema, color, fondo e imagen se aplican, se recuerdan y se borran al salir", async ()=>{
   const p = await abrir();
   await p.evaluate(()=>{ tab = "Personalización"; render(); });
