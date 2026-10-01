@@ -329,6 +329,45 @@ function traducirErrorAuth(e){
   if(/rate limit|security purposes/i.test(t)) return "Demasiados intentos. Espera un minuto y vuelve a probar.";
   return "Error: " + t;
 }
+// ── Medidor de contraseña: recomendaciones con aviso amarillo o tick verde. Nunca bloquea el registro.
+const CONTRASENAS_TIPICAS = ["123456","12345678","123456789","1234567890","password","contraseña","contrasena","qwerty","qwertyuiop","asdfghjkl","111111","000000","abc123","iloveyou","teamo","admin","welcome","bienvenido","football","futbol","barcelona","realmadrid","dragon","monkey","letmein","sunshine","princesa","superman","pocketz","finanzas"];
+function evaluarContrasena(pass, extras = []){
+  const p = pass || "", baja = p.toLowerCase();
+  const personal = extras.map(x=>(x||"").toLowerCase().split("@")[0].trim()).filter(x=>x.length>=3);
+  const reglas = [
+    {texto:"12 caracteres o más", ok: p.length>=12},
+    {texto:"Mayúsculas y minúsculas", ok: /[a-zà-ÿñ]/.test(p) && /[A-ZÀ-ÝÑ]/.test(p)},
+    {texto:"Algún número", ok: /\d/.test(p)},
+    {texto:"Algún símbolo (! ? # @ …)", ok: /[^\p{L}\p{N}]/u.test(p)},
+    {texto:"Que no sea típica ni lleve tu nombre o email", ok: p.length>0
+      && !CONTRASENAS_TIPICAS.some(t=>baja.includes(t))
+      && !personal.some(x=>baja.includes(x))
+      && !/^(.)\1+$/.test(p)}
+  ];
+  const cumplidas = reglas.filter(r=>r.ok).length;
+  // Segura: larga, no típica y con variedad (o una frase muy larga, que también lo es).
+  const variedad = reglas.slice(1,4).filter(r=>r.ok).length;
+  const segura = reglas[4].ok && ((reglas[0].ok && variedad>=2) || p.length>=16);
+  return {reglas, cumplidas, segura};
+}
+function pintarMedidor(inputId){
+  const cont = document.getElementById("medidor-"+inputId), inp = document.getElementById(inputId);
+  if(!cont || !inp) return;
+  const pass = inp.value;
+  cont.hidden = !pass;
+  if(!pass){ cont.innerHTML = ""; cont.classList.remove("segura"); return; }
+  const extras = inputId==="regPass"
+    ? [document.getElementById("regEmail")?.value, document.getElementById("regNombre")?.value]
+    : [session?.user?.email, session?.user?.user_metadata?.full_name];
+  const {reglas, cumplidas, segura} = evaluarContrasena(pass, extras);
+  const nivel = segura ? 4 : Math.min(3, Math.max(1, cumplidas-1));
+  cont.classList.toggle("segura", segura);
+  cont.innerHTML = `<div class="pass-barra" aria-hidden="true">${[1,2,3,4].map(n=>`<i class="${n<=nivel?"on":""}"></i>`).join("")}</div>`
+    + `<div class="pass-estado">${segura ? "✓ Contraseña segura" : "⚠ Podría ser más segura"}</div>`
+    + (segura ? "" : `<ul class="pass-reglas">${reglas.map(r=>`<li class="${r.ok?"ok":""}"><b>${r.ok?"✓":"·"}</b>${esc(r.texto)}</li>`).join("")}</ul>`
+      + `<div class="pass-nota">Son solo recomendaciones: puedes continuar igualmente.</div>`);
+}
+
 const urlApp = ()=>location.origin + location.pathname;
 
 function wireAuth(){
@@ -389,6 +428,8 @@ function wireAuth(){
     applyAuthUI();
     if(session) startApp();
   });
+  ["regPass","nuevaPass"].forEach(id=>document.getElementById(id)?.addEventListener("input", ()=>pintarMedidor(id)));
+  ["regEmail","regNombre"].forEach(id=>document.getElementById(id)?.addEventListener("input", ()=>pintarMedidor("regPass")));
   if(errorEnlace) authModo("olvido", "El enlace no es válido o ha caducado. Pide otro.", true);
   else authModo("login");
 }
