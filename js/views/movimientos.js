@@ -145,11 +145,13 @@ function wireEventosMovimientos(){
   const fMov = document.getElementById("fMov");
   if(fMov) fMov.onsubmit = (e)=>{
     e.preventDefault();
+    vibrar();
     conCarga(fMov.querySelector('button[type="submit"]'), "Guardando…", async ()=>{
       const f = new FormData(fMov);
       const data = {tipo:f.get("tipo"), categoria:f.get("categoria"), importe:parseFloat(f.get("importe")), fecha:f.get("fecha"), nota:f.get("nota")||"", cuenta_id:f.get("cuentaId")||null};
       const {error} = await sb.from("movimientos").insert(data);
       if(error){ showError("No se pudo guardar el movimiento: "+error.message); return; }
+      sonarMoneda();
       hideError(); fMov.reset(); movPlantilla = null; await recargar(["movimientos"]);
     });
   };

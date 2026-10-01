@@ -326,3 +326,34 @@ function mesesEntre(desde, hastaExclusivo){
 function gripHtml(){ return `<span class="grip" title="Mantén pulsado y arrastra para ordenar" aria-label="Arrastrar para ordenar"><i></i><i></i><i></i></span>`; }
 
 function sortItem(id, html){ return `<div class="sort-item" data-sort-id="${id}">${html}</div>`; }
+
+// Vibración muy ligera al pulsar botones clave. Los navegadores sin vibración (iPhone, escritorio) la ignoran.
+function vibrar(ms = 10){
+  try{ if(navigator.vibrate) navigator.vibrate(ms); }catch(e){}
+}
+
+// Sonido opcional tipo tintineo de moneda al registrar un movimiento. Se genera con Web Audio (sin archivos).
+let audioCtx = null;
+function sonarMoneda(){
+  if(!sonidoMovimientos) return;
+  try{
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return;
+    audioCtx = audioCtx || new AC();
+    if(audioCtx.state==="suspended") audioCtx.resume();
+    const t = audioCtx.currentTime;
+    // Dos notas cortas y suaves (si5 → mi6), como una moneda.
+    [[987.77, 0], [1318.51, 0.07]].forEach(([freq, retraso])=>{
+      const osc = audioCtx.createOscillator();
+      const vol = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      vol.gain.setValueAtTime(0.0001, t+retraso);
+      vol.gain.exponentialRampToValueAtTime(0.12, t+retraso+0.01);
+      vol.gain.exponentialRampToValueAtTime(0.0001, t+retraso+0.28);
+      osc.connect(vol).connect(audioCtx.destination);
+      osc.start(t+retraso);
+      osc.stop(t+retraso+0.3);
+    });
+  }catch(e){}
+}
