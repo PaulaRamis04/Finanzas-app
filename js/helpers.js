@@ -92,9 +92,10 @@ function graficoInteractivo(svg, W, H, puntos){
 
 function graficoGastoMes(acumulado, etiquetas, presupuesto, titulos){
   const W=320,H=150,padL=6,padR=8,padT=14,padB=20;
-  const n = acumulado.length;
+  const n = acumulado.length, total = etiquetas.length;
   const max = Math.max(1, presupuesto||0, ...acumulado) * 1.08;
-  const x = i => padL + (W-padL-padR) * (n>1 ? i/(n-1) : 0);
+  // El eje x abarca el periodo entero, así la línea se queda en el día de hoy y no se estira hasta el final.
+  const x = i => padL + (W-padL-padR) * (total>1 ? i/(total-1) : 0);
   const y = v => (H-padB) - (H-padT-padB) * (v/max);
   // Curva suave que no se sale de los puntos (controles a media distancia en horizontal).
   const puntos = acumulado.map((v,i)=>[x(i), y(v)]);
@@ -105,8 +106,6 @@ function graficoGastoMes(acumulado, etiquetas, presupuesto, titulos){
   }).join(" ");
   const [ux,uy] = puntos[n-1] || [padL, H-padB];
   const area = n ? `${linea} L${ux.toFixed(1)},${H-padB} L${padL},${H-padB} Z` : "";
-  const total = etiquetas.length;
-  const xe = i => padL + (W-padL-padR) * (total>1 ? i/(total-1) : 0);
   const marcas = total>12 ? [0,6,13,20,total-1] : etiquetas.map((_,i)=>i);
   const yp = presupuesto>0 ? y(presupuesto) : null;
   const tit = titulos || etiquetas;
@@ -119,7 +118,7 @@ function graficoGastoMes(acumulado, etiquetas, presupuesto, titulos){
     <path d="${linea}" fill="none" stroke="var(--mint)" stroke-width="2.6" stroke-linecap="round"/>
     <line x1="${ux.toFixed(1)}" y1="${uy.toFixed(1)}" x2="${ux.toFixed(1)}" y2="${H-padB}" stroke="var(--mint)" stroke-width="1" opacity=".5"/>
     <circle cx="${ux.toFixed(1)}" cy="${uy.toFixed(1)}" r="4.2" fill="var(--card)" stroke="var(--mint)" stroke-width="2.2"/>` : ""}
-    ${marcas.map(i=>`<text x="${xe(i).toFixed(1)}" y="${H-5}" font-size="9" fill="var(--muted)" text-anchor="${i===0?"start":i===total-1?"end":"middle"}">${esc(etiquetas[i])}</text>`).join("")}
+    ${marcas.map(i=>`<text x="${x(i).toFixed(1)}" y="${H-5}" font-size="9" fill="var(--muted)" text-anchor="${i===0?"start":i===total-1?"end":"middle"}">${esc(etiquetas[i])}</text>`).join("")}
   </svg>`, W, H, acumulado.map((v,i)=>({x:x(i), titulo:tit[i], series:[{y:y(v), color:"var(--mint)", valor:eur(v)+(presupuesto>0 ? ` de ${eur(presupuesto)}` : "")}]})));
 }
 
