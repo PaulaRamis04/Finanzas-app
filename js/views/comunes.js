@@ -31,9 +31,13 @@ function aplicarPlegables(){
     const card = form ? form.closest(".card") : null;
     const h2 = card ? card.querySelector("h2") : null;
     if(!h2) return;
+    // cuerpo (rejilla que anima la altura) > interior (lo que se desliza y aparece)
     const cuerpo = document.createElement("div");
-    cuerpo.style.marginTop = "12px";
-    [...card.children].filter(ch=>ch!==h2).forEach(ch=>cuerpo.appendChild(ch));
+    cuerpo.className = "pleg-cuerpo";
+    const interior = document.createElement("div");
+    interior.className = "pleg-interior";
+    [...card.children].filter(ch=>ch!==h2).forEach(ch=>interior.appendChild(ch));
+    cuerpo.appendChild(interior);
     const cab = document.createElement("div");
     cab.className = "pleg-cab";
     const [ico, fondo] = ICONOS_PLEGABLE[clave] || ["➕","var(--accent-soft)"];
@@ -47,10 +51,16 @@ function aplicarPlegables(){
     card.appendChild(cuerpo);
     const pintar = ()=>{
       const ab = formAbierto(clave);
-      cuerpo.style.display = ab ? "block" : "none";
+      cuerpo.classList.toggle("abierto", ab);
+      cuerpo.classList.toggle("asentado", ab && matchMedia("(prefers-reduced-motion: reduce)").matches);
       cab.classList.toggle("abierto", ab);
     };
+    // Al terminar de abrirse deja de recortar (sombras, foco, desplegables)
+    cuerpo.addEventListener("transitionend", e=>{
+      if(e.target===cuerpo && e.propertyName==="grid-template-rows" && cuerpo.classList.contains("abierto")) cuerpo.classList.add("asentado");
+    });
     pintar();
+    if(formAbierto(clave)) cuerpo.classList.add("asentado");
     cab.onclick = ()=>{ formsEstado[clave] = !formAbierto(clave); pintar(); };
   });
 }

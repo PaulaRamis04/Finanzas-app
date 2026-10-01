@@ -449,6 +449,15 @@ button.fila{cursor:pointer; -webkit-tap-highlight-color:transparent}
 .pleg-cab h2{flex:1; margin:0}
 .pleg-cab .chev{color:var(--muted); transition:transform .2s ease; display:flex}
 .pleg-cab.abierto .chev{transform:rotate(180deg)}
+.pleg-cuerpo{display:grid; grid-template-rows:0fr; visibility:hidden;
+  transition:grid-template-rows .32s cubic-bezier(.22,1,.36,1), visibility 0s linear .32s}
+.pleg-cuerpo.abierto{grid-template-rows:1fr; visibility:visible; transition:grid-template-rows .32s cubic-bezier(.22,1,.36,1), visibility 0s}
+.pleg-interior{min-height:0; overflow:hidden; opacity:0; transform:translateY(-6px);
+  transition:opacity .2s ease, transform .2s ease}
+.pleg-cuerpo.abierto .pleg-interior{opacity:1; transform:translateY(0);
+  transition:opacity .26s ease .06s, transform .34s cubic-bezier(.34,1.56,.64,1) .06s}
+.pleg-cuerpo.asentado .pleg-interior{overflow:visible; transform:none}
+.pleg-interior::before{content:""; display:block; height:12px} /* separación con la cabecera, se pliega con el resto */
 /* Categorías con barra */
 .cat-fila{display:flex; align-items:center; gap:12px; width:100%; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:10px 12px; cursor:pointer; font-family:inherit; color:var(--ink); text-align:left}
 .cat-fila.sel{border-color:var(--accent); background:var(--accent-soft)}
@@ -471,7 +480,7 @@ button:not(:disabled):active, .fila:active, .cat-fila:active, .color-propio:acti
   .chip:hover, .accion:hover i, .color:hover{filter:brightness(.97)}
 }
 @media (prefers-reduced-motion: reduce){
-  button, .fila, .cat-fila, .color-propio, .pleg-cab, .item{transition:none!important}
+  button, .fila, .cat-fila, .color-propio, .pleg-cab, .item, .pleg-cuerpo, .pleg-interior{transition:none!important}
   button:active, .fila:active, .cat-fila:active, .pleg-cab:active, .item:active, .color-propio:active{transform:none!important}
 }
 /* ¿Me lo puedo permitir? */
