@@ -426,7 +426,7 @@ async function startApp(){
 // ── Perfiles: varias cuentas recordadas en este dispositivo ──
 // Cada perfil guarda su sesión de Supabase y sus preferencias locales. Para cambiar se escribe
 // su sesión donde la lee supabase-js y se recarga (sin cerrar la de las demás en el servidor).
-const PREFS_PERFIL = ["cuentaDefecto","objCompletados","catsContraidas","formsPorDefecto","personalizacion","fondoImagen","avisosVistos","accionesRapidas","hitos","saludConfig","moneda"];
+const PREFS_PERFIL = ["cuentaDefecto","objCompletados","catsContraidas","formsPorDefecto","brilloHuchas","personalizacion","fondoImagen","avisosVistos","accionesRapidas","hitos","saludConfig","moneda"];
 const claveSesionSb = ()=> sb.auth.storageKey || `sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`;
 function leerPerfiles(){ try{ const a = JSON.parse(localStorage.getItem("perfiles")||"[]"); return Array.isArray(a) ? a : []; }catch(e){ return []; } }
 function escribirPerfiles(l){ try{ localStorage.setItem("perfiles", JSON.stringify(l)); }catch(e){} }

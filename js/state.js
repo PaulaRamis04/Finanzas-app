@@ -24,6 +24,10 @@ let editarAutoObjId = null;
 
 let formsPorDefecto = "abiertos", formsEstado = {};
 try{ formsPorDefecto = localStorage.getItem("formsPorDefecto")==="cerrados" ? "cerrados" : "abiertos"; }catch(e){}
+// Brillo en la punta de las barras de las huchas: se quita poniendo la clase «sin-brillo» en <html>.
+let brilloHuchas = true;
+try{ brilloHuchas = localStorage.getItem("brilloHuchas")!=="no"; }catch(e){}
+document.documentElement.classList.toggle("sin-brillo", !brilloHuchas);
 
 let catsContraidas = {};
 try{ catsContraidas = JSON.parse(localStorage.getItem("catsContraidas") || "{}") || {}; }catch(e){ catsContraidas = {}; }

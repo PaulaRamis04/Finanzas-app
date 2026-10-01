@@ -24,6 +24,14 @@ function renderPreferencias(){
     </select>
   </div>
   <div class="card">
+    <h2>Brillo en las barras de las huchas</h2>
+    <p class="meta" style="margin:0 0 10px">Las barras de progreso de tus huchas pueden llevar un destello suave donde termina lo ahorrado, o verse lisas. Esta preferencia se guarda en este dispositivo.</p>
+    <select id="prefBrillo">
+      <option value="si"${brilloHuchas?" selected":""}>Con brillo</option>
+      <option value="no"${!brilloHuchas?" selected":""}>Sin brillo</option>
+    </select>
+  </div>
+  <div class="card">
     <h2>Copia de seguridad</h2>
     <p class="meta" style="margin:0 0 10px">Descarga un archivo con todos tus datos (movimientos, cuentas, deudas, inversiones, presupuestos, objetivos, categorías...) tal como están ahora mismo.</p>
     <button class="btn" id="btnExportar">Descargar copia (.json)</button>
@@ -120,6 +128,12 @@ function wireEventosPreferencias(){
     fijarMoneda(prefMoneda.value);
     render();
     await guardarMoneda(moneda);
+  };
+  const prefBrillo = document.getElementById("prefBrillo");
+  if(prefBrillo) prefBrillo.onchange = ()=>{
+    brilloHuchas = prefBrillo.value !== "no";
+    document.documentElement.classList.toggle("sin-brillo", !brilloHuchas);
+    try{ localStorage.setItem("brilloHuchas", brilloHuchas ? "si" : "no"); }catch(e){}
   };
   const prefCuenta = document.getElementById("prefCuenta");
   if(prefCuenta) prefCuenta.onchange = async ()=>{
