@@ -119,6 +119,11 @@
         db.movimientos.forEach(m=>{ const k = m.cuenta_id+"|"+m.fecha.slice(0,7)+"-01"; g[k] = g[k] || {cuenta_id:m.cuenta_id, mes:m.fecha.slice(0,7)+"-01", ingresos:0, gastos:0, n:0}; g[k][m.tipo==="ingreso"?"ingresos":"gastos"] += m.importe; g[k].n++; });
         return {data:Object.values(g), error:null};
       }
+      if(name==="borrar_mi_cuenta"){
+        try{ localStorage.setItem("__cuentaBorrada", "1"); }catch(e){}
+        Object.keys(db).forEach(t=>{ if(Array.isArray(db[t])) db[t] = []; });
+        return {data:null, error:null};
+      }
       if(name.startsWith("procesar_")) return {data:null, error:null};
       return {data:null, error:{code:"PGRST202", message:"not found"}};
     },
