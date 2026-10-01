@@ -299,6 +299,35 @@ prueba("huchas: el brillo de la barra se quita y se pone en Preferencias y se re
   await p.selectOption("#prefBrillo", "si");
   assert.ok(!(await p.evaluate(()=>document.documentElement.classList.contains("sin-brillo"))));
 });
+prueba("vibración al guardar un movimiento y sonido de moneda solo si se activa en Preferencias", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>{
+    window.__vibraciones = []; window.__notas = 0;
+    navigator.vibrate = ms=>{ __vibraciones.push(ms); return true; };
+    window.AudioContext = class { constructor(){ this.state = "running"; this.currentTime = 0; this.destination = {}; }
+      createOscillator(){ __notas++; return {frequency:{}, connect:n=>n, start(){}, stop(){}}; }
+      createGain(){ return {gain:{setValueAtTime(){}, exponentialRampToValueAtTime(){}}, connect:n=>n}; } };
+  });
+  const guardar = async ()=>{
+    await p.evaluate(()=>{ tab = "Movimientos"; render(); });
+    await p.fill("#movImporte", "3");
+    await p.click('#fMov button[type="submit"]');
+  };
+  const antes = await p.evaluate(()=>__db.movimientos.length);
+  await guardar();
+  await p.waitForFunction(n=>__db.movimientos.length===n+1, antes);
+  assert.deepStrictEqual(await p.evaluate(()=>__vibraciones), [10]);
+  assert.strictEqual(await p.evaluate(()=>__notas), 0, "sin sonido por defecto");
+  await p.evaluate(()=>{ tab = "Preferencias"; render(); });
+  await p.selectOption("#prefSonido", "si");
+  assert.strictEqual(await p.evaluate(()=>localStorage.getItem("sonidoMovimientos")), "si");
+  await p.evaluate(()=>{ __notas = 0; });
+  await guardar();
+  await p.waitForFunction(n=>__db.movimientos.length===n+2, antes);
+  await p.waitForFunction(()=>__notas===2);
+  await p.evaluate(()=>{ tab = "Preferencias"; render(); });
+  await p.selectOption("#prefSonido", "no");
+});
 prueba("huchas: la barra en cápsula se rellena, se echa y se saca dinero y se elige el icono", async ()=>{
   const p = await abrir();
   await p.evaluate(()=>{ __db.objetivos.push({id:"o2", nombre:"Viaje a Japón", meta:1000, tipo_vinculo:"ninguno", vinculo_id:null, orden:2, ahorrado:250}); });
