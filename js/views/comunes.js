@@ -242,7 +242,7 @@ function renderBalance(){
   const ingresos = enP.filter(m=>m.tipo==="ingreso").reduce((s,m)=>sumarDinero(s, m.importe),0);
   const ahorro = enP.filter(m=>m.tipo==="gasto" && m.categoria==="Inversión").reduce((s,m)=>sumarDinero(s, m.importe),0);
   const gastado = enP.filter(m=>m.tipo==="gasto" && m.categoria!=="Inversión").reduce((s,m)=>sumarDinero(s, m.importe),0);
-  const disponible = restarDinero(restarDinero(ingresos, ahorro), gastado);
+  const disponible = sumarDinero(restarDinero(restarDinero(ingresos, ahorro), gastado), arrastrePeriodo());
   const meDeben = deudas.filter(d=>d.direccion==="me_deben" && d.estado==="pendiente").reduce((s,d)=>sumarDinero(s, d.importe),0);
   const debo = deudas.filter(d=>d.direccion==="debo" && d.estado==="pendiente").reduce((s,d)=>sumarDinero(s, d.importe),0);
   const totalCuentas = cuentas.reduce((s,c)=>sumarDinero(s, saldoCuenta(c)),0);
