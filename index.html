@@ -321,6 +321,8 @@ h2{font-size:16px; margin:0 0 12px; font-weight:800}
 .hoja-no{background:#eeeae8; color:#6f6461}
 .hoja-si{background:#f9c7a8; color:#7a3f1d}
 .hoja-si.peligro{background:var(--neg); color:#fff}
+.hoja-btns-arrastre{flex-direction:column}
+.hoja-ico.arrastre-neg{background:var(--lav-soft)}
 :root[data-theme="dark"] .hoja-no{background:#3a3334; color:#d8cfcd}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .hoja-no{background:#3a3334; color:#d8cfcd} }
 @media (prefers-reduced-motion: reduce){ .hoja, .hoja-fondo{transition:none} }
@@ -636,6 +638,7 @@ button:not(:disabled):active, .fila:active, .cat-fila:active, .color-propio:acti
 <script src="js/views/objetivos.js"></script>
 <script src="js/views/vivienda.js"></script>
 <script src="js/views/hitos.js"></script>
+<script src="js/views/arrastre.js"></script>
 <script src="js/views/salud.js"></script>
 <script src="js/views/proyeccion.js"></script>
 <script src="js/views/simulador.js"></script>

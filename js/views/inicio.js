@@ -15,7 +15,8 @@ function renderInicio(){
   const inversionMes = enP.filter(m=>m.tipo==="gasto" && m.categoria==="Inversión").reduce((s,m)=>sumarDinero(s, m.importe),0);
   const gastosReales = enP.filter(m=>m.tipo==="gasto" && m.categoria!=="Inversión").reduce((s,m)=>sumarDinero(s, m.importe),0);
   // Ahorro es lo apartado a propósito (movimientos de la categoría «Inversión»), no lo que sobra.
-  const disponible = restarDinero(restarDinero(ingresos, gastosReales), inversionMes);
+  // Más (o menos) el saldo del mes pasado, si se eligió arrastrarlo.
+  const disponible = sumarDinero(restarDinero(restarDinero(ingresos, gastosReales), inversionMes), arrastrePeriodo());
 
   const mesAnt = mesAnteriorCargado();
   const tAnt = mesAnt ? totalesEfectivos(movimientosEfectivos(mesAnt.dentro)) : null;
@@ -205,7 +206,7 @@ function barrasMes(gastado, presupuesto, ingresos, ahorro, disponible, vsAnterio
       presupuesto>0 ? (gastado>presupuesto ? `Te has pasado ${eur(restarDinero(gastado, presupuesto))}` : `Te quedan ${eur(restarDinero(presupuesto, gastado))} del presupuesto`)
         : (ingresos>0 ? `${Math.round(uso)} % de tus ingresos` : "Sin presupuesto ni ingresos"), vsAnterior)
     + fila("Ahorro", eur(ahorro), pct(ahorro, ingresos), "#8b7fd6", ahorro>0 ? `Apartado a propósito · ${deIngresos(ahorro)}` : "Aún no has apartado nada en este periodo")
-    + fila("Disponible", eur(disponible), pct(disponible, ingresos), "var(--accent)", `Lo que sobra tras gastos y ahorro · ${deIngresos(disponible)}`);
+    + fila("Disponible", eur(disponible), pct(disponible, ingresos), "var(--accent)", `Lo que sobra tras gastos y ahorro · ${deIngresos(disponible)}`, notaArrastre() ? `<div class="meta">${notaArrastre()}</div>` : "");
 }
 
 // Acciones rápidas personalizables: empiezan vacías y cada uno elige las suyas (se guardan en este dispositivo).
