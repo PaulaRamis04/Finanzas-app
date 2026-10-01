@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"></script>
+<script src="js/beta.js"></script>
 <script>
 // Personalización (tema, color, fondo, imagen): se aplica antes de pintar para que no parpadee.
 const FONDOS = {crema:["#fdf7f2","#1c1718"], menta:["#eef8f3","#141f1b"], lavanda:["#f4f1fc","#1b1925"], rosa:["#fdf0f1","#221a1c"], cielo:["#eef5fc","#151b23"], blanco:["#ffffff","#141414"]};
@@ -220,6 +221,10 @@ h2{font-size:16px; margin:0 0 12px; font-weight:800}
 .auth-msg{text-align:center; font-size:14px; margin-top:14px; min-height:20px}
 .auth-msg.error{color:var(--neg)}
 .auth-pie{text-align:center; color:var(--muted); font-size:14px; margin-top:34px}
+.auth-pie.auth-beta{margin-top:10px}
+.aviso-beta{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; max-width:640px; margin:10px auto 0; padding:10px 14px; border-radius:16px; background:var(--lav-soft); color:var(--ink); font-size:13px}
+.aviso-beta-btns{display:flex; gap:8px}
+.aviso-beta button{border:none; border-radius:999px; padding:6px 12px; background:var(--card); color:var(--ink); font:inherit; font-weight:700; cursor:pointer}
 /* Navegación inferior */
 .nav-inf{position:fixed; left:0; right:0; bottom:0; z-index:15; display:flex; justify-content:space-around;
   background:var(--card); border-top:1px solid var(--line); padding:8px 6px calc(8px + env(safe-area-inset-bottom,0px)); box-shadow:0 -4px 18px rgba(74,59,59,.06)}
@@ -575,6 +580,7 @@ button:not(:disabled):active, .fila:active, .cat-fila:active, .color-propio:acti
     </form>
     <div class="auth-msg" id="loginMsg" role="status"></div>
     <p class="auth-pie" id="authPie"></p>
+    <p class="auth-pie auth-beta"><button type="button" class="auth-link" onclick="entrarBeta()">Probar sin cuenta (beta)</button></p>
   </div>
 </div>
 <div id="appShell" style="display:none">
