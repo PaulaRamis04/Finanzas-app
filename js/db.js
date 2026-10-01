@@ -284,6 +284,7 @@ async function recargar(tablas = Object.keys(TABLAS), {procesar=false} = {}){
     const escribiendo = refrescoSilencioso && (arrastrando || (ae && ["INPUT","SELECT","TEXTAREA"].includes(ae.tagName) && document.getElementById("app").contains(ae)));
     refrescoSilencioso = false;
     if(escribiendo) renderBalance(); else render();
+    setTimeout(revisarBienvenida, 300);
     if(!arrastreRevisado) setTimeout(revisarArrastreMes, 400);
   }catch(e){
     ready = true; render();
@@ -416,7 +417,7 @@ function wireAuth(){
     const email = document.getElementById("regEmail").value.trim();
     const {data, error} = await sb.auth.signUp({
       email, password: document.getElementById("regPass").value,
-      options:{emailRedirectTo: urlApp(), data:{full_name: document.getElementById("regNombre").value.trim()}}
+      options:{emailRedirectTo: urlApp(), data:{full_name: document.getElementById("regNombre").value.trim(), bienvenida:"pendiente"}}
     });
     if(error) return authMsg(traducirErrorAuth(error), true);
     // Supabase no da error si el email ya existe: devuelve un usuario sin identidades.

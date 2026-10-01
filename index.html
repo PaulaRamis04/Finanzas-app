@@ -347,6 +347,25 @@ h2{font-size:16px; margin:0 0 12px; font-weight:800}
 :root[data-theme="dark"] .hoja-no{background:#3a3334; color:#d8cfcd}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .hoja-no{background:#3a3334; color:#d8cfcd} }
 @media (prefers-reduced-motion: reduce){ .hoja, .hoja-fondo{transition:none} }
+/* Bienvenida: tres tarjetas al entrar por primera vez; la segunda es larga y se desplaza dentro de la hoja */
+.hoja-bienvenida{display:flex; flex-direction:column; max-height:min(88vh, 760px)}
+.bv-cuerpo{overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; min-height:0; flex:1 1 auto; padding:0 2px}
+.bv-texto{text-align:left; font-size:14px; line-height:1.5; color:var(--muted)}
+.bv-texto p{margin:0 0 10px}
+.bv-texto h3{font-size:15px; color:var(--ink); margin:16px 0 6px}
+.bv-texto ul{margin:0 0 6px; padding-left:18px}
+.bv-texto li{margin:0 0 6px}
+.bv-texto b{color:var(--ink)}
+.bv-cita{text-align:center; font-weight:700; color:var(--ink)}
+.bv-nota{background:var(--mint-soft); border-radius:18px; padding:12px 14px}
+.bv-extra{background:var(--lav-soft); border-radius:20px; padding:4px 14px 8px; margin-top:16px}
+.bv-cierre{text-align:center; margin-top:14px !important}
+.bv-tag{display:inline-block; background:var(--peach-soft); color:var(--ink); border-radius:999px; padding:0 8px; font-weight:700; font-size:.92em}
+.bv-puntos{display:flex; justify-content:center; gap:6px; margin-top:14px}
+.bv-puntos span{width:7px; height:7px; border-radius:50%; background:var(--line); transition:width .2s ease, background .2s ease}
+.bv-puntos span.activo{width:20px; border-radius:999px; background:var(--accent)}
+.hoja-bienvenida .hoja-btns{margin-top:12px}
+.hoja-bienvenida .hoja-si:focus-visible{outline:3px solid var(--accent-soft); outline-offset:2px}
 /* Cierre del mes: banner y ventana con la tarjeta descargable */
 .cierre-banner{display:flex; align-items:center; gap:14px; flex-wrap:wrap; background:linear-gradient(135deg, var(--accent-soft), var(--card) 70%)}
 .cierre-banner-ico{width:48px; height:48px; border-radius:50%; background:var(--card); display:flex; align-items:center; justify-content:center; font-size:24px; flex-shrink:0}
@@ -672,6 +691,7 @@ button:not(:disabled):active, .fila:active, .cat-fila:active, .color-propio:acti
 <script src="js/novedades.js"></script>
 <script src="js/views/notificaciones.js"></script>
 <script src="js/views/comunidad.js"></script>
+<script src="js/views/bienvenida.js"></script>
 <script src="js/views/app.js"></script>
 </body>
 </html>
