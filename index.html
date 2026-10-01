@@ -150,7 +150,7 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--mint); 
   border-radius:999px; font-size:14px; font-weight:700; cursor:pointer; transition:background .15s ease;
 }
 .btn:hover{background:var(--accent-2)}
-.btn.ghost{background:transparent; color:var(--neg); border:1.5px solid var(--line); padding:7px 14px; font-size:12.5px; border-radius:999px}
+.btn.ghost{background:transparent; color:var(--muted); border:1.5px solid var(--line); padding:7px 14px; font-size:12.5px; border-radius:999px}
 .btn.ghost:hover{background:var(--paper)}
 .btn.gold{background:var(--accent-soft); color:var(--accent)}
 .btn.gold:hover{filter:brightness(1.04)}
@@ -319,6 +319,7 @@ h2{font-size:16px; margin:0 0 12px; font-weight:800}
 .hoja-btns button{flex:1; border:none; border-radius:999px; padding:14px 12px; font-family:inherit; font-size:15px; font-weight:800; cursor:pointer}
 .hoja-no{background:#eeeae8; color:#6f6461}
 .hoja-si{background:#f9c7a8; color:#7a3f1d}
+.hoja-si.peligro{background:var(--neg); color:#fff}
 :root[data-theme="dark"] .hoja-no{background:#3a3334; color:#d8cfcd}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .hoja-no{background:#3a3334; color:#d8cfcd} }
 @media (prefers-reduced-motion: reduce){ .hoja, .hoja-fondo{transition:none} }
@@ -420,7 +421,9 @@ button.fila{cursor:pointer; -webkit-tap-highlight-color:transparent}
 .temas-hucha input:checked + span, .temas-hucha button.activo{border-color:var(--accent); background:var(--accent-soft)}
 .temas-hucha input:focus-visible + span{outline:2px solid var(--accent); outline-offset:2px}
 @media (prefers-reduced-motion: reduce){ .hucha-lleno{animation:none} }
-.chip.peligro{background:transparent; color:var(--neg); border:1.5px solid var(--line)}
+.chip.peligro{background:transparent; color:var(--muted); border:1.5px solid var(--line)}
+/* El rojo de alerta solo aparece al pulsar (la acción se está confirmando) */
+.chip.peligro:active{color:var(--neg); border-color:var(--neg)}
 .dia{font-size:13px; font-weight:800; color:var(--muted); margin:16px 4px 8px; display:flex; justify-content:space-between}
 .dia:first-child{margin-top:4px}
 /* Buscador */
