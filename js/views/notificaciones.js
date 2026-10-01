@@ -27,13 +27,26 @@ function avisosActuales(){
 
 function avisosVistos(){ try{ return JSON.parse(localStorage.getItem("avisosVistos")||"[]"); }catch(e){ return []; } }
 
-function hayAvisosNuevos(){ const vistos = new Set(avisosVistos()); return avisosActuales().some(a=>!vistos.has(a.id)); }
+// Novedades de la app (js/novedades.js): solo las que ya tienen texto, las más recientes primero.
+function novedadesVisibles(){
+  return (typeof NOVEDADES==="undefined" ? [] : NOVEDADES).filter(n=>n.texto && n.texto.trim())
+    .slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+}
+function novedadesVistas(){ try{ return JSON.parse(localStorage.getItem("novedadesVistas")||"[]"); }catch(e){ return []; } }
+
+function hayAvisosNuevos(){
+  const vistos = new Set(avisosVistos()), nvistas = new Set(novedadesVistas());
+  return avisosActuales().some(a=>!vistos.has(a.id)) || novedadesVisibles().some(n=>!nvistas.has(n.id));
+}
 
 function renderNotificaciones(){
   const avisos = avisosActuales();
   const vistos = new Set(avisosVistos());
   // Al abrir la pantalla quedan todos como vistos (se guardan solo los actuales, así la lista no crece).
   try{ localStorage.setItem("avisosVistos", JSON.stringify(avisos.map(a=>a.id))); }catch(e){}
+  const novedades = novedadesVisibles();
+  const nvistas = new Set(novedadesVistas());
+  try{ localStorage.setItem("novedadesVistas", JSON.stringify(novedades.map(n=>n.id))); }catch(e){}
   return `
   <div class="hola">
     <div style="display:flex;align-items:center;gap:12px">
@@ -50,7 +63,16 @@ function renderNotificaciones(){
     </button>`).join("")}
   </div>` : `<div class="card" style="text-align:center;padding:36px 18px">
     ${vacio("nube","¡Todo al día!","No tienes avisos pendientes.")}
-  </div>`}`;
+  </div>`}
+  ${novedades.length ? `<h3 class="titulo-novedades">Novedades de la app</h3>
+  <div class="list">
+    ${novedades.map(n=>`
+    <button class="fila aviso novedad ${nvistas.has(n.id)?"":"nuevo"}" ${n.tab?`data-ir-aviso="${esc(n.tab)}"`:""}>
+      <div class="ico" style="background:var(--accent-soft)">✨</div>
+      <div class="txt">${n.titulo?`<b>${esc(n.titulo)}</b>`:""}<div class="meta">${esc(n.texto)}</div><div class="meta fecha-novedad">${esc(etiquetaDia(n.fecha))}</div></div>
+      ${n.tab?`<svg class="flecha" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`:""}
+    </button>`).join("")}
+  </div>` : ""}`;
 }
 
 function wireEventosNotificaciones(){
