@@ -26,6 +26,11 @@ function avisosActuales(){
   deudas.filter(d=>d.estado==="pendiente" && d.fecha<=viejo).forEach(d=>avisos.push({id:`deu-${d.id}`, tab:"Deudas", ico:"🤝", fondo:"var(--peach-soft)",
     titulo: d.direccion==="me_deben" ? `${d.persona} te debe ${eur(d.importe)}` : `Debes ${eur(d.importe)} a ${d.persona}`,
     texto:`Pendiente desde ${etiquetaDia(d.fecha)}${d.concepto?" · "+d.concepto:""}`}));
+  const nuevas = mensajesAsesoria.filter(m=>m.autor==="admin" && !m.leido);
+  if(nuevas.length) avisos.push({id:`ases-${nuevas[nuevas.length-1].id}`, tab:"Comunidad", ico:"🌸", fondo:"var(--accent-soft)",
+    titulo:"Tienes respuesta en tu mini asesoría", texto:nuevas[nuevas.length-1].texto.slice(0,80)});
+  misMensajesComunidad.filter(f=>f.respuesta && f.respondido_en && diasEntre(f.respondido_en.slice(0,10), hoy)<=30).forEach(f=>avisos.push({id:`resp-${f.id}-${f.respondido_en}`, tab:"Comunidad", ico:"💌", fondo:"var(--mint-soft)",
+    titulo:"Han contestado tu mensaje", texto:f.respuesta.slice(0,80)}));
   return avisos;
 }
 

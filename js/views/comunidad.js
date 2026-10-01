@@ -1,5 +1,6 @@
 // Pestaña «Comunidad»: hacerse supporter, enviar ideas y reportar fallos. Todo se guarda en la tabla
-// comunidad de Supabase (schema_comunidad.sql); la dueña de la app lo lee desde allí y contesta por email.
+// comunidad de Supabase (schema_comunidad.sql); la dueña de la app lo contesta desde la app de gestión
+// (repositorio APP-GESTION-CLIENTES, schema_gestion.sql) y aquí se ven sus respuestas y el chat de la mini asesoría.
 
 let comunidadAbierto = null; // "supporter" | "idea" | "fallo"
 let comunidadEnviado = null; // el mismo valor, tras enviar
@@ -25,6 +26,35 @@ function tarjetaComunidad(clave, ico, titulo, texto, boton, cuerpo){
     ${clave==="supporter" && esPremium ? `<div class="comunidad-ok">👑 Ya eres premium y tienes todas las opciones desbloqueadas. ¡Gracias por apoyar la app!</div>`
       : comunidadEnviado===clave ? `<div class="comunidad-ok">${GRACIAS_COMUNIDAD[clave]}</div>`
       : abierto ? cuerpo : `<button class="btn" data-comunidad-abrir="${clave}">${boton}</button>`}
+  </div>`;
+}
+
+const TIPOS_MENSAJE = {idea:"💬 Idea", fallo:"🐞 Fallo"};
+
+function renderAsesoria(){
+  if(!tieneAsesoria()) return "";
+  return `
+  <div class="card comunidad">
+    <div class="comunidad-cab"><span class="comunidad-ico" aria-hidden="true">🌸</span><h2>Tu mini asesoría</h2></div>
+    <p class="meta">Cuéntame qué quieres revisar este mes (presupuestos, categorías, metas de ahorro) y te contesto por aquí.</p>
+    <div class="chat">${mensajesAsesoria.length ? mensajesAsesoria.map(m=>`<div class="burbuja ${m.autor==="admin"?"de-admin":"mia"}">${esc(m.texto)}<small>${new Date(m.creado_en).toLocaleString("es-ES", {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"})}</small></div>`).join("")
+      : `<p class="meta">Aún no hay mensajes. ¡Escríbeme el primero!</p>`}</div>
+    <textarea id="asesoriaTexto" rows="3" maxlength="4000" placeholder="Escribe tu mensaje…"></textarea>
+    <div class="comunidad-btns"><button class="btn" id="btnEnviarAsesoria">Enviar</button></div>
+  </div>`;
+}
+
+function renderMisMensajes(){
+  if(!misMensajesComunidad.length) return "";
+  return `
+  <div class="card comunidad">
+    <div class="comunidad-cab"><span class="comunidad-ico" aria-hidden="true">💌</span><h2>Tus mensajes</h2></div>
+    <div class="mis-mensajes">${misMensajesComunidad.map(f=>`
+      <div class="mi-mensaje">
+        <div class="meta">${TIPOS_MENSAJE[f.tipo]||esc(f.tipo)}</div>
+        <p>${esc(f.texto)}</p>
+        ${f.respuesta ? `<div class="respuesta"><strong>Respuesta:</strong> ${esc(f.respuesta)}</div>` : `<div class="meta">${f.estado==="resuelto" ? "Resuelto" : "Pendiente de respuesta"}</div>`}
+      </div>`).join("")}</div>
   </div>`;
 }
 
@@ -55,6 +85,7 @@ function renderComunidad(){
     </div>`;
   return `
   <div class="comunidad-hero">🌸 Rincón de la Comunidad &amp; Soporte</div>
+  ${renderAsesoria()}
   ${tarjetaComunidad("supporter", "✨", "Apoyo personal (Supporters)",
     "Apoya el proyecto desde 1 €/mes y dispón de las opciones premium. Si aportas 5 € o más, ¡tienes incluida una mini asesoría personalizada para ayudarte a organizar tus presupuestos del mes! 💌",
     "Hacerse supporter", supporter)}
@@ -63,7 +94,8 @@ function renderComunidad(){
     "Dar feedback", formulario("idea", "Tu idea", "Me encantaría que la app…", "Enviar idea"))}
   ${tarjetaComunidad("fallo", "🐞", "Ayuda técnica y fallos <span class=\"gratis\">Gratis</span>",
     "¿Algo no funciona como debería? Escríbeme directamente.",
-    "Reportar un problema", formulario("fallo", "¿Qué ha pasado?", "Qué estabas haciendo y qué esperabas que pasara", "Enviar"))}`;
+    "Reportar un problema", formulario("fallo", "¿Qué ha pasado?", "Qué estabas haciendo y qué esperabas que pasara", "Enviar"))}
+  ${renderMisMensajes()}`;
 }
 
 function wireEventosComunidad(){
@@ -82,5 +114,22 @@ function wireEventosComunidad(){
     const {error} = await sb.from("comunidad").insert(fila);
     if(error){ showError(/does not exist|schema cache/i.test(error.message) ? "Falta ejecutar schema_comunidad.sql en Supabase." : "No se pudo enviar: "+error.message); return; }
     hideError(); comunidadAbierto = null; comunidadEnviado = tipo; render();
+    if(tipo!=="supporter") recargar(["comunidad"]);
   }));
+  const enviarAsesoria = document.getElementById("btnEnviarAsesoria");
+  if(enviarAsesoria) enviarAsesoria.onclick = ()=>conCarga(enviarAsesoria, "Enviando…", async ()=>{
+    const texto = (document.getElementById("asesoriaTexto")?.value || "").trim();
+    if(!texto){ showError("Escribe un mensaje antes de enviarlo."); return; }
+    const {error} = await sb.from("asesoria_mensajes").insert({autor:"cliente", texto});
+    if(error){ showError("No se pudo enviar: "+error.message); return; }
+    hideError(); document.getElementById("asesoriaTexto").value = "";
+    await recargar(["asesoria"]);
+  });
+  const chat = document.querySelector(".comunidad .chat");
+  if(chat) chat.scrollTop = chat.scrollHeight;
+  // Al ver la pestaña, las respuestas quedan como leídas.
+  if(tab==="Comunidad" && tieneAsesoria() && mensajesAsesoria.some(m=>m.autor==="admin" && !m.leido)){
+    mensajesAsesoria.forEach(m=>{ if(m.autor==="admin") m.leido = true; });
+    sb.rpc("marcar_asesoria_leida").then(()=>{}, ()=>{});
+  }
 }
