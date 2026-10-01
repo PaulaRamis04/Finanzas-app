@@ -79,11 +79,23 @@ prueba("todas las pestañas se pintan", async ()=>{
     assert.ok((await p.evaluate(()=>document.getElementById("app").innerText)).trim().length > 0, t);
   }
 });
-prueba("Inicio avisa de presupuestos al 80 % y compara con el mes anterior", async ()=>{
+prueba("Inicio solo avisa de presupuestos superados; los del 80 % van a Notificaciones", async ()=>{
   const p = await abrir();
   const txt = await p.evaluate(()=>document.getElementById("app").innerText);
-  assert.match(txt, /Presupuestos al límite/);
   assert.match(txt, /vs [a-z]+/);
+  const r = await p.evaluate(()=>{
+    const alertas = presupuestosEnAlerta();
+    const pasados = alertas.filter(a=>a.gastado>a.limite).length, cerca = alertas.length - pasados;
+    const inicio = document.getElementById("app").innerText;
+    const avisos = avisosActuales().filter(a=>a.tab==="Presupuestos");
+    return {pasados, cerca, enInicio: /Presupuestos superados/.test(inicio),
+      cercaSuaves: avisos.filter(a=>!a.ico.includes("🚨")).every(a=>!a.ico.includes("⚠️") && a.ico.startsWith("<svg")),
+      cercaEnNotif: avisos.filter(a=>/se acerca al límite/.test(a.titulo)).length};
+  });
+  assert.ok(r.pasados + r.cerca > 0, "los datos de prueba tienen algún presupuesto en alerta");
+  assert.strictEqual(r.enInicio, r.pasados > 0);
+  assert.strictEqual(r.cercaEnNotif, r.cerca);
+  assert.ok(r.cercaSuaves);
 });
 prueba("renombrar una categoría actualiza movimientos, presupuestos y recurrentes", async ()=>{
   const p = await abrir();
