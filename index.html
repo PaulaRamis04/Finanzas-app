@@ -103,6 +103,7 @@ header .mini{margin-bottom:0}
 .menu-item .mi{width:20px; text-align:center; font-size:15px; opacity:.85}
 .menu-item:hover{background:color-mix(in srgb, var(--accent-soft) 55%, transparent)}
 .marca-premium{margin-left:auto; font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:999px; background:var(--peach-soft); color:#c9803a}
+.estrella-premium{margin-left:6px; font-size:.8em; vertical-align:.08em}
 .premium-aviso{text-align:center; padding:28px 20px}
 .premium-aviso .premium-icono{width:64px; height:64px; margin:0 auto 10px; border-radius:50%; background:var(--peach-soft); display:flex; align-items:center; justify-content:center; font-size:30px}
 .premium-aviso p{margin:6px auto 0; max-width:320px; font-size:14.5px}
@@ -246,6 +247,24 @@ h2{font-size:16px; margin:0 0 12px; font-weight:800}
 /* Inicio */
 .hola{display:flex; justify-content:space-between; align-items:center; margin:4px 0 18px}
 .hola h1{margin:0; font-size:26px; font-weight:800}
+.hola-perfil{display:inline-flex; align-items:center; gap:6px; background:none; border:none; padding:0; font:inherit; color:inherit; cursor:pointer; text-align:left}
+.hola-perfil .estrella-premium{margin-left:0}
+.hola-perfil svg{flex:none; color:var(--muted); transition:transform .2s ease}
+.perfil-av{flex:none; width:40px; height:40px; border-radius:50%; background:var(--accent-soft); color:var(--accent-2); display:flex; align-items:center; justify-content:center; font-style:normal; font-weight:800; font-size:17px}
+.perfil-fila{display:flex; align-items:center; gap:6px}
+.perfil-btn{flex:1; display:flex; align-items:center; gap:12px; background:var(--card); border:1px solid var(--line); border-radius:18px; padding:10px 12px; margin:0 0 8px; font:inherit; color:var(--ink); cursor:pointer; text-align:left; min-width:0}
+.perfil-btn span{display:flex; flex-direction:column; min-width:0}
+.perfil-btn b, .perfil-btn small{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.perfil-btn small{color:var(--muted); font-size:13px}
+.perfil-btn.actual{border-color:var(--accent); cursor:default}
+.perfil-btn .check{margin-left:auto; color:var(--accent-2); font-weight:800}
+.perfil-olvidar{flex:none; width:34px; height:34px; margin-bottom:8px; border-radius:50%; border:none; background:none; color:var(--muted); font-size:22px; cursor:pointer}
+.perfiles-tit{font-size:13px; font-weight:800; color:var(--auth-suave,var(--muted)); margin:4px 2px 8px}
+.auth-perfiles{margin-bottom:10px; text-align:left}
+.perfiles-lista{margin-top:14px}
+.perfiles-lista .perfil-btn{width:100%}
+.perfil-accion{display:block; width:100%; background:none; border:none; padding:12px 4px; font:inherit; font-weight:700; font-size:15px; color:var(--mint); text-align:left; cursor:pointer}
+.perfil-accion.salir{color:var(--neg,#d9534f)}
 .campana{position:relative; width:42px; height:42px; border-radius:50%; border:none; background:var(--card); box-shadow:0 2px 10px rgba(74,59,59,.1); cursor:pointer; color:var(--ink); display:flex; align-items:center; justify-content:center}
 .campana .punto{position:absolute; top:9px; right:10px; width:8px; height:8px; border-radius:50%; background:var(--accent)}
 .saldo-lbl{font-size:16px; font-weight:600}
@@ -311,6 +330,24 @@ h2{font-size:16px; margin:0 0 12px; font-weight:800}
 :root[data-theme="dark"] .hoja-no{background:#3a3334; color:#d8cfcd}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .hoja-no{background:#3a3334; color:#d8cfcd} }
 @media (prefers-reduced-motion: reduce){ .hoja, .hoja-fondo{transition:none} }
+/* Cierre del mes: banner y ventana con la tarjeta descargable */
+.cierre-banner{display:flex; align-items:center; gap:14px; flex-wrap:wrap; background:linear-gradient(135deg, var(--accent-soft), var(--card) 70%)}
+.cierre-banner-ico{width:48px; height:48px; border-radius:50%; background:var(--card); display:flex; align-items:center; justify-content:center; font-size:24px; flex-shrink:0}
+.cierre-banner .btn{margin-left:auto}
+.cierre-banner .btn:disabled{opacity:.5; cursor:default}
+#cierre{position:fixed; inset:0; z-index:80; display:flex; align-items:center; justify-content:center; padding:16px}
+.cierre-fondo{position:absolute; inset:0; background:rgba(40,28,30,.55); opacity:0; transition:opacity .25s ease}
+.cierre-panel{position:relative; width:100%; max-width:440px; max-height:100%; overflow:auto; background:var(--card); color:var(--ink); border-radius:28px;
+  padding:16px; box-shadow:0 10px 40px rgba(40,28,30,.25); transform:scale(.94); opacity:0; transition:transform .3s cubic-bezier(.32,1.25,.5,1), opacity .2s ease}
+#cierre.abierta .cierre-fondo{opacity:1}
+#cierre.abierta .cierre-panel{transform:scale(1); opacity:1}
+.cierre-panel img{display:block; width:100%; height:auto; max-height:62vh; object-fit:contain; border-radius:18px}
+.cierre-x{position:absolute; top:24px; right:24px; width:36px; height:36px; border-radius:50%; border:none; background:rgba(255,255,255,.85); color:#4a3b3b; font-size:16px; cursor:pointer}
+.cierre-ocultar{display:flex; align-items:center; gap:8px; margin:12px 4px 0; font-size:13.5px; color:var(--ink); cursor:pointer}
+.cierre-ocultar input{width:auto; margin:0}
+.cierre-btns{display:flex; gap:8px; margin-top:12px; flex-wrap:wrap}
+.cierre-btns .btn{flex:1 1 110px}
+@media (prefers-reduced-motion: reduce){ .cierre-panel, .cierre-fondo{transition:none} }
 /* Estados vacíos */
 .vacio{display:flex; flex-direction:column; align-items:center; text-align:center; gap:4px; padding:22px 16px 26px}
 .vacio svg{margin-bottom:8px; animation:flotar 3.6s ease-in-out infinite}
@@ -375,6 +412,22 @@ button.fila{cursor:pointer; -webkit-tap-highlight-color:transparent}
 .chips{display:flex; gap:6px; flex-wrap:wrap}
 .chip{border:none; background:var(--accent-soft); color:var(--accent); font-family:inherit; font-size:12.5px; font-weight:700; padding:7px 12px; border-radius:999px; cursor:pointer}
 .chip.ok{background:var(--mint-soft); color:var(--mint)} .chip.lav{background:var(--lav-soft); color:#7a6cc9}
+/* Huchas de ahorro: barra de iconos que se va rellenando */
+.hucha-barra{display:grid; grid-template-columns:repeat(10,1fr); gap:2px; margin-top:10px; padding:7px 8px; border-radius:14px; background:var(--accent-soft)}
+.hucha-barra.mini{margin-top:0; padding:4px 6px; border-radius:10px}
+.hucha-slot{position:relative; text-align:center; font-size:21px; line-height:1.25}
+.hucha-barra.mini .hucha-slot{font-size:14px}
+.hucha-vacio{filter:grayscale(1); opacity:.22}
+.hucha-lleno{position:absolute; inset:0; animation:hucha-pop .45s cubic-bezier(.3,1.6,.5,1) both; animation-delay:calc(var(--i) * 45ms)}
+@keyframes hucha-pop{from{transform:scale(.3); opacity:0}}
+.hucha-icono{width:46px; height:46px; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:25px; flex-shrink:0}
+.temas-hucha{display:flex; gap:6px; flex-wrap:wrap; margin:4px 0 10px}
+.temas-hucha label{margin:0; cursor:pointer}
+.temas-hucha input{position:absolute; opacity:0; pointer-events:none}
+.temas-hucha span, .temas-hucha button{display:flex; align-items:center; justify-content:center; width:42px; height:42px; border-radius:14px; font-size:21px; background:var(--card); border:2px solid var(--line); cursor:pointer; font-family:inherit; padding:0}
+.temas-hucha input:checked + span, .temas-hucha button.activo{border-color:var(--accent); background:var(--accent-soft)}
+.temas-hucha input:focus-visible + span{outline:2px solid var(--accent); outline-offset:2px}
+@media (prefers-reduced-motion: reduce){ .hucha-lleno{animation:none} }
 .chip.peligro{background:transparent; color:var(--neg); border:1.5px solid var(--line)}
 .dia{font-size:13px; font-weight:800; color:var(--muted); margin:16px 4px 8px; display:flex; justify-content:space-between}
 .dia:first-child{margin-top:4px}
@@ -424,6 +477,57 @@ button:not(:disabled):active, .fila:active, .cat-fila:active, .color-propio:acti
   button, .fila, .cat-fila, .color-propio, .pleg-cab, .item{transition:none!important}
   button:active, .fila:active, .cat-fila:active, .pleg-cab:active, .item:active, .color-propio:active{transform:none!important}
 }
+/* ¿Me lo puedo permitir? */
+.permitir-lista{display:flex; flex-direction:column; gap:14px; margin-top:10px}
+.permitir-fila{display:flex; gap:12px; align-items:flex-start}
+.permitir-tit{font-size:13.5px; font-weight:700; color:var(--muted)}
+.permitir-cifras{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; font-variant-numeric:tabular-nums}
+.permitir-cifras strong{font-size:20px; font-weight:800}
+.permitir-huchas{display:flex; flex-direction:column; gap:6px; margin:-4px 0 0 56px}
+.permitir-hucha{display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; font-size:14px}
+.permitir-hucha b{margin-left:auto}
+
+/* Simulador de vivienda */
+.viv-col{min-width:92px; font-variant-numeric:tabular-nums}
+
+/* Hitos */
+.hitos-cab{text-align:center; background:linear-gradient(135deg, var(--peach-soft), var(--card) 75%)}
+.hitos-cuenta{font-size:15px; color:var(--muted); margin-top:4px}
+.hitos-cuenta b{font-size:30px; color:var(--ink); font-weight:800}
+.rachas{display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:12px; margin-bottom:6px}
+.racha{display:flex; gap:12px; align-items:center; background:var(--card); border:1px solid var(--line); border-radius:20px; padding:14px}
+.racha-ico{width:44px; height:44px; flex-shrink:0; border-radius:50%; background:var(--line); display:flex; align-items:center; justify-content:center; font-size:22px; filter:grayscale(1); opacity:.6}
+.racha.viva .racha-ico{background:var(--peach-soft); filter:none; opacity:1}
+.hitos-grid{display:grid; grid-template-columns:repeat(4, 1fr); gap:10px}
+@media (min-width:700px){ .hitos-grid{grid-template-columns:repeat(6, 1fr)} }
+.hito{background:var(--card); border:2px solid var(--line); border-radius:18px; padding:12px 4px 10px; display:flex; flex-direction:column; align-items:center; gap:6px; font-family:inherit; color:var(--muted); cursor:pointer; min-width:0}
+.hito.ok{border-color:color-mix(in srgb, var(--accent) 45%, var(--line)); background:linear-gradient(180deg, var(--accent-soft), var(--card)); color:var(--ink)}
+.hito-ico{font-size:28px; line-height:1}
+.hito:not(.ok) .hito-ico{opacity:.55}
+.hito-nom{font-size:11px; font-weight:700; line-height:1.2; text-align:center; overflow-wrap:break-word; hyphens:auto; max-width:100%}
+.hito-hoja-ico{font-size:34px; background:var(--accent-soft)}
+.hito-hoja-ico.bloqueado{background:var(--line)}
+/* ¿Cómo estoy? */
+.salud-cab{background:linear-gradient(135deg, var(--mint-soft), var(--card) 75%)}
+.salud-lista{display:flex; flex-direction:column; gap:6px; margin-top:12px}
+.salud-fila{display:flex; align-items:center; gap:10px; width:100%; text-align:left; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:12px 14px; font:inherit; font-size:15px; color:var(--ink); cursor:pointer}
+.salud-luz{font-size:18px; line-height:1}
+.salud-txt{flex:1; min-width:0}
+.salud-pts{font-weight:800; color:var(--muted); font-size:13px}
+.salud-detalle{padding:2px 14px 8px 42px}
+.salud-detalle p{margin:0 0 4px}
+.salud-nota{display:flex; align-items:center; gap:16px; margin-top:18px; flex-wrap:wrap}
+.salud-nota strong{font-size:18px}
+.salud-nota p{margin:4px 0 0}
+.salud-anillo{width:108px; height:108px; flex-shrink:0}
+.salud-ajustes-cab{display:flex; justify-content:space-between; align-items:center; width:100%; background:none; border:0; padding:0; font:inherit; color:var(--ink); cursor:pointer}
+.salud-ajustes-cab h2{margin:0}
+.salud-form{margin-top:12px}
+.salud-campo{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); font-size:14px}
+.salud-campo select{width:auto}
+.salud-num{display:flex; align-items:center; gap:6px; flex-shrink:0}
+.salud-num input{width:78px; text-align:right}
+.salud-num i{font-style:normal; color:var(--muted); font-size:12px; max-width:90px}
 </style>
 </head>
 <body>
@@ -456,6 +560,7 @@ button:not(:disabled):active, .fila:active, .cat-fila:active, .color-propio:acti
     <div class="auth-marca">Mis cuentas</div>
     <h1 id="authTitulo">¡Hola de nuevo!</h1>
     <p class="auth-sub" id="authSub">Entra para ver tus cuentas</p>
+    <div class="auth-perfiles" id="authPerfiles" hidden></div>
     <form id="fLogin">
       <div><label for="loginEmail">Email</label><div class="campo"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></span><input type="email" id="loginEmail" required placeholder="tu@email.com" autocomplete="username"></div></div>
       <div><label for="loginPass">Contraseña</label><div class="campo"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span><input type="password" id="loginPass" required placeholder="••••••••" autocomplete="current-password"><button type="button" class="ver" data-ver>Ver</button></div></div>
@@ -509,13 +614,19 @@ button:not(:disabled):active, .fila:active, .cat-fila:active, .color-propio:acti
 <script src="js/views/inicio.js"></script>
 <script src="js/views/gastos.js"></script>
 <script src="js/views/resumen.js"></script>
+<script src="js/views/cierre.js"></script>
 <script src="js/views/presupuestos.js"></script>
+<script src="js/views/permitir.js"></script>
 <script src="js/views/movimientos.js"></script>
 <script src="js/views/cuentas.js"></script>
 <script src="js/views/deudas.js"></script>
 <script src="js/views/inversiones.js"></script>
 <script src="js/views/objetivos.js"></script>
+<script src="js/views/vivienda.js"></script>
+<script src="js/views/hitos.js"></script>
+<script src="js/views/salud.js"></script>
 <script src="js/views/proyeccion.js"></script>
+<script src="js/views/simulador.js"></script>
 <script src="js/views/recurrentes.js"></script>
 <script src="js/views/categorias.js"></script>
 <script src="js/views/preferencias.js"></script>

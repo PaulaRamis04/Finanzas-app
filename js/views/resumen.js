@@ -65,6 +65,7 @@ function renderResumen(){
   </div>` : `<div class="card"><p class="meta" style="margin:0">Sin ahorro/inversión en este periodo.</p></div>`;
 
   return `
+  ${tarjetaCierre()}
   ${bloqueGraficaCategoria("Ingresos por categoría", descIngresos, "ingreso")}
   ${bloqueGraficaCategoria("Gastos reales por categoría", descGastos, "gasto")}
   ${bloqueAhorro}
@@ -72,6 +73,7 @@ function renderResumen(){
 }
 
 function wireEventosResumen(){
+  wireEventosCierre();
   document.querySelectorAll("[data-toggle-ahorro]").forEach(b=>b.onclick=()=>{ resumenAhorroAbierto = !resumenAhorroAbierto; render(); });
   document.querySelectorAll("[data-resumen-sel]").forEach(b=>b.onclick=()=>{
     const [t,cat] = b.dataset.resumenSel.split("|");

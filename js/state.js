@@ -1,9 +1,9 @@
-const TABS = ["Inicio","Gastos","Resumen del mes","Presupuestos","Movimientos","Cuentas","Deudas","Inversiones","Objetivos","Proyección","Recurrentes","Categorías","Preferencias"];
+const TABS = ["Inicio","Salud","Gastos","Resumen del mes","Presupuestos","Permitir","Movimientos","Cuentas","Deudas","Inversiones","Objetivos","Vivienda","Hitos","Proyección","Simulador","Recurrentes","Categorías","Preferencias"];
 
 const GRUPOS_MENU = [
-  {nombre:"Resumen", tabs:["Gastos","Resumen del mes","Presupuestos"]},
+  {nombre:"Resumen", tabs:["Salud","Gastos","Resumen del mes","Presupuestos","Permitir"]},
   {nombre:"Dinero", tabs:["Movimientos","Cuentas","Deudas","Recurrentes"]},
-  {nombre:"Ahorro", tabs:["Inversiones","Objetivos","Proyección"]},
+  {nombre:"Ahorro", tabs:["Inversiones","Objetivos","Vivienda","Hitos","Proyección","Simulador"]},
   {nombre:"Ajustes", tabs:["Categorías","Preferencias","Personalización","Comunidad"]}
 ];
 
@@ -38,6 +38,10 @@ let proy = {inicial:null, aporte:0, anios:10, tasa:5, detalle:false};
 
 let proyResultado = null;
 
+// Simulador de vivienda. ahorro/mensual null = se toman de la hucha de vivienda al abrir la pestaña.
+let viv = {precio:300000, entrada:20, gastos:10, ahorro:null, mensual:null, conOtra:false, otraNombre:"", otraAhorro:0, otraMensual:0};
+try{ viv = {...viv, ...(JSON.parse(localStorage.getItem("simVivienda") || "{}") || {})}; }catch(e){}
+
 let cuentaDefecto = "";
 try{ cuentaDefecto = localStorage.getItem("cuentaDefecto") || ""; }catch(e){}
 
@@ -49,6 +53,7 @@ let verAbonosDeudaId = null;
 let movPlantilla = null; // {tipo, categoria, importe, cuentaId, nota} para precargar "Añadir movimiento"
 
 let gruposAbiertos = {}, modoOrdenInv = false, rentasInvId = null, modoOrdenCuentas = false, modoOrdenObjetivos = false;
+let huchaMeterId = null, huchaTemaId = null;
 
 let session = null, appStarted = false;
 
@@ -227,7 +232,7 @@ function detectarObjetivosCompletados(){
 function progresoObjetivo(o){
   if(o.tipoVinculo==="cuenta"){ const c=cuentas.find(x=>x.id===o.vinculoId); return c? saldoCuenta(c) : 0; }
   if(o.tipoVinculo==="inversion"){ const i=inversiones.find(x=>x.id===o.vinculoId); return i? (i.esGrupo? valorGrupo(i) : i.valorActual) : 0; }
-  return 0;
+  return o.ahorrado||0;
 }
 
 function nombreVinculo(o){

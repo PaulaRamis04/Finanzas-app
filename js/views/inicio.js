@@ -51,7 +51,7 @@ function renderInicio(){
   const enCurso = objetivos.filter(o=>!objetivoCompletado(o)).sort(porOrden);
   const bloqueObjetivos = objetivos.length ? `
   <div class="card">
-    <h2>🎯 Mis objetivos</h2>
+    <h2>🐷 Mis huchas</h2>
     ${enCurso.length? `
     <div class="list" style="margin-top:8px">
       ${enCurso.slice(0,4).map(o=>{
@@ -60,21 +60,51 @@ function renderInicio(){
         return `
         <div>
           <div style="display:flex;justify-content:space-between;font-size:14px;margin-bottom:5px">
-            <span>${emojiObjetivo(o.nombre)} ${esc(o.nombre)}</span>
+            <span>${emojiObjetivo(o)} ${esc(o.nombre)}</span>
             <strong>${pct.toFixed(0)}%</strong>
           </div>
-          <div style="height:7px;background:var(--line);border-radius:999px;overflow:hidden">
-            <div style="height:100%;width:${pct}%;background:var(--accent);border-radius:999px"></div>
-          </div>
+          ${barraHucha(o, pct, true)}
         </div>`;
       }).join("")}
-    </div>` : `<p class="meta" style="margin:8px 0 0">Todos tus objetivos están conseguidos 🎉</p>`}
-    <button class="btn ghost" data-ir-tab="Objetivos" style="margin-top:14px">Ver todos los objetivos</button>
+    </div>` : `<p class="meta" style="margin:8px 0 0">Todas tus huchas están llenas 🎉</p>`}
+    <button class="btn ghost" data-ir-tab="Objetivos" style="margin-top:14px">Ver todas las huchas</button>
   </div>` : `
   <div class="card">
-    <h2>🎯 Mis objetivos</h2>
+    <h2>🐷 Mis huchas</h2>
     ${vacio("hucha","Tu hucha sueña con algo","Ponle una meta: un viaje, un colchón o un capricho.")}
-    <button class="btn" data-ir-tab="Objetivos">Crear un objetivo</button>
+    <button class="btn" data-ir-tab="Objetivos">Crear una hucha</button>
+  </div>`;
+
+  const hitosHechos = HITOS.filter(h=>hitosGuardados?.[h.id]).length;
+  const bloqueHitos = `
+  <div class="card cierre-banner">
+    <div class="cierre-banner-ico">🏆</div>
+    <div style="flex:1 1 160px;min-width:0">
+      <strong style="font-size:16px">Mis hitos</strong>
+      <div class="meta">${hitosHechos} / ${HITOS.length} desbloqueados</div>
+    </div>
+    <button class="btn ghost" data-ir-tab="Hitos">Ver mis hitos</button>
+  </div>`;
+
+  const bloquePermitir = `
+  <div class="card cierre-banner">
+    <div class="cierre-banner-ico">🧾</div>
+    <div style="flex:1 1 160px;min-width:0">
+      <strong style="font-size:16px">¿Me lo puedo permitir?</strong>
+      <div class="meta">Mira qué te cuesta de verdad una compra antes de hacerla</div>
+    </div>
+    <button class="btn ghost" data-ir-tab="Permitir">Probar</button>
+  </div>`;
+
+  const {nota:notaSalud} = evaluarSalud();
+  const bloqueSalud = `
+  <div class="card cierre-banner">
+    <div class="cierre-banner-ico">🚦</div>
+    <div style="flex:1 1 160px;min-width:0">
+      <strong style="font-size:16px">¿Cómo estoy?</strong>
+      <div class="meta">${notaSalud===null ? "Tu semáforo financiero" : `Salud financiera: ${notaSalud}/100`}</div>
+    </div>
+    <button class="btn ghost" data-ir-tab="Salud">Ver mi semáforo</button>
   </div>`;
 
   const porMes = periodoMes!=="todos";
@@ -95,7 +125,7 @@ function renderInicio(){
 
   return `
   <div class="hola">
-    <h1>Hola${nombre ? ", "+esc(nombre) : ""} 👋</h1>
+    <h1><button class="hola-perfil" id="btnPerfiles" aria-haspopup="dialog" aria-label="Cambiar de perfil">Hola${nombre ? ", "+esc(nombre) : ""}${esPremium ? ESTRELLA_PREMIUM : ""} 👋<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button></h1>
     <span style="display:flex;gap:10px">${botonOjo("btnOjoInicio")}<button class="campana" id="btnAvisos" aria-label="Notificaciones"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>${avisos ? `<span class="punto"></span>` : ""}</button></span>
   </div>
   <div class="hero">
@@ -127,6 +157,9 @@ function renderInicio(){
   </div>` : `<div class="card">${vacio("hucha","Aún no hay movimientos","Toca «Añadir» para apuntar el primero.")}</div>`}
   ${bloqueAlertas}
   ${bloqueObjetivos}
+  ${bloqueSalud}
+  ${bloqueHitos}
+  ${bloquePermitir}
   <div class="card">
     <h2>📈 Patrimonio</h2>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 12px">
@@ -166,10 +199,13 @@ const CATALOGO_ACCIONES = [
   {id:"Gastos", ico:"💸", txt:"Gastos", largo:"Gastos", fondo:"var(--accent-soft)"},
   {id:"Resumen del mes", ico:"📊", txt:"Análisis", largo:"Análisis", fondo:"var(--lav-soft)"},
   {id:"Presupuestos", ico:"🧮", txt:"Presup.", largo:"Presupuestos", fondo:"var(--mint-soft)"},
+  {id:"Permitir", ico:"🧾", txt:"¿Puedo?", largo:"¿Me lo puedo permitir?", fondo:"var(--peach-soft)"},
   {id:"Cuentas", ico:"👛", txt:"Cuentas", largo:"Cuentas", fondo:"var(--peach-soft)"},
   {id:"Deudas", ico:"🤝", txt:"Deudas", largo:"Deudas", fondo:"var(--peach-soft)"},
   {id:"Inversiones", ico:"🌱", txt:"Invertir", largo:"Inversiones", fondo:"var(--mint-soft)"},
   {id:"Objetivos", ico:"🎯", txt:"Objetivos", largo:"Objetivos", fondo:"var(--accent-soft)"},
+  {id:"Hitos", ico:"🏆", txt:"Hitos", largo:"Mis hitos", fondo:"var(--peach-soft)"},
+  {id:"Salud", ico:"🚦", txt:"¿Cómo estoy?", largo:"¿Cómo estoy?", fondo:"var(--mint-soft)"},
   {id:"Recurrentes", ico:"📅", txt:"Recurr.", largo:"Recurrentes", fondo:"var(--lav-soft)"},
   {id:"Proyección", ico:"🔮", txt:"Proyección", largo:"Proyección", fondo:"var(--lav-soft)"},
   {id:"Categorías", ico:"🏷️", txt:"Categorías", largo:"Categorías", fondo:"var(--mint-soft)"},
@@ -221,7 +257,41 @@ function elegirAcciones(){
   cont.querySelector("#hojaListo").onclick = cerrar;
 }
 
+// Hoja inferior de perfiles: cambiar a otro, añadir otra cuenta o cerrar la sesión de este.
+function elegirPerfil(){
+  const yo = session?.user?.id;
+  const perfiles = leerPerfiles();
+  if(!perfiles.some(p=>p.id===yo)) perfiles.unshift({id:yo, email:session.user.email, nombre:(session.user.user_metadata?.full_name||"").trim()});
+  document.getElementById("hoja")?.remove();
+  const cont = document.createElement("div");
+  cont.id = "hoja";
+  cont.innerHTML = `
+    <div class="hoja-fondo"></div>
+    <div class="hoja" role="dialog" aria-modal="true" aria-labelledby="hojaTitulo">
+      <div class="hoja-asa"></div>
+      <h2 id="hojaTitulo">Perfiles</h2>
+      <div class="perfiles-lista">${perfiles.map(p=>`<button class="perfil-btn ${p.id===yo?"actual":""}" data-cambiar-perfil="${esc(p.id)}" ${p.id===yo?'aria-current="true"':""}>${avatarPerfil(p)}<span><b>${esc(p.nombre||p.email)}</b>${p.nombre?`<small>${esc(p.email)}</small>`:""}</span>${p.id===yo?`<span class="check">✓</span>`:""}</button>`).join("")}</div>
+      <button class="perfil-accion" id="btnAnadirPerfil">＋ Añadir otra cuenta</button>
+      <button class="perfil-accion salir" id="btnSalirPerfil">Cerrar sesión de este perfil</button>
+    </div>`;
+  document.body.appendChild(cont);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>cont.classList.add("abierta")));
+  const cerrar = ()=>{
+    document.removeEventListener("keydown", tecla);
+    cont.classList.remove("abierta");
+    setTimeout(()=>cont.remove(), 260);
+  };
+  const tecla = e=>{ if(e.key==="Escape") cerrar(); };
+  document.addEventListener("keydown", tecla);
+  cont.querySelector(".hoja-fondo").onclick = cerrar;
+  cont.querySelector(".perfiles-lista").onclick = e=>{ const b = e.target.closest("[data-cambiar-perfil]"); if(b && b.dataset.cambiarPerfil!==yo) cambiarAPerfil(b.dataset.cambiarPerfil); };
+  cont.querySelector("#btnAnadirPerfil").onclick = anadirPerfil;
+  cont.querySelector("#btnSalirPerfil").onclick = ()=> sb.auth.signOut();
+}
+
 function wireEventosInicio(){
+  const perf = document.getElementById("btnPerfiles");
+  if(perf) perf.onclick = elegirPerfil;
   document.querySelectorAll("[data-accion]").forEach(b=>b.onclick=()=>{
     const d = b.dataset.accion;
     if(d==="mov" || d==="transferencia"){

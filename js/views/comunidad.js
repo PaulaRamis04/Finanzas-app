@@ -23,7 +23,8 @@ function tarjetaComunidad(clave, ico, titulo, texto, boton, cuerpo){
   <div class="card comunidad">
     <div class="comunidad-cab"><span class="comunidad-ico" aria-hidden="true">${ico}</span><h2>${titulo}</h2></div>
     <p class="meta">${texto}</p>
-    ${comunidadEnviado===clave ? `<div class="comunidad-ok">${GRACIAS_COMUNIDAD[clave]}</div>`
+    ${clave==="supporter" && esPremium ? `<div class="comunidad-ok">👑 Ya eres premium y tienes todas las opciones desbloqueadas. ¡Gracias por apoyar la app!</div>`
+      : comunidadEnviado===clave ? `<div class="comunidad-ok">${GRACIAS_COMUNIDAD[clave]}</div>`
       : abierto ? cuerpo : `<button class="btn" data-comunidad-abrir="${clave}">${boton}</button>`}
   </div>`;
 }
@@ -106,6 +107,7 @@ function wireEventosComunidad(){
   document.querySelectorAll("[data-comunidad-enviar]").forEach(b=>b.onclick=()=>conCarga(b, "Enviando…", async ()=>{
     const tipo = b.dataset.comunidadEnviar;
     const texto = (document.getElementById("comunidadTexto")?.value || "").trim();
+    if(tipo==="supporter" && esPremium) return;
     if(tipo!=="supporter" && !texto){ showError("Escribe un mensaje antes de enviarlo."); return; }
     const fila = {tipo, texto, importe: tipo==="supporter" ? supporterImporte : null};
     if(tipo==="fallo") fila.info = {navegador:navigator.userAgent, pantalla:`${innerWidth}x${innerHeight}`, fecha:new Date().toISOString()};
