@@ -822,6 +822,50 @@ prueba("¿cómo estoy?: semáforo con nota y objetivos configurables", async ()=
   assert.strictEqual(local.local.inversion, 15);
 });
 
+prueba("saldo del mes pasado: pregunta una vez al empezar el mes y lo suma al disponible", async ()=>{
+  const p = await abrir();
+  // Sin decisión para este mes, al cargar sale la hoja con el saldo positivo del mes pasado.
+  const previo = await p.evaluate(async ()=>{
+    __db.saldo_arrastre = []; arrastres = {}; arrastreRevisado = false; localStorage.removeItem("arrastresMes");
+    await recargar(["saldo_arrastre"]);
+    const h = new Date(); const m = h.getMonth()+1;
+    return disponibleMes(m===1 ? h.getFullYear()-1 : h.getFullYear(), m===1 ? 12 : m-1);
+  });
+  assert.ok(previo>0, "previo "+previo);
+  await p.waitForSelector("#hojaArrastreSi");
+  const texto = await p.textContent("#hoja");
+  assert.ok(texto.includes("¡Bien hecho!") && texto.includes("te sobraron") && texto.includes("No, dejarlo como ahorro 🌱"), texto);
+  const antes = await p.evaluate(()=>{ tab = "Inicio"; periodoMes = String(new Date().getMonth()+1); periodoAnio = new Date().getFullYear(); return arrastrePeriodo(); });
+  assert.strictEqual(antes, 0);
+  await p.click("#hojaArrastreSi");
+  await p.waitForFunction(()=>__db.saldo_arrastre.length===1);
+  const fila = await p.evaluate(()=>__db.saldo_arrastre[0]);
+  assert.strictEqual(fila.decision, "si");
+  assert.strictEqual(fila.importe, previo);
+  assert.strictEqual(await p.evaluate(()=>arrastrePeriodo()), previo);
+  assert.ok((await p.evaluate(()=>document.getElementById("app").innerText)).includes("que te sobraron en"));
+  // Ya decidido: no vuelve a preguntar este mes.
+  await p.evaluate(async ()=>{ arrastreRevisado = false; await recargar(["saldo_arrastre"]); });
+  await p.waitForTimeout(700);
+  assert.ok(!(await p.$("#hojaArrastreSi")));
+  // En negativo pregunta si descontarlo; «No» no cambia el disponible. Sin la tabla se guarda en el dispositivo.
+  const neg = await p.evaluate(async ()=>{
+    delete __db.saldo_arrastre; arrastres = {}; arrastreRevisado = false; localStorage.removeItem("arrastresMes");
+    const h = new Date(); const m = h.getMonth()+1;
+    const y = m===1 ? h.getFullYear()-1 : h.getFullYear(), pm = m===1 ? 12 : m-1;
+    __db.movimientos.push({id:"mneg", tipo:"gasto", categoria:"Ocio", importe:5000, fecha:`${y}-${String(pm).padStart(2,"0")}-15`, cuenta_id:"c1"});
+    await recargar(["movimientos","saldo_arrastre"]);
+    return disponibleMes(y, pm);
+  });
+  assert.ok(neg<0);
+  await p.waitForSelector("#hojaArrastreNo");
+  assert.ok((await p.textContent("#hoja")).includes("más de lo planeado"));
+  await p.click("#hojaArrastreNo");
+  await p.waitForFunction(()=>Object.keys(JSON.parse(localStorage.getItem("arrastresMes")||"{}")).length===1);
+  assert.strictEqual(await p.evaluate(()=>arrastrePeriodo()), 0);
+  assert.strictEqual(await p.evaluate(()=>arrastresEnBd), false);
+});
+
 prueba("simulador de vivienda: cifras, hucha 🏠 y comparación con otra persona", async ()=>{
   const p = await abrir();
   await p.evaluate(async ()=>{
