@@ -2,7 +2,7 @@
 // comunidad de Supabase (schema_comunidad.sql); la dueña de la app lo contesta desde la app de gestión
 // (repositorio APP-GESTION-CLIENTES, schema_gestion.sql) y aquí se ven sus respuestas y el chat de la mini asesoría.
 
-let comunidadAbierto = null; // "supporter" | "idea" | "fallo"
+let comunidadAbierto = null; // "supporter" | "cambio" | "idea" | "fallo"
 let comunidadEnviado = null; // el mismo valor, tras enviar
 let supporterImporte = 5;
 
@@ -14,8 +14,44 @@ const IMPORTES_SUPPORTER = [1, 3, 5, 10];
 const GRACIAS_COMUNIDAD = {
   supporter:"¡Gracias de corazón! Te escribiré a tu email para contarte cómo hacer la aportación. 💌",
   idea:"¡Gracias por tu idea! La leeré con cariño. ✨",
-  fallo:"Recibido. Lo miro y te escribo a tu email en cuanto lo tenga. 🛠️"
+  fallo:"Recibido. Lo miro y te escribo a tu email en cuanto lo tenga. 🛠️",
+  cambio:"¡Recibido! Te escribiré a tu email para confirmar el cambio de tu aportación. 💌"
 };
+
+// Aportación al mes que consta en la suscripción activa (la pone la dueña desde la app de gestión).
+function aportacionActual(){
+  const s = miSuscripcion;
+  return s && s.activa && (!s.hasta || s.hasta>=today()) && s.importe!=null ? Number(s.importe) : null;
+}
+
+// Para quien ya es supporter: pedir subir o bajar la aportación. No cobra nada: queda como petición
+// en el buzón (tipo "supporter") y la dueña la confirma en la app de gestión.
+function renderCambioAportacion(){
+  const actual = aportacionActual();
+  const aviso = tieneAsesoria() && supporterImporte<5 ? "Con menos de 5 €/mes dejarás de tener la mini asesoría, pero seguirás con todas las opciones premium."
+    : !tieneAsesoria() && supporterImporte>=5 ? "Con 5 €/mes o más se suma la mini asesoría personalizada." : "";
+  return `
+    <label>Tu nueva aportación al mes</label>
+    <div class="opciones">
+      ${IMPORTES_SUPPORTER.map(n=>`<button class="opcion ${supporterImporte===n?"sel":""}" data-supporter-importe="${n}">${n} €${n===actual?" (actual)":""}</button>`).join("")}
+    </div>
+    ${aviso ? `<p class="meta aviso-aportacion">${aviso}</p>` : ""}
+    <label for="comunidadTexto">Algo que quieras contarme (opcional)</label>
+    <textarea id="comunidadTexto" rows="2" maxlength="1000"></textarea>
+    <div class="comunidad-btns">
+      <button class="btn" data-comunidad-enviar="cambio">Pedir el cambio</button>
+      <button class="btn ghost" data-comunidad-cerrar="1">Cancelar</button>
+    </div>`;
+}
+
+function renderSupporterPremium(){
+  if(comunidadEnviado==="cambio") return `<div class="comunidad-ok">${GRACIAS_COMUNIDAD.cambio}</div>`;
+  if(comunidadAbierto==="cambio") return renderCambioAportacion();
+  const actual = aportacionActual();
+  return `<div class="comunidad-ok">👑 Ya eres premium y tienes todas las opciones desbloqueadas. ¡Gracias por apoyar la app!</div>
+    ${actual!=null ? `<p class="meta">Tu aportación ahora: <strong>${actual} €/mes</strong></p>` : ""}
+    <button class="btn ghost" data-comunidad-abrir="cambio">Cambiar mi aportación</button>`;
+}
 
 function tarjetaComunidad(clave, ico, titulo, texto, boton, cuerpo){
   const abierto = comunidadAbierto===clave;
@@ -23,7 +59,7 @@ function tarjetaComunidad(clave, ico, titulo, texto, boton, cuerpo){
   <div class="card comunidad">
     <div class="comunidad-cab"><span class="comunidad-ico" aria-hidden="true">${ico}</span><h2>${titulo}</h2></div>
     <p class="meta">${texto}</p>
-    ${clave==="supporter" && esPremium ? `<div class="comunidad-ok">👑 Ya eres premium y tienes todas las opciones desbloqueadas. ¡Gracias por apoyar la app!</div>`
+    ${clave==="supporter" && esPremium ? renderSupporterPremium()
       : comunidadEnviado===clave ? `<div class="comunidad-ok">${GRACIAS_COMUNIDAD[clave]}</div>`
       : abierto ? cuerpo : `<button class="btn" data-comunidad-abrir="${clave}">${boton}</button>`}
   </div>`;
@@ -100,20 +136,23 @@ function renderComunidad(){
 
 function wireEventosComunidad(){
   document.querySelectorAll("[data-comunidad-abrir]").forEach(b=>b.onclick=()=>{
-    comunidadAbierto = b.dataset.comunidadAbrir; comunidadEnviado = null; pendienteEnfoque = "comunidadTexto"; render();
+    comunidadAbierto = b.dataset.comunidadAbrir; comunidadEnviado = null;
+    if(comunidadAbierto==="cambio"){ const actual = aportacionActual(); supporterImporte = IMPORTES_SUPPORTER.includes(actual) ? actual : 5; }
+    pendienteEnfoque = comunidadAbierto==="cambio" ? null : "comunidadTexto"; render();
   });
   document.querySelectorAll("[data-comunidad-cerrar]").forEach(b=>b.onclick=()=>{ comunidadAbierto = null; render(); });
   document.querySelectorAll("[data-supporter-importe]").forEach(b=>b.onclick=()=>{ supporterImporte = Number(b.dataset.supporterImporte); render(); });
   document.querySelectorAll("[data-comunidad-enviar]").forEach(b=>b.onclick=()=>conCarga(b, "Enviando…", async ()=>{
-    const tipo = b.dataset.comunidadEnviar;
+    const enviado = b.dataset.comunidadEnviar, tipo = enviado==="cambio" ? "supporter" : enviado;
     const texto = (document.getElementById("comunidadTexto")?.value || "").trim();
-    if(tipo==="supporter" && esPremium) return;
+    if(enviado==="supporter" && esPremium) return;
+    if(enviado==="cambio" && supporterImporte===aportacionActual()){ showError("Elige una cantidad distinta de la que ya aportas."); return; }
     if(tipo!=="supporter" && !texto){ showError("Escribe un mensaje antes de enviarlo."); return; }
     const fila = {tipo, texto, importe: tipo==="supporter" ? supporterImporte : null};
     if(tipo==="fallo") fila.info = {navegador:navigator.userAgent, pantalla:`${innerWidth}x${innerHeight}`, fecha:new Date().toISOString()};
     const {error} = await sb.from("comunidad").insert(fila);
     if(error){ showError(/does not exist|schema cache/i.test(error.message) ? "Falta ejecutar schema_comunidad.sql en Supabase." : "No se pudo enviar: "+error.message); return; }
-    hideError(); comunidadAbierto = null; comunidadEnviado = tipo; render();
+    hideError(); comunidadAbierto = null; comunidadEnviado = enviado; render();
     if(tipo!=="supporter") recargar(["comunidad"]);
   }));
   const enviarAsesoria = document.getElementById("btnEnviarAsesoria");
