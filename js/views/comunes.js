@@ -376,6 +376,8 @@ function confirmar(texto, opciones = {}){
   const ok = opciones.ok || (base ? `Sí, ${base}` : "Confirmar");
   const ICONOS = {borrar:"🗑️", archivar:"📦", deshacer:"↩️", restaurar:"💾", volver:"🎨"};
   const icono = opciones.icono || ICONOS[base] || "🐷";
+  // Acciones destructivas: el botón de confirmar usa el color de alerta
+  const PELIGRO = ["borrar","eliminar","quitar","salir","descartar","dejar"];
   document.getElementById("hoja")?.remove();
   const cont = document.createElement("div");
   cont.id = "hoja";
@@ -388,7 +390,7 @@ function confirmar(texto, opciones = {}){
       ${cuerpo ? `<p>${esc(cuerpo)}</p>` : ""}
       <div class="hoja-btns">
         <button class="hoja-no" id="hojaNo">Cancelar</button>
-        <button class="hoja-si" id="hojaOk">${esc(ok)}</button>
+        <button class="hoja-si${PELIGRO.includes(base) ? " peligro" : ""}" id="hojaOk">${esc(ok)}</button>
       </div>
     </div>`;
   document.body.appendChild(cont);
