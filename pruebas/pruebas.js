@@ -1001,7 +1001,7 @@ prueba("¿qué pasaría si…?: compara patrimonio a 1, 3, 5 y 10 años y las hu
   assert.ok(!(await p.textContent('[data-sim-anio="1"]')).includes("+"));
 });
 
-prueba("presupuestos: enseña lo que queda y, si te pasas, cuánto", async ()=>{
+prueba("presupuestos: el total enseña lo que queda y cada categoría lo gastado", async ()=>{
   const p = await abrir("", {width:1280, height:800});
   await p.click('.menu-item[data-tab="Presupuestos"]');
   const datos = await p.evaluate(()=>{
@@ -1012,7 +1012,8 @@ prueba("presupuestos: enseña lo que queda y, si te pasas, cuánto", async ()=>{
   const txt = await p.evaluate(()=>document.getElementById("app").innerText);
   assert.doesNotMatch(txt, /Gastado de lo presupuestado/);
   assert.match(txt, /Te (queda|has pasado) de lo presupuestado/);
-  for(const d of datos) assert.match(txt, d.queda>=0 ? /Te queda de €/ : /Te has pasado del límite de €/);
+  assert.doesNotMatch(txt, /Te queda de €|Te has pasado del límite de/);
+  for(const d of datos) if(d.queda<0) assert.match(txt, /Has superado el límite en €/);
 });
 prueba("bienvenida: solo a cuentas nuevas, tres tarjetas y no vuelve a salir", async ()=>{
   const p = await abrir();
