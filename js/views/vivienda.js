@@ -83,15 +83,15 @@ function renderVivienda(){
     <h2>Tus datos</h2>
     <p class="meta" style="margin:0 0 10px">Calcula cuánto necesitas ahorrar para la entrada y los gastos de compra, y cuánto tardarías a tu ritmo. Es una estimación: cambia los números para ver otras cifras.</p>
     <div class="row2">
-      ${campo("vivPrecio", "Precio de la vivienda (€)", viv.precio)}
+      ${campo("vivPrecio", `Precio de la vivienda (${simboloMoneda()})`, viv.precio)}
       ${campo("vivEntrada", "Entrada (%)", viv.entrada, ' max="100"')}
     </div>
     <div class="row2">
       ${campo("vivGastos", "Gastos de compra (%)", viv.gastos, ' max="100"')}
-      ${campo("vivAhorro", "Ahorro actual (€)", viv.ahorro)}
+      ${campo("vivAhorro", `Ahorro actual (${simboloMoneda()})`, viv.ahorro)}
     </div>
     <div class="row2">
-      ${campo("vivMensual", "Ahorro mensual (€)", viv.mensual)}
+      ${campo("vivMensual", `Ahorro mensual (${simboloMoneda()})`, viv.mensual)}
       <div></div>
     </div>
     <p class="meta" style="margin:8px 0 0">${o ? `El ahorro de partida sale de tu hucha «${esc(o.nombre)}»${o.autoActivo && o.autoCuota ? " y el mensual, de su aportación automática" : ""}. Puedes cambiarlos.` : "Si creas una hucha de vivienda (icono 🏠) en Objetivos, el ahorro se rellena solo."}
@@ -105,8 +105,8 @@ function renderVivienda(){
       <div></div>
     </div>
     <div class="row2">
-      ${campo("vivOtraAhorro", "Su ahorro actual (€)", viv.otraAhorro)}
-      ${campo("vivOtraMensual", "Su ahorro mensual (€)", viv.otraMensual)}
+      ${campo("vivOtraAhorro", `Su ahorro actual (${simboloMoneda()})`, viv.otraAhorro)}
+      ${campo("vivOtraMensual", `Su ahorro mensual (${simboloMoneda()})`, viv.otraMensual)}
     </div>` : ""}
   </div>
   <div id="vivResultado">${htmlResultadoVivienda()}</div>`;

@@ -28,7 +28,7 @@ function bloqueDividirGasto(){
     <p class="meta" style="margin:12px 0 10px">¿Pagaste tú la cena? Di cuántos erais y se apunta el gasto entero en tu cuenta y una deuda «Me deben» por cada amigo. Cuando te hagan el Bizum, dale a «Abonar» y solo contará como gasto tuyo tu parte.</p>
     <form id="fDividir">
       <div class="row2">
-        <div><label>Importe total (€)</label><input name="importe" id="divImporte" type="number" step="0.01" min="0.01" required placeholder="ej. 60"></div>
+        <div><label>Importe total (${simboloMoneda()})</label><input name="importe" id="divImporte" type="number" step="0.01" min="0.01" required placeholder="ej. 60"></div>
         <div><label>Éramos (contándote)</label><input name="personas" id="divPersonas" type="number" step="1" min="2" max="30" value="3" required></div>
       </div>
       <div><label>Concepto</label><input name="concepto" placeholder="ej. cena del viernes" required></div>
@@ -46,7 +46,7 @@ function bloqueDividirGasto(){
 
 // Texto para pedir el Bizum a quien te debe (con el importe real aunque estén ocultos los saldos).
 function textoBizum(d){
-  return `¡Hola ${d.persona.trim()}! ${d.concepto? `De ${d.concepto}` : "De lo que te adelanté"} me debes ${Number(d.importe).toFixed(2).replace(".",",")} €. ¿Me haces un Bizum cuando puedas? 😊`;
+  return `¡Hola ${d.persona.trim()}! ${d.concepto? `De ${d.concepto}` : "De lo que te adelanté"} me debes ${importeMensaje(d.importe)}. ¿Me haces un Bizum cuando puedas? 😊`;
 }
 
 function abonosDeDeuda(id){
@@ -98,7 +98,7 @@ function deudaItem(d){
   </div>` : ""}
   ${saldarId===d.id? `
   <div class="item" style="flex-direction:column;align-items:stretch;gap:8px">
-    <label>Importe a abonar (€) — máximo ${eur(d.importe)}</label>
+    <label>Importe a abonar (${simboloMoneda()}) — máximo ${eur(d.importe)}</label>
     <input type="number" step="0.01" min="0.01" max="${d.importe}" id="saldarImporte" value="${d.importe}">
     <p class="meta" style="margin:0">Si abonas menos del total, la deuda queda pendiente por el resto.</p>
     <label>${d.direccion==='me_deben'?'¿A qué cuenta entra el pago?':'¿De qué cuenta sale el pago?'}</label>
@@ -143,7 +143,7 @@ function renderDeudas(){
     <form id="fDeuda">
       <div class="row2">
         <div><label>Persona</label><input name="persona" placeholder="ej. Marta" required></div>
-        <div><label>Importe (€)</label><input name="importe" type="number" step="0.01" min="0.01" required></div>
+        <div><label>Importe (${simboloMoneda()})</label><input name="importe" type="number" step="0.01" min="0.01" required></div>
       </div>
       <div class="row2">
         <div><label>Dirección</label><select name="direccion"><option value="debo"${lado==="debo"?" selected":""}>Yo debo</option><option value="me_deben"${lado==="me_deben"?" selected":""}>Me deben</option></select></div>

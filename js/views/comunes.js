@@ -458,7 +458,7 @@ function vacio(dibujo, titulo, texto){
   return `<div class="vacio">${DIBUJOS_VACIO[dibujo] || DIBUJOS_VACIO.nube}<b>${titulo}</b>${texto ? `<span>${texto}</span>` : ""}</div>`;
 }
 
-// Modo privacidad: eur() devuelve «•••• €» y todo se vuelve a pintar. Se recuerda en este dispositivo.
+// Modo privacidad: eur() devuelve «•••• €» (o el símbolo de la moneda elegida) y todo se vuelve a pintar. Se recuerda en este dispositivo.
 function alternarPrivacidad(){
   ocultarSaldos = !ocultarSaldos;
   try{ localStorage.setItem("ocultarSaldos", ocultarSaldos ? "1" : ""); }catch(e){}

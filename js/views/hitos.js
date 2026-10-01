@@ -13,7 +13,6 @@ const GRUPOS_HITOS = [
   {id:"rachas", icono:"🔥", nombre:"Rachas"}
 ];
 
-const miles = n=>String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 const fechaHito = f=>f.split("-").reverse().join("/");
 function finDeMes(ym){ const [y,m] = ym.split("-").map(Number); return fechaLocal(new Date(y, m, 0)); }
 function mesSiguiente(ym){ let [y,m] = ym.split("-").map(Number); m++; if(m>12){ m = 1; y++; } return `${y}-${String(m).padStart(2,"0")}`; }
@@ -21,14 +20,15 @@ function mesSiguiente(ym){ let [y,m] = ym.split("-").map(Number); m++; if(m>12){
 // hist: necesita todo el histórico de movimientos para saber si (y cuándo) se cumplió.
 // eval(c) → {ok, fecha}; fecha null = no se sabe, se toma el día en que la app lo ve.
 // progreso(c) → [actual, meta] para la barra de los que aún no tienes.
-const hitoPatrimonio = (icono, cantidad, titulo)=>({id:"pat_"+cantidad, grupo:"patrimonio", icono, titulo,
-  hecho:`Alcanzaste ${miles(cantidad)} € de patrimonio`, pista:`Llega a ${miles(cantidad)} € de patrimonio (cuentas e inversiones, menos deudas).`,
+// Los textos con importes son getters: se escriben al pintarlos, con la moneda elegida en Preferencias.
+const hitoPatrimonio = (icono, cantidad, titulo)=>({id:"pat_"+cantidad, grupo:"patrimonio", icono, get titulo(){ return titulo(importeRedondo(cantidad)); },
+  get hecho(){ return `Alcanzaste ${importeRedondo(cantidad)} de patrimonio`; }, get pista(){ return `Llega a ${importeRedondo(cantidad)} de patrimonio (cuentas e inversiones, menos deudas).`; },
   eval:c=>c.patrimonio(cantidad), progreso:c=>[c.patActual, cantidad]});
 const hitoCobertura = (meses, titulo)=>({id:"cob_"+meses, grupo:"seguridad", icono:"🛡️", titulo,
   hecho:`Tus cuentas ya cubrían ${meses} ${meses===1?"mes":"meses"} de gastos`, pista:`Ten en tus cuentas lo que gastas en ${meses} ${meses===1?"mes":"meses"}.`,
   eval:c=>({ok:c.cobertura!==null && c.cobertura>=meses, fecha:null}), progreso:c=>c.cobertura===null ? null : [c.cobertura, meses], unidad:"meses"});
-const hitoInvertido = (icono, cantidad, titulo)=>({id:"inv_"+cantidad, grupo:"inversion", icono, titulo,
-  hecho:`Llegaste a ${miles(cantidad)} € invertidos`, pista:`Invierte ${miles(cantidad)} € en total (sumando todas tus aportaciones).`,
+const hitoInvertido = (icono, cantidad, titulo)=>({id:"inv_"+cantidad, grupo:"inversion", icono, get titulo(){ return titulo(importeRedondo(cantidad)); },
+  get hecho(){ return `Llegaste a ${importeRedondo(cantidad)} invertidos`; }, get pista(){ return `Invierte ${importeRedondo(cantidad)} en total (sumando todas tus aportaciones).`; },
   eval:c=>c.invertido(cantidad), progreso:c=>[c.invertidoTotal, cantidad]});
 const hitoVivienda = (pct, icono, titulo)=>({id:"casa_"+pct, grupo:"objetivos", icono, titulo,
   hecho: pct===100 ? "Llenaste tu hucha de vivienda" : `Tu hucha de vivienda llegó al ${pct} %`, pista:`Llena el ${pct} % de una hucha de vivienda (con el icono 🏠).`,
@@ -41,14 +41,14 @@ const hitoRacha = (tipo, n)=>({id:`racha_${tipo}_${n}`, grupo:"rachas", icono: t
 const tieneHuchaLlena = (c, tema)=>objetivos.some(o=>temaObjetivo(o)===tema && objetivoCompletado(o));
 
 const HITOS = [
-  hitoPatrimonio("🥉", 500, "Primeros 500 €"),
-  hitoPatrimonio("🥉", 1000, "Primeros 1.000 €"),
-  hitoPatrimonio("🥈", 2500, "2.500 € de patrimonio"),
-  hitoPatrimonio("🥈", 5000, "5.000 €"),
-  hitoPatrimonio("🥇", 10000, "10.000 €"),
-  hitoPatrimonio("🏆", 25000, "25.000 €"),
-  hitoPatrimonio("💎", 50000, "50.000 €"),
-  hitoPatrimonio("🚀", 100000, "100.000 €"),
+  hitoPatrimonio("🥉", 500, x=>`Primeros ${x}`),
+  hitoPatrimonio("🥉", 1000, x=>`Primeros ${x}`),
+  hitoPatrimonio("🥈", 2500, x=>`${x} de patrimonio`),
+  hitoPatrimonio("🥈", 5000, x=>x),
+  hitoPatrimonio("🥇", 10000, x=>x),
+  hitoPatrimonio("🏆", 25000, x=>x),
+  hitoPatrimonio("💎", 50000, x=>x),
+  hitoPatrimonio("🚀", 100000, x=>x),
 
   {id:"mes_ahorro", grupo:"seguridad", icono:"🟢", titulo:"Primer mes con ahorro", hist:true,
     hecho:"Cerraste tu primer mes ahorrando", pista:"Termina un mes en el que entre más dinero del que gastas.",
@@ -66,10 +66,10 @@ const HITOS = [
   {id:"inv_primera", grupo:"inversion", icono:"📈", titulo:"Primera inversión",
     hecho:"Empezaste a invertir", pista:"Añade tu primera inversión.",
     eval:c=>({ok:c.hayInversion, fecha:c.valorInicialInv>0 ? null : c.primeraFechaInv})},
-  hitoInvertido("💵", 500, "Primeros 500 € invertidos"),
-  hitoInvertido("💵", 1000, "1.000 € invertidos"),
-  hitoInvertido("📊", 5000, "5.000 € invertidos"),
-  hitoInvertido("📊", 10000, "10.000 € invertidos"),
+  hitoInvertido("💵", 500, x=>`Primeros ${x} invertidos`),
+  hitoInvertido("💵", 1000, x=>`${x} invertidos`),
+  hitoInvertido("📊", 5000, x=>`${x} invertidos`),
+  hitoInvertido("📊", 10000, x=>`${x} invertidos`),
   {id:"inv_anio", grupo:"inversion", icono:"🔄", titulo:"Primer año invirtiendo",
     hecho:"Cumpliste un año invirtiendo", pista:"Sigue invirtiendo hasta que se cumpla un año desde tu primera inversión.",
     eval:c=>{

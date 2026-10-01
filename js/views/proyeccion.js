@@ -42,8 +42,8 @@ function renderProyeccion(){
     <h2>Proyección de patrimonio</h2>
     <p class="meta" style="margin:0 0 10px">Calcula cómo podría crecer tu dinero con aportaciones periódicas. Es una estimación, no una garantía: los mercados no crecen de forma constante.</p>
     <div class="row2">
-      <div><label>Capital inicial (€)</label><input type="number" step="0.01" id="proyInicial" value="${proy.inicial}"></div>
-      <div><label>Aportación mensual (€)</label><input type="number" step="0.01" id="proyAporte" value="${proy.aporte}"></div>
+      <div><label>Capital inicial (${simboloMoneda()})</label><input type="number" step="0.01" id="proyInicial" value="${proy.inicial}"></div>
+      <div><label>Aportación mensual (${simboloMoneda()})</label><input type="number" step="0.01" id="proyAporte" value="${proy.aporte}"></div>
     </div>
     <div class="row2">
       <div><label>Años</label><input type="number" step="1" min="1" max="60" id="proyAnios" value="${proy.anios}"></div>

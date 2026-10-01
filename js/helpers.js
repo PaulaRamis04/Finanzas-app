@@ -21,7 +21,49 @@ const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto"
 
 let ocultarSaldos = false;
 try{ ocultarSaldos = localStorage.getItem("ocultarSaldos")==="1"; }catch(e){}
-function eur(n){ return ocultarSaldos ? "•••• €" : (n<0?"-":"") + "€" + Math.abs(n).toFixed(2).replace(".",","); }
+
+// ── Moneda: solo cambia el símbolo y el formato de los números; los importes guardados no se convierten.
+// miles: separador de miles ("" = sin separar, como siempre en euros); dec: decimales que se muestran.
+const MONEDAS = {
+  EUR:{nombre:"Euro", simbolo:"€", miles:"", decimal:",", dec:2},
+  USD:{nombre:"Dólar estadounidense", simbolo:"$", miles:",", decimal:".", dec:2, pista:"EE. UU., Ecuador, El Salvador, Panamá, Puerto Rico"},
+  ARS:{nombre:"Peso argentino", simbolo:"$", miles:".", decimal:",", dec:2},
+  BOB:{nombre:"Boliviano", simbolo:"Bs ", miles:".", decimal:",", dec:2},
+  BRL:{nombre:"Real brasileño", simbolo:"R$ ", miles:".", decimal:",", dec:2},
+  CLP:{nombre:"Peso chileno", simbolo:"$", miles:".", decimal:",", dec:0},
+  COP:{nombre:"Peso colombiano", simbolo:"$", miles:".", decimal:",", dec:0},
+  CRC:{nombre:"Colón costarricense", simbolo:"₡", miles:".", decimal:",", dec:2},
+  CUP:{nombre:"Peso cubano", simbolo:"$", miles:",", decimal:".", dec:2},
+  DOP:{nombre:"Peso dominicano", simbolo:"RD$", miles:",", decimal:".", dec:2},
+  GTQ:{nombre:"Quetzal guatemalteco", simbolo:"Q", miles:",", decimal:".", dec:2},
+  HNL:{nombre:"Lempira hondureño", simbolo:"L ", miles:",", decimal:".", dec:2},
+  HTG:{nombre:"Gourde haitiano", simbolo:"G ", miles:",", decimal:".", dec:2},
+  MXN:{nombre:"Peso mexicano", simbolo:"$", miles:",", decimal:".", dec:2},
+  NIO:{nombre:"Córdoba nicaragüense", simbolo:"C$", miles:",", decimal:".", dec:2},
+  PAB:{nombre:"Balboa panameño", simbolo:"B/.", miles:",", decimal:".", dec:2},
+  PEN:{nombre:"Sol peruano", simbolo:"S/ ", miles:",", decimal:".", dec:2},
+  PYG:{nombre:"Guaraní paraguayo", simbolo:"₲", miles:".", decimal:",", dec:0},
+  UYU:{nombre:"Peso uruguayo", simbolo:"$", miles:".", decimal:",", dec:2},
+  VES:{nombre:"Bolívar venezolano", simbolo:"Bs. ", miles:".", decimal:",", dec:2}
+};
+let moneda = "EUR";
+try{ const m = localStorage.getItem("moneda"); if(MONEDAS[m]) moneda = m; }catch(e){}
+function monedaInfo(){ return MONEDAS[moneda] || MONEDAS.EUR; }
+function simboloMoneda(){ return monedaInfo().simbolo.trim(); }
+function cifra(n, dec = monedaInfo().dec, m = monedaInfo()){
+  const [ent, fr] = Math.abs(Number(n)||0).toFixed(dec).split(".");
+  const e = m.miles ? ent.replace(/\B(?=(\d{3})+(?!\d))/g, m.miles) : ent;
+  return fr ? e + m.decimal + fr : e;
+}
+function eur(n){ const m = monedaInfo(); return ocultarSaldos ? "•••• " + simboloMoneda() : (n<0?"-":"") + m.simbolo + cifra(n); }
+// Importe redondo para textos («Primeros 1.000 €»): en euros se mantiene el estilo de siempre, con el símbolo detrás.
+function importeRedondo(n){ return moneda==="EUR" ? `${cifra(n, 0, {miles:"."})} €` : monedaInfo().simbolo + cifra(n, 0); }
+// Importe para mensajes que se envían (Bizum): siempre con la cifra real, aunque estén ocultos los saldos.
+function importeMensaje(n){ return moneda==="EUR" ? `${cifra(n)} €` : monedaInfo().simbolo + cifra(n); }
+function fijarMoneda(m){
+  moneda = MONEDAS[m] ? m : "EUR";
+  try{ localStorage.setItem("moneda", moneda); }catch(e){}
+}
 
 function esc(s){
   if(s==null) return "";
