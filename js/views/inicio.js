@@ -107,7 +107,21 @@ function renderInicio(){
     <button class="btn ghost" data-ir-tab="Salud">Ver mi semáforo</button>
   </div>`;
 
+  // Gráfico de gasto acumulado: por días si hay un mes elegido, por meses si es el año entero.
+  const hoy = new Date();
   const porMes = periodoMes!=="todos";
+  const mesSel = Number(periodoMes);
+  const esActual = porMes ? (periodoAnio===hoy.getFullYear() && mesSel===hoy.getMonth()+1) : periodoAnio===hoy.getFullYear();
+  const nTramos = porMes ? new Date(periodoAnio, mesSel, 0).getDate() : 12;
+  const etiquetasGasto = porMes ? Array.from({length:nTramos}, (_,i)=>String(i+1)) : MESES.map(x=>x.slice(0,3));
+  const hastaTramo = esActual ? (porMes ? hoy.getDate() : hoy.getMonth()+1) : nTramos;
+  const gastoTramo = Array(nTramos).fill(0);
+  enP.filter(m=>m.tipo==="gasto" && m.categoria!=="Inversión").forEach(m=>{
+    const i = porMes ? Number(m.fecha.slice(8,10))-1 : Number(m.fecha.slice(5,7))-1;
+    if(i>=0 && i<nTramos) gastoTramo[i] = sumarDinero(gastoTramo[i], m.importe);
+  });
+  const acumulado = [];
+  gastoTramo.slice(0, hastaTramo).forEach(v=>acumulado.push(sumarDinero(acumulado.length ? acumulado[acumulado.length-1] : 0, v)));
   const presupuestoTotal = porMes ? presupuestos.reduce((s,p)=>sumarDinero(s, p.limite, rolloverAcumulado(p)), 0) : 0;
   const pctPat = patIni ? delta/Math.abs(patIni)*100 : 0;
   const nombre = (session?.user?.user_metadata?.full_name || "").trim().split(/\s+/)[0];
@@ -144,6 +158,14 @@ function renderInicio(){
   <div class="card barras-mes">
     <h2>${porMes ? MESES[Number(periodoMes)-1] : "Año "+periodoAnio} de un vistazo</h2>
     ${barrasMes(gastosReales, presupuestoTotal, ingresos, inversionMes, disponible, tAnt ? comparar(gastosReales, tAnt.gastos, false) : "")}
+  </div>
+  <div class="card grafico" id="graficoGastoInicio">
+    <h2 style="margin-bottom:6px">Gasto de ${porMes ? MESES[mesSel-1].toLowerCase() : periodoAnio}</h2>
+    <div class="meta" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+      <span style="width:9px;height:9px;border-radius:50%;background:var(--mint);display:inline-block"></span>
+      ${porMes ? "Lo que llevas gastado día a día" : "Lo que llevas gastado mes a mes"}${presupuestoTotal>0 ? ` · <span style="color:var(--accent)">- - -</span> presupuesto` : ""}
+    </div>
+    <div style="margin-top:10px">${graficoGastoMes(acumulado, etiquetasGasto, presupuestoTotal, porMes ? etiquetasGasto.map(d=>`${d} ${MESES[mesSel-1].slice(0,3).toLowerCase()}`) : MESES.map(m=>`Hasta ${m.toLowerCase()}`))}</div>
   </div>
   <div class="tit-fila" style="margin-top:22px"><h2>Acciones rápidas</h2>${accionesElegidas().length ? `<button class="auth-link" data-editar-acciones="1">Editar</button>` : ""}</div>
   <div class="acciones">

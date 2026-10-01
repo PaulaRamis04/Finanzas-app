@@ -153,6 +153,10 @@ prueba("Inicio muestra saldo, barras del mes, acciones y recientes", async ()=>{
   assert.deepStrictEqual(await p.$$eval(".hero-grid span", s=>s.map(x=>x.textContent)), ["Disponible","Inversiones","Me deben","Debo"]);
   assert.strictEqual(await p.$$eval(".barra-mes", b=>b.length), 3);
   assert.match(await p.$$eval(".barra-cab", b=>b[1].innerText), /Ahorro\s*€200,00/, "el ahorro es lo apartado, no lo que sobra");
+  assert.match(txt, /Gasto de \w+/);
+  assert.ok(await p.isVisible("#graficoGastoInicio svg circle"), "gráfica del gasto acumulado día a día");
+  const dias = await p.evaluate(()=>periodoMes==="todos" ? null : new Date(periodoAnio, Number(periodoMes), 0).getDate());
+  if(dias) assert.match(await p.$eval("#graficoGastoInicio svg", s=>s.textContent), new RegExp(`${dias}\\s*$`), "el eje va hasta el último día del mes");
   assert.match(txt, /Movimientos recientes/);
   assert.ok(await p.isHidden("header"), "en Inicio no se ve la cabecera");
   assert.strictEqual(await p.$$eval("[data-accion]", b=>b.length), 0, "las acciones rápidas empiezan vacías");
