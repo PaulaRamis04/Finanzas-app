@@ -4,6 +4,7 @@
 // el texto y, si quieres, la pestaña a la que lleva al tocarla (tab). Las más recientes, arriba.
 const NOVEDADES = [
   // { id:"ejemplo", fecha:"2026-10-01", tab:"Inicio", titulo:"", texto:"" },
+  { id:"medidor-contrasena", fecha:"2026-10-01", tab:"", titulo:"", texto:"" },
   { id:"saldo-mes-pasado", fecha:"2026-10-01", tab:"Inicio",      titulo:"", texto:"" },
   { id:"vibracion-sonido", fecha:"2026-10-01", tab:"Preferencias", titulo:"", texto:"" },
   { id:"moneda",          fecha:"2026-10-01", tab:"Preferencias", titulo:"", texto:"" },
