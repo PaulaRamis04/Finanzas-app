@@ -37,7 +37,7 @@ function movItem(m, cubMov, pendMov){
     ${meDebenMovId===m.id? `
     <label>¿Quién te lo debe?</label>
     <input id="mdPersona" placeholder="ej. Marta">
-    <label>Cuánto te deben (€)</label>
+    <label>Cuánto te deben (${simboloMoneda()})</label>
     <input id="mdImporte" type="number" step="0.01" min="0.01" value="${m.importe}">
     <div class="meta">Se crea una deuda "me deben" vinculada a este gasto. Hasta que la saldes no cambia nada; cuando la cobres, esa cantidad dejará de contar como gasto tuyo (mes, resumen y presupuesto).</div>
     <div style="display:flex;gap:8px">
@@ -53,7 +53,7 @@ function movItem(m, cubMov, pendMov){
     <label>Categoría</label>
     <select id="movEditCategoria">${opcionesCategoriaPend(m.tipo, m.categoria)}</select>
     <div class="row2">
-      <div><label>Importe (€)</label><input id="movEditImporte" type="number" step="0.01" min="0.01" value="${m.importe}"></div>
+      <div><label>Importe (${simboloMoneda()})</label><input id="movEditImporte" type="number" step="0.01" min="0.01" value="${m.importe}"></div>
       <div><label>Fecha</label><input id="movEditFecha" type="date" value="${m.fecha}"></div>
     </div>
     <label>Cuenta</label>
@@ -88,7 +88,7 @@ function renderMovimientos(){
     <form id="fMov">
       <div class="row2">
         <div><label>Tipo</label><select name="tipo" id="movTipo"><option value="gasto"${(!movPlantilla||movPlantilla.tipo==="gasto")?" selected":""}>Gasto</option><option value="ingreso"${movPlantilla&&movPlantilla.tipo==="ingreso"?" selected":""}>Ingreso</option></select></div>
-        <div><label>Importe (€)</label><input name="importe" id="movImporte" type="number" step="0.01" min="0.01" value="${movPlantilla?movPlantilla.importe:''}" required></div>
+        <div><label>Importe (${simboloMoneda()})</label><input name="importe" id="movImporte" type="number" step="0.01" min="0.01" value="${movPlantilla?movPlantilla.importe:''}" required></div>
       </div>
       <div class="row2">
         <div><label>Categoría</label><select name="categoria" id="movCat"></select></div>
@@ -109,7 +109,7 @@ function renderMovimientos(){
         <div><label>Hacia</label><select name="destino" id="trDestino">${opcionesCuentas()}</select></div>
       </div>
       <div class="row2">
-        <div><label>Importe (€)</label><input name="importe" type="number" step="0.01" min="0.01" required></div>
+        <div><label>Importe (${simboloMoneda()})</label><input name="importe" type="number" step="0.01" min="0.01" required></div>
         <div><label>Fecha</label><input name="fecha" type="date" value="${today()}" required></div>
       </div>
       <div><label>Nota (opcional)</label><input name="nota" placeholder="ej. traspaso a ahorro"></div>

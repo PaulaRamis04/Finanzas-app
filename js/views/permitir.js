@@ -158,7 +158,7 @@ function renderPermitir(){
     <p class="meta" style="margin:0 0 10px">Escribe lo que te quieres comprar y mira cómo quedaría todo después.</p>
     <div class="row2">
       <div><label for="permConcepto">¿Qué es?</label><input id="permConcepto" placeholder="ej. 📱 Móvil nuevo" value="${esc(permitir.concepto)}"></div>
-      <div><label for="permImporte">Precio (€)</label><input id="permImporte" type="number" step="0.01" min="0" inputmode="decimal" placeholder="650" value="${esc(permitir.importe)}"></div>
+      <div><label for="permImporte">Precio (${simboloMoneda()})</label><input id="permImporte" type="number" step="0.01" min="0" inputmode="decimal" placeholder="650" value="${esc(permitir.importe)}"></div>
     </div>
     <div class="row2">
       <div><label for="permCategoria">Categoría</label><select id="permCategoria">${catsGasto.map(c=>`<option value="${esc(c.nombre)}"${c.nombre===permitir.categoria?" selected":""}>${esc(c.nombre)}</option>`).join("")}</select></div>

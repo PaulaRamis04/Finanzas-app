@@ -33,7 +33,7 @@ function renderRecurrentes(){
     <form id="fRecurrente">
       <div class="row2">
         <div><label>Tipo</label><select name="tipo" id="recTipo"><option value="gasto">Gasto</option><option value="ingreso">Ingreso</option></select></div>
-        <div><label>Importe (€)</label><input name="importe" type="number" step="0.01" min="0.01" required></div>
+        <div><label>Importe (${simboloMoneda()})</label><input name="importe" type="number" step="0.01" min="0.01" required></div>
       </div>
       <div class="row2">
         <div><label>Categoría</label><select name="categoria" id="recCategoria" required></select></div>

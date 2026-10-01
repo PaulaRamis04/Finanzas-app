@@ -85,7 +85,7 @@ function renderObjetivos(){
       </div>
       ${editarAutoObjId===o.id? `
       <div class="item" style="flex-direction:column;align-items:stretch;gap:8px;margin-top:10px">
-        <label>Cuota mensual (€)</label>
+        <label>Cuota mensual (${simboloMoneda()})</label>
         <input type="number" step="0.01" min="0.01" id="autoObjCuota" value="${o.autoCuota||''}">
         <label>Día del mes</label>
         <input type="number" min="1" max="28" id="autoObjDia" value="${o.autoDiaMes||1}">
@@ -100,7 +100,7 @@ function renderObjetivos(){
       </div>` : ""}
       ${huchaMeterId===o.id? `
       <div class="item" style="flex-direction:column;align-items:stretch;gap:8px;margin-top:10px">
-        <label for="huchaImporte">Importe (€)</label>
+        <label for="huchaImporte">Importe (${simboloMoneda()})</label>
         <input type="number" step="0.01" min="0.01" id="huchaImporte" inputmode="decimal">
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn" data-hucha-mover="${o.id}" data-signo="1">Echar a la hucha</button>
@@ -122,7 +122,7 @@ function renderObjetivos(){
     <form id="fObjetivo">
       <div class="row2">
         <div><label>Nombre</label><input name="nombre" placeholder="ej. Viaje a Japón" required></div>
-        <div><label>Meta (€)</label><input name="meta" type="number" step="0.01" min="0" required></div>
+        <div><label>Meta (${simboloMoneda()})</label><input name="meta" type="number" step="0.01" min="0" required></div>
       </div>
       <label>Icono <span class="meta">(si no eliges, lo pongo según el nombre)</span></label>
       ${selectorTemas(null)}
