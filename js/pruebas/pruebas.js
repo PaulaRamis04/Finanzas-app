@@ -764,6 +764,48 @@ prueba("¿qué pasaría si…?: compara patrimonio a 1, 3, 5 y 10 años y las hu
   assert.ok(!(await p.textContent('[data-sim-anio="1"]')).includes("+"));
 });
 
+prueba("beta: entra sin cuenta con datos de ejemplo y todas las pestañas funcionan", async ()=>{
+  const p = await navegador.newPage({viewport:MOVIL});
+  p.on("pageerror", e=>errores.push(e.message));
+  await p.goto("file://" + HTML_PRUEBA + "?sinsesion=1");
+  await p.waitForSelector("#fLogin", {state:"visible"});
+  await Promise.all([p.waitForNavigation(), p.click("text=Probar sin cuenta (beta)")]);
+  await p.waitForFunction(()=>typeof ready!=="undefined" && ready);
+  assert.ok(await p.isVisible("#avisoBeta"));
+  assert.strictEqual(await p.evaluate(()=>session.user.id), "beta");
+  assert.deepStrictEqual(await p.evaluate(()=>cuentas.map(c=>c.nombre)), ["Banco","Ahorro"]);
+  assert.ok(await p.evaluate(()=>categorias.length>0), "crea las categorías por defecto");
+  assert.ok(await p.evaluate(()=>movimientos.some(m=>m.recurrenteId==="spotify")), "genera los recurrentes");
+  assert.ok(await p.evaluate(()=>esPremium));
+  for(const t of PESTANAS){
+    await p.evaluate(t=>{ tab = t; render(); }, t);
+    assert.ok((await p.evaluate(()=>document.getElementById("app").innerText)).trim().length > 0, t);
+  }
+});
+prueba("beta: lo que se apunta se guarda al recargar, se puede vaciar y salir", async ()=>{
+  const p = await abrir("?beta=1");
+  const saldo = await p.evaluate(()=>saldoCuenta(cuentas.find(c=>c.id==="banco")));
+  await p.evaluate(async ()=>{
+    await sb.from("movimientos").insert({tipo:"gasto", categoria:"Comer", importe:9.5, fecha:today(), nota:"prueba beta", cuenta_id:"banco"});
+    await sb.rpc("crear_transferencia", {p_cuenta_origen:"banco", p_cuenta_destino:"ahorro", p_importe:50, p_fecha:today(), p_nota:""});
+    await sb.rpc("ajustar_saldo_cuenta", {p_cuenta_id:"ahorro", p_saldo_real:5000});
+  });
+  await p.reload();
+  await p.waitForFunction(()=>typeof ready!=="undefined" && ready);
+  assert.ok(await p.evaluate(()=>movimientos.some(m=>m.nota==="prueba beta")));
+  assert.strictEqual(await p.evaluate(()=>saldoCuenta(cuentas.find(c=>c.id==="banco"))), restarDineroPrueba(saldo, 59.5));
+  assert.strictEqual(await p.evaluate(()=>saldoCuenta(cuentas.find(c=>c.id==="ahorro"))), 5000);
+  await Promise.all([p.waitForNavigation(), p.click("#betaReiniciar")]);
+  await p.waitForFunction(()=>typeof ready!=="undefined" && ready);
+  assert.strictEqual(await p.evaluate(()=>cuentas.length + movimientos.length), 0);
+  // Al salir vuelve la sesión real que ya hubiera en el dispositivo.
+  await Promise.all([p.waitForNavigation(), p.click("#betaSalir")]);
+  await p.waitForFunction(()=>typeof ready!=="undefined" && ready);
+  assert.strictEqual(await p.evaluate(()=>localStorage.getItem("modoBeta")), null);
+  assert.strictEqual(await p.evaluate(()=>session.user.id), "u1");
+  assert.strictEqual(await p.$("#avisoBeta"), null);
+});
+
 (async ()=>{
   const html = fs.readFileSync(path.join(RAIZ, "index.html"), "utf8");
   const conSimulado = html.replace(/<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase[^>]*><\/script>/, '<script src="pruebas/supabase_simulado.js"></script>');
