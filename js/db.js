@@ -19,6 +19,17 @@ async function guardarCuentaDefecto(id){
   return true;
 }
 
+async function guardarMoneda(m){
+  fijarMoneda(m);
+  const {error} = await sb.from("preferencias").upsert({user_id: session.user.id, moneda});
+  if(error){
+    showError("La moneda se ha guardado solo en este dispositivo. Para guardarla en tu cuenta, ejecuta schema_moneda.sql en Supabase. ("+error.message+")");
+    return false;
+  }
+  hideError();
+  return true;
+}
+
 // Movimientos: se cargan desde la fecha más antigua que necesita la vista actual.
 let movForzarDesde = null; // mínimo pedido a mano (año anterior, abonos antiguos, importación, copia)
 function fechaMes(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-01`; }
@@ -231,6 +242,7 @@ const TABLAS = {
   preferencias: { q:()=>sb.from("preferencias").select("*"), opcional:true, sinRealtime:true,
     set:d=>{ if(!d[0]) return;
       cuentaDefecto = d[0].cuenta_defecto || "";
+      if(MONEDAS[d[0].moneda]) fijarMoneda(d[0].moneda);
       try{ if(cuentaDefecto) localStorage.setItem("cuentaDefecto", cuentaDefecto); else localStorage.removeItem("cuentaDefecto"); }catch(e){} } }
 };
 
@@ -414,7 +426,7 @@ async function startApp(){
 // ── Perfiles: varias cuentas recordadas en este dispositivo ──
 // Cada perfil guarda su sesión de Supabase y sus preferencias locales. Para cambiar se escribe
 // su sesión donde la lee supabase-js y se recarga (sin cerrar la de las demás en el servidor).
-const PREFS_PERFIL = ["cuentaDefecto","objCompletados","catsContraidas","formsPorDefecto","personalizacion","fondoImagen","avisosVistos","accionesRapidas","hitos","saludConfig"];
+const PREFS_PERFIL = ["cuentaDefecto","objCompletados","catsContraidas","formsPorDefecto","personalizacion","fondoImagen","avisosVistos","accionesRapidas","hitos","saludConfig","moneda"];
 const claveSesionSb = ()=> sb.auth.storageKey || `sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`;
 function leerPerfiles(){ try{ const a = JSON.parse(localStorage.getItem("perfiles")||"[]"); return Array.isArray(a) ? a : []; }catch(e){ return []; } }
 function escribirPerfiles(l){ try{ localStorage.setItem("perfiles", JSON.stringify(l)); }catch(e){} }

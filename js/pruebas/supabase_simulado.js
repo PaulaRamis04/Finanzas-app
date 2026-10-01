@@ -78,7 +78,7 @@
         match.forEach(r=>Object.assign(r, this.data)); return {data:null, error:null};
       }
       if(this.op==="delete"){ db[this.t] = tabla.filter(r=>!match.includes(r)); return {error:null}; }
-      if(this.op==="upsert"){ db[this.t] = [this.data]; return {error:null}; }
+      if(this.op==="upsert"){ db[this.t] = [{...(db[this.t][0]||{}), ...this.data}]; return {error:null}; }
     }
   }
   const listeners = [];

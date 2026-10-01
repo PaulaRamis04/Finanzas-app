@@ -10,6 +10,12 @@ function renderPreferencias(){
     <div class="meta" id="prefEstado" style="margin-top:8px"></div>
   </div>
   <div class="card">
+    <h2>Moneda</h2>
+    <p class="meta" style="margin:0 0 10px">Cambia el símbolo y el formato con el que se muestran los importes. Tus cantidades no se convierten: solo cambia cómo se ven.</p>
+    <select id="prefMoneda">${opcionesMoneda()}</select>
+    <div class="meta" id="prefMonedaEjemplo" style="margin-top:8px">Así se verá: ${eur(1234.56)}</div>
+  </div>
+  <div class="card">
     <h2>Formularios para añadir</h2>
     <p class="meta" style="margin:0 0 10px">Los huecos para añadir un movimiento, una deuda, una cuenta, una inversión, etc. pueden salir desplegados o contraídos al entrar. Se abren y cierran tocando su título. Esta preferencia se guarda en este dispositivo.</p>
     <select id="prefForms">
@@ -36,6 +42,12 @@ function renderPreferencias(){
     <h2>Privacidad</h2>
     <p class="meta" style="margin:0">Qué datos guarda la app y cómo se protegen: <a href="privacidad.html" target="_blank" rel="noopener">Política de privacidad</a>.</p>
   </div>`;
+}
+
+function opcionesMoneda(){
+  const opcion = c=>{ const m = MONEDAS[c]; return `<option value="${c}"${c===moneda?" selected":""}>${esc(m.nombre)} (${c}, ${esc(m.simbolo.trim())})${m.pista?` · ${esc(m.pista)}`:""}</option>`; };
+  const latam = Object.keys(MONEDAS).filter(c=>c!=="EUR" && c!=="USD").sort((a,b)=>MONEDAS[a].nombre.localeCompare(MONEDAS[b].nombre, "es"));
+  return opcion("EUR") + opcion("USD") + `<optgroup label="Latinoamérica">${latam.map(opcion).join("")}</optgroup>`;
 }
 
 function wireEventosPreferencias(){
@@ -102,6 +114,12 @@ function wireEventosPreferencias(){
     formsPorDefecto = prefForms.value === "cerrados" ? "cerrados" : "abiertos";
     formsEstado = {};
     try{ localStorage.setItem("formsPorDefecto", formsPorDefecto); }catch(e){}
+  };
+  const prefMoneda = document.getElementById("prefMoneda");
+  if(prefMoneda) prefMoneda.onchange = async ()=>{
+    fijarMoneda(prefMoneda.value);
+    render();
+    await guardarMoneda(moneda);
   };
   const prefCuenta = document.getElementById("prefCuenta");
   if(prefCuenta) prefCuenta.onchange = async ()=>{

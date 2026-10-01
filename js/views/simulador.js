@@ -3,18 +3,18 @@
 
 const SIM_HORIZONTES = [1,3,5,10];
 const SIM_TIPOS = {
-  ahorro:  {texto:"Ahorro más al mes", pide:"€ más al mes", frase:c=>`Ahorro ${eur(c.valor)} más al mes`},
-  gasto:   {texto:"Gasto menos al mes", pide:"€ menos al mes", frase:c=>`Gasto ${eur(c.valor)} menos al mes`},
-  sueldo:  {texto:"Cobro al mes", pide:"€ al mes", frase:c=>`Cobro ${eur(c.valor)} al mes`},
-  invertir:{texto:"Invierto al mes", pide:"€ al mes", frase:c=>`Invierto ${eur(c.valor)} al mes`},
+  ahorro:  {texto:"Ahorro más al mes", get pide(){ return `${simboloMoneda()} más al mes`; }, frase:c=>`Ahorro ${eur(c.valor)} más al mes`},
+  gasto:   {texto:"Gasto menos al mes", get pide(){ return `${simboloMoneda()} menos al mes`; }, frase:c=>`Gasto ${eur(c.valor)} menos al mes`},
+  sueldo:  {texto:"Cobro al mes", get pide(){ return `${simboloMoneda()} al mes`; }, frase:c=>`Cobro ${eur(c.valor)} al mes`},
+  invertir:{texto:"Invierto al mes", get pide(){ return `${simboloMoneda()} al mes`; }, frase:c=>`Invierto ${eur(c.valor)} al mes`},
   pausa:   {texto:"Dejo de invertir durante", pide:"meses", frase:c=>`Durante ${c.valor} ${c.valor===1?"mes":"meses"} no invierto`}
 };
 const SIM_EJEMPLOS = [
-  {tipo:"ahorro", valor:100, texto:"Ahorro 100 € más"},
-  {tipo:"sueldo", valor:1800, texto:"Cobro 1.800 €/mes"},
-  {tipo:"invertir", valor:300, texto:"Invierto 300 €/mes"},
+  {tipo:"ahorro", valor:100, get texto(){ return `Ahorro ${importeRedondo(100)} más`; }},
+  {tipo:"sueldo", valor:1800, get texto(){ return `Cobro ${importeRedondo(1800)}/mes`; }},
+  {tipo:"invertir", valor:300, get texto(){ return `Invierto ${importeRedondo(300)}/mes`; }},
   {tipo:"pausa", valor:12, texto:"Un año sin invertir"},
-  {tipo:"gasto", valor:100, texto:"Gasto 100 € menos"}
+  {tipo:"gasto", valor:100, get texto(){ return `Gasto ${importeRedondo(100)} menos`; }}
 ];
 
 // base: {ingresos, gastos, inversion, cuentas, invertido, tasa} (null = aún sin calcular desde tus datos)
@@ -190,9 +190,9 @@ function renderSimulador(){
   <div class="card">
     <h2>Tu punto de partida</h2>
     <p class="meta" style="margin:0 0 10px">${b.meses? `Media de tus ${b.meses===1?"último mes":`últimos ${b.meses} meses`} completos.` : "Aún no hay movimientos de meses completos: pon tus cifras a mano."} Puedes ajustarlo.</p>
-    <div class="row2">${campo("simIngresos","Ingresos al mes (€)",b.ingresos)}${campo("simGastos","Gastos al mes (€)",b.gastos)}</div>
-    <div class="row2">${campo("simInversion","Inviertes al mes (€)",b.inversion)}${campo("simTasa","Rentabilidad anual (%)",b.tasa,"0.1")}</div>
-    <div class="row2">${campo("simCuentas","En tus cuentas hoy (€)",b.cuentas)}${campo("simInvertido","Invertido hoy (€)",b.invertido)}</div>
+    <div class="row2">${campo("simIngresos",`Ingresos al mes (${simboloMoneda()})`,b.ingresos)}${campo("simGastos",`Gastos al mes (${simboloMoneda()})`,b.gastos)}</div>
+    <div class="row2">${campo("simInversion",`Inviertes al mes (${simboloMoneda()})`,b.inversion)}${campo("simTasa","Rentabilidad anual (%)",b.tasa,"0.1")}</div>
+    <div class="row2">${campo("simCuentas",`En tus cuentas hoy (${simboloMoneda()})`,b.cuentas)}${campo("simInvertido",`Invertido hoy (${simboloMoneda()})`,b.invertido)}</div>
     <button class="btn ghost" id="simRecalcular" style="margin-top:10px">Volver a mis datos</button>
   </div>`;
 }

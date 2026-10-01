@@ -92,7 +92,7 @@ function invItem(inv, conGrip){
   ${verAportacionesId===inv.id? renderListaAportaciones(inv) : ""}
   ${aportarInvId===inv.id? `
   <div class="item" style="flex-direction:column;align-items:stretch;gap:8px">
-    <label>Importe a aportar (€)</label>
+    <label>Importe a aportar (${simboloMoneda()})</label>
     <input type="number" step="0.01" min="0.01" id="aportarImporte" value="${inv.importePrevisto||''}">
     <label>Cuenta de origen</label>
     ${cuentasActivas().length? `<select id="aportarCuenta">${opcionesCuentas(inv.cuentaPrevistaId)}</select>` : `<div class="meta">Crea antes una cuenta en la pestaña "Cuentas".</div>`}
@@ -103,7 +103,7 @@ function invItem(inv, conGrip){
   </div>` : ""}
   ${rescatarInvId===inv.id? `
   <div class="item" style="flex-direction:column;align-items:stretch;gap:8px">
-    <label>Importe a rescatar (€) — máximo ${eur(inv.valorActual)}</label>
+    <label>Importe a rescatar (${simboloMoneda()}) — máximo ${eur(inv.valorActual)}</label>
     <input type="number" step="0.01" min="0.01" max="${inv.valorActual}" id="rescatarImporte">
     <label>Cuenta destino</label>
     ${cuentasActivas().length? `<select id="rescatarCuenta">${opcionesCuentas()}</select>` : `<div class="meta">Crea antes una cuenta en la pestaña "Cuentas".</div>`}
@@ -114,7 +114,7 @@ function invItem(inv, conGrip){
   </div>` : ""}
   ${rentasInvId===inv.id? `
   <div class="item" style="flex-direction:column;align-items:stretch;gap:8px">
-    <label>Cantidad (€)</label>
+    <label>Cantidad (${simboloMoneda()})</label>
     <input type="number" step="0.01" id="rentasImporte">
     <p class="meta" style="margin:0">Llevas ${eur(inv.rentas||0)} en rentas. Es solo un recuento: no cambia el valor de la inversión, ni el patrimonio, ni crea movimientos. Para corregir un error, suma una cantidad negativa o fija el total.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -125,7 +125,7 @@ function invItem(inv, conGrip){
   </div>` : ""}
   ${editarValorInvId===inv.id? `
   <div class="item" style="flex-direction:column;align-items:stretch;gap:8px">
-    <label>Nuevo valor actual (€)</label>
+    <label>Nuevo valor actual (${simboloMoneda()})</label>
     <input type="number" step="0.01" id="valorNuevo" value="${inv.valorActual}">
     <div style="display:flex;gap:8px">
       <button class="btn" data-confirmar-valor="${inv.id}">Guardar</button>
@@ -139,7 +139,7 @@ function invItem(inv, conGrip){
     ${grupos().length? `<label>Grupo</label><select id="infoGrupo"><option value="">Sin grupo</option>${opcionesGrupos(inv.padreId)}</select>` : ""}
     ${!esActiva? `
     <label>Fecha prevista</label><input id="infoFechaPrevista" type="date" value="${inv.fechaPrevista||''}">
-    <label>Importe previsto (€)</label><input id="infoImportePrevisto" type="number" step="0.01" min="0" value="${inv.importePrevisto??''}">
+    <label>Importe previsto (${simboloMoneda()})</label><input id="infoImportePrevisto" type="number" step="0.01" min="0" value="${inv.importePrevisto??''}">
     <label>Cuenta prevista</label>
     ${cuentasActivas().length? `<select id="infoCuentaPrevista"><option value="">Sin elegir todavía</option>${cuentas.filter(c=>!c.archivada || c.id===inv.cuentaPrevistaId).map(c=>`<option value="${c.id}" ${c.id===inv.cuentaPrevistaId?"selected":""}>${esc(c.nombre)}</option>`).join("")}</select>` : `<div class="meta">Crea una cuenta cuando quieras usarla.</div>`}
     ` : ""}
@@ -189,11 +189,11 @@ function renderInversiones(){
       </div>
       ${grupos().length? `<div><label>Grupo (opcional)</label><select name="grupoId"><option value="">Sin grupo</option>${opcionesGrupos()}</select></div>` : ""}
       <div><label>Estado</label><select name="estado" id="invEstado"><option value="activa">Activa — ya tengo dinero invertido</option><option value="planificada">Planificada — todavía no he aportado nada</option></select></div>
-      <div id="invValorWrap"><label>Valor actual inicial (€)</label><input name="valorActual" type="number" step="0.01" value="0" id="invValorInput" required></div>
+      <div id="invValorWrap"><label>Valor actual inicial (${simboloMoneda()})</label><input name="valorActual" type="number" step="0.01" value="0" id="invValorInput" required></div>
       <div id="invPlanWrap" style="display:none">
         <div class="row2">
           <div><label>Fecha prevista</label><input name="fechaPrevista" type="date"></div>
-          <div><label>Importe previsto (€)</label><input name="importePrevisto" type="number" step="0.01" min="0"></div>
+          <div><label>Importe previsto (${simboloMoneda()})</label><input name="importePrevisto" type="number" step="0.01" min="0"></div>
         </div>
         <label>Cuenta prevista</label>
         ${cuentasActivas().length? `<select name="cuentaPrevista"><option value="">Sin elegir todavía</option>${opcionesCuentas(null, true)}</select>` : `<div class="meta">Crea una cuenta cuando quieras usarla.</div>`}

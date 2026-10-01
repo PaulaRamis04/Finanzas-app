@@ -238,6 +238,41 @@ prueba("el ojito oculta todos los importes y se recuerda", async ()=>{
   await p.click("#btnOjo");
   assert.match(await p.evaluate(()=>document.getElementById("app").innerText), /€\d/);
 });
+prueba("formato de cada moneda", ()=>{
+  const ctx = {};
+  new Function("ctx", fs.readFileSync(path.join(RAIZ, "js/helpers.js"), "utf8") + "\nctx.h = {eur, fijarMoneda, importeRedondo, importeMensaje};")(ctx);
+  const {eur, fijarMoneda, importeRedondo, importeMensaje} = ctx.h;
+  assert.strictEqual(eur(1234.5), "€1234,50", "el euro se ve como siempre");
+  assert.strictEqual(eur(-12), "-€12,00");
+  assert.strictEqual(importeRedondo(1000), "1.000 €");
+  assert.strictEqual(importeMensaje(12), "12,00 €");
+  fijarMoneda("USD"); assert.strictEqual(eur(1234.5), "$1,234.50");
+  fijarMoneda("COP"); assert.strictEqual(eur(1234567.89), "$1.234.568", "el peso colombiano va sin decimales");
+  fijarMoneda("PEN"); assert.strictEqual(eur(-1234.5), "-S/ 1,234.50");
+  fijarMoneda("XXX"); assert.strictEqual(eur(1), "€1,00", "una moneda desconocida vuelve al euro");
+});
+prueba("la moneda se elige en Preferencias, cambia todos los importes y se guarda en la cuenta", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>{ tab = "Preferencias"; render(); });
+  await p.selectOption("#prefMoneda", "MXN");
+  await p.waitForFunction(()=>__db.preferencias[0]?.moneda==="MXN");
+  assert.match(await p.textContent("#prefMonedaEjemplo"), /\$1,234\.56/);
+  await p.evaluate(()=>{ tab = "Inicio"; render(); });
+  let txt = await p.evaluate(()=>document.getElementById("app").innerText);
+  assert.ok(!/€/.test(txt), "no queda ningún € en Inicio");
+  assert.match(txt, /\$\d/);
+  await p.evaluate(()=>{ tab = "Hitos"; render(); });
+  assert.match(await p.evaluate(()=>document.getElementById("app").innerText), /Primeros \$500/);
+  await p.evaluate(()=>{ tab = "Movimientos"; render(); });
+  assert.match(await p.evaluate(()=>document.getElementById("app").innerText), /Importe \(\$\)/);
+  // Otro dispositivo (sin nada en localStorage) la recupera de la cuenta.
+  await p.evaluate(async ()=>{ fijarMoneda("EUR"); localStorage.removeItem("moneda"); await recargar(["preferencias"]); });
+  assert.strictEqual(await p.evaluate(()=>moneda), "MXN");
+  await p.evaluate(()=>{ tab = "Preferencias"; render(); });
+  await p.selectOption("#prefMoneda", "EUR");
+  await p.waitForFunction(()=>__db.preferencias[0]?.moneda==="EUR");
+  assert.match(await p.textContent("#prefMonedaEjemplo"), /€1234,56/);
+});
 prueba("Objetivos: el resumen de arriba suma lo ahorrado, no la meta", async ()=>{
   const p = await abrir();
   const txt = await p.evaluate(()=>{

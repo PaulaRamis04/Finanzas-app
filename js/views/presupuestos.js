@@ -34,7 +34,7 @@ function renderPresupuestos(){
         <div><label>Categoría</label>
           ${catsSinPresupuesto.length? `<select name="categoria">${catsSinPresupuesto.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join("")}</select>` : `<div class="meta">Todas tus categorías de gasto ya tienen presupuesto.</div>`}
         </div>
-        <div><label>Límite mensual (€)</label><input name="limite" type="number" step="0.01" min="0" required></div>
+        <div><label>Límite mensual (${simboloMoneda()})</label><input name="limite" type="number" step="0.01" min="0" required></div>
       </div>
       <button class="btn" type="submit" ${catsSinPresupuesto.length?"":"disabled"}>Añadir</button>
     </form>
@@ -70,7 +70,7 @@ function renderPresupuestos(){
       </div>
       ${editarPresupuestoId===p.id? `
       <div class="item" style="flex-direction:column;align-items:stretch;gap:8px">
-        <label>Nuevo límite mensual (€)</label>
+        <label>Nuevo límite mensual (${simboloMoneda()})</label>
         <input type="number" step="0.01" min="0" id="presupuestoNuevoLimite" value="${p.limite}">
         <div style="display:flex;gap:8px">
           <button class="btn" data-confirmar-presupuesto="${p.id}">Guardar</button>

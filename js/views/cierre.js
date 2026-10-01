@@ -180,8 +180,8 @@ function dibujarCierre(canvas, d, ocultar){
 
 // Importe sin céntimos cuando es redondo, para que la tarjeta respire
 function eur0(n){
-  const s = Math.abs(n).toFixed(2).replace(".",",");
-  return (n<0?"-":"") + "€" + (s.endsWith(",00") ? s.slice(0,-3) : s);
+  const m = monedaInfo(), s = cifra(n), cero = m.dec ? m.decimal + "0".repeat(m.dec) : "";
+  return (n<0?"-":"") + m.simbolo + (cero && s.endsWith(cero) ? s.slice(0,-cero.length) : s);
 }
 
 // ── Exportar ──
