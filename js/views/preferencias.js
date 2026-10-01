@@ -31,6 +31,10 @@ function renderPreferencias(){
     <p class="meta" style="margin:0 0 6px">Para confirmar, escribe <b>ELIMINAR</b>:</p>
     <input id="borrarCuentaTexto" autocomplete="off" autocapitalize="characters" placeholder="ELIMINAR" style="margin-bottom:10px">
     <button class="btn ghost" id="btnBorrarCuenta" disabled>Eliminar mi cuenta y mis datos</button>
+  </div>
+  <div class="card">
+    <h2>Privacidad</h2>
+    <p class="meta" style="margin:0">Qué datos guarda la app y cómo se protegen: <a href="privacidad.html" target="_blank" rel="noopener">Política de privacidad</a>.</p>
   </div>`;
 }
 
