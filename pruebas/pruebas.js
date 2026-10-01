@@ -1001,6 +1001,19 @@ prueba("¿qué pasaría si…?: compara patrimonio a 1, 3, 5 y 10 años y las hu
   assert.ok(!(await p.textContent('[data-sim-anio="1"]')).includes("+"));
 });
 
+prueba("presupuestos: enseña lo que queda y, si te pasas, cuánto", async ()=>{
+  const p = await abrir("", {width:1280, height:800});
+  await p.click('.menu-item[data-tab="Presupuestos"]');
+  const datos = await p.evaluate(()=>{
+    const gasto = {};
+    movimientosEfectivos().filter(m=>m.tipo==="gasto").forEach(m=>gasto[m.categoria]=(gasto[m.categoria]||0)+m.importe);
+    return presupuestos.map(x=>({cat:x.categoria, queda:x.limite-(gasto[x.categoria]||0)}));
+  });
+  const txt = await p.evaluate(()=>document.getElementById("app").innerText);
+  assert.doesNotMatch(txt, /Gastado de lo presupuestado/);
+  assert.match(txt, /Te (queda|has pasado) de lo presupuestado/);
+  for(const d of datos) assert.match(txt, d.queda>=0 ? /Te queda de €/ : /Te has pasado del límite de €/);
+});
 prueba("bienvenida: solo a cuentas nuevas, tres tarjetas y no vuelve a salir", async ()=>{
   const p = await abrir();
   await p.waitForTimeout(700); // deja pasar la hoja del saldo del mes pasado, que sale al cargar
