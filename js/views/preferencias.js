@@ -10,11 +10,33 @@ function renderPreferencias(){
     <div class="meta" id="prefEstado" style="margin-top:8px"></div>
   </div>
   <div class="card">
+    <h2>Moneda</h2>
+    <p class="meta" style="margin:0 0 10px">Cambia el símbolo y el formato con el que se muestran los importes. Tus cantidades no se convierten: solo cambia cómo se ven.</p>
+    <select id="prefMoneda">${opcionesMoneda()}</select>
+    <div class="meta" id="prefMonedaEjemplo" style="margin-top:8px">Así se verá: ${eur(1234.56)}</div>
+  </div>
+  <div class="card">
     <h2>Formularios para añadir</h2>
     <p class="meta" style="margin:0 0 10px">Los huecos para añadir un movimiento, una deuda, una cuenta, una inversión, etc. pueden salir desplegados o contraídos al entrar. Se abren y cierran tocando su título. Esta preferencia se guarda en este dispositivo.</p>
     <select id="prefForms">
       <option value="abiertos"${formsPorDefecto==="abiertos"?" selected":""}>Desplegados por defecto</option>
       <option value="cerrados"${formsPorDefecto==="cerrados"?" selected":""}>Contraídos por defecto</option>
+    </select>
+  </div>
+  <div class="card">
+    <h2>Brillo en las barras de las huchas</h2>
+    <p class="meta" style="margin:0 0 10px">Las barras de progreso de tus huchas pueden llevar un destello suave donde termina lo ahorrado, o verse lisas. Esta preferencia se guarda en este dispositivo.</p>
+    <select id="prefBrillo">
+      <option value="si"${brilloHuchas?" selected":""}>Con brillo</option>
+      <option value="no"${!brilloHuchas?" selected":""}>Sin brillo</option>
+    </select>
+  </div>
+  <div class="card">
+    <h2>Sonido al registrar un movimiento</h2>
+    <p class="meta" style="margin:0 0 10px">Al guardar un gasto o un ingreso puede sonar un tintineo suave de moneda. Esta preferencia se guarda en este dispositivo.</p>
+    <select id="prefSonido">
+      <option value="no"${!sonidoMovimientos?" selected":""}>Sin sonido</option>
+      <option value="si"${sonidoMovimientos?" selected":""}>Con sonido</option>
     </select>
   </div>
   <div class="card">
@@ -24,7 +46,24 @@ function renderPreferencias(){
     <p class="meta" style="margin:16px 0 10px">Para recuperar una copia, ábrela aquí. Solo funciona en una cuenta sin datos, para no duplicar nada.</p>
     <input type="file" id="copiaArchivo" accept=".json,application/json" style="display:none">
     <button class="btn gold" id="btnRestaurar">Restaurar copia…</button>
+  </div>
+  <div class="card">
+    <h2>Eliminar cuenta y datos</h2>
+    <p class="meta" style="margin:0 0 10px">Borra para siempre tu cuenta y todo lo que has guardado en la app: movimientos, cuentas, deudas, inversiones, objetivos, mensajes, suscripción... Las cuentas que compartías dejarán de verse para las demás personas. No se puede deshacer, así que si quieres conservar algo descarga antes una copia.</p>
+    <p class="meta" style="margin:0 0 6px">Para confirmar, escribe <b>ELIMINAR</b>:</p>
+    <input id="borrarCuentaTexto" autocomplete="off" autocapitalize="characters" placeholder="ELIMINAR" style="margin-bottom:10px">
+    <button class="btn ghost" id="btnBorrarCuenta" disabled>Eliminar mi cuenta y mis datos</button>
+  </div>
+  <div class="card">
+    <h2>Privacidad</h2>
+    <p class="meta" style="margin:0">Qué datos guarda la app y cómo se protegen: <a href="privacidad.html" target="_blank" rel="noopener">Política de privacidad</a>.</p>
   </div>`;
+}
+
+function opcionesMoneda(){
+  const opcion = c=>{ const m = MONEDAS[c]; return `<option value="${c}"${c===moneda?" selected":""}>${esc(m.nombre)} (${c}, ${esc(m.simbolo.trim())})${m.pista?` · ${esc(m.pista)}`:""}</option>`; };
+  const latam = Object.keys(MONEDAS).filter(c=>c!=="EUR" && c!=="USD").sort((a,b)=>MONEDAS[a].nombre.localeCompare(MONEDAS[b].nombre, "es"));
+  return opcion("EUR") + opcion("USD") + `<optgroup label="Latinoamérica">${latam.map(opcion).join("")}</optgroup>`;
 }
 
 function wireEventosPreferencias(){
@@ -72,11 +111,43 @@ function wireEventosPreferencias(){
       });
     };
   }
+  const borrarTexto = document.getElementById("borrarCuentaTexto");
+  const btnBorrar = document.getElementById("btnBorrarCuenta");
+  if(borrarTexto && btnBorrar){
+    borrarTexto.oninput = ()=>{ btnBorrar.disabled = borrarTexto.value.trim().toUpperCase() !== "ELIMINAR"; };
+    btnBorrar.onclick = async ()=>{
+      if(!(await confirmar("¿Borrar tu cuenta y todos tus datos? Se eliminarán para siempre y no podrás recuperarlos.", {ok:"Sí, borrar mi cuenta"}))) return;
+      conCarga(btnBorrar, "Eliminando…", async ()=>{
+        const {error} = await sb.rpc("borrar_mi_cuenta");
+        if(error){ showError("No se pudo eliminar la cuenta: "+error.message); return; }
+        // El usuario ya no existe en el servidor: se cierra la sesión solo en este dispositivo.
+        await sb.auth.signOut({scope:"local"});
+      });
+    };
+  }
   const prefForms = document.getElementById("prefForms");
   if(prefForms) prefForms.onchange = ()=>{
     formsPorDefecto = prefForms.value === "cerrados" ? "cerrados" : "abiertos";
     formsEstado = {};
     try{ localStorage.setItem("formsPorDefecto", formsPorDefecto); }catch(e){}
+  };
+  const prefMoneda = document.getElementById("prefMoneda");
+  if(prefMoneda) prefMoneda.onchange = async ()=>{
+    fijarMoneda(prefMoneda.value);
+    render();
+    await guardarMoneda(moneda);
+  };
+  const prefBrillo = document.getElementById("prefBrillo");
+  if(prefBrillo) prefBrillo.onchange = ()=>{
+    brilloHuchas = prefBrillo.value !== "no";
+    document.documentElement.classList.toggle("sin-brillo", !brilloHuchas);
+    try{ localStorage.setItem("brilloHuchas", brilloHuchas ? "si" : "no"); }catch(e){}
+  };
+  const prefSonido = document.getElementById("prefSonido");
+  if(prefSonido) prefSonido.onchange = ()=>{
+    sonidoMovimientos = prefSonido.value === "si";
+    try{ localStorage.setItem("sonidoMovimientos", sonidoMovimientos ? "si" : "no"); }catch(e){}
+    sonarMoneda();
   };
   const prefCuenta = document.getElementById("prefCuenta");
   if(prefCuenta) prefCuenta.onchange = async ()=>{

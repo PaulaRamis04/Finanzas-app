@@ -1,6 +1,8 @@
 // Pantalla «Notificaciones» (se abre con la campana del Inicio). Lista los avisos y solo al tocar uno
 // lleva a su pestaña. Los ya vistos se recuerdan en este dispositivo para que la campana no marque punto.
 
+const ICONO_AVISO_SUAVE = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:.75"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.5h.01"/></svg>`;
+
 function avisosActuales(){
   const hoy = today();
   const en3 = new Date(); en3.setDate(en3.getDate()+3);
@@ -10,9 +12,11 @@ function avisosActuales(){
   const avisos = [];
   presupuestosEnAlerta().forEach(a=>{
     const pasado = a.gastado>a.limite;
-    avisos.push({id:`pres-${a.categoria}-${periodoAnio}-${periodoMes}-${pasado?"pasado":"80"}`, tab:"Presupuestos", ico:pasado?"🚨":"⚠️", fondo:pasado?"var(--accent-soft)":"var(--peach-soft)",
-      titulo: pasado ? `Te has pasado en ${a.categoria}` : `${a.categoria} casi al límite`,
-      texto:`${eur(a.gastado)} de ${eur(a.limite)} (${isFinite(a.pct)?a.pct.toFixed(0):"—"} %)`});
+    // Si aún no te has pasado es solo un aviso tranquilo: icono suave en vez de una señal de alarma.
+    avisos.push({id:`pres-${a.categoria}-${periodoAnio}-${periodoMes}-${pasado?"pasado":"80"}`, tab:"Presupuestos", ico:pasado?"🚨":ICONO_AVISO_SUAVE, fondo:pasado?"var(--accent-soft)":"var(--mint-soft)",
+      titulo: pasado ? `Te has pasado en ${a.categoria}` : `${a.categoria} se acerca al límite`,
+      texto: pasado ? `${eur(a.gastado)} de ${eur(a.limite)} (${isFinite(a.pct)?a.pct.toFixed(0):"—"} %)`
+        : `Llevas ${eur(a.gastado)} de ${eur(a.limite)} (${a.pct.toFixed(0)} %). Aún te quedan ${eur(restarDinero(a.limite, a.gastado))}.`});
   });
   recurrentes.filter(r=>r.activo).forEach(r=>{
     const f = proximaFechaRecurrente(r);
@@ -32,13 +36,26 @@ function avisosActuales(){
 
 function avisosVistos(){ try{ return JSON.parse(localStorage.getItem("avisosVistos")||"[]"); }catch(e){ return []; } }
 
-function hayAvisosNuevos(){ const vistos = new Set(avisosVistos()); return avisosActuales().some(a=>!vistos.has(a.id)); }
+// Novedades de la app (js/novedades.js): solo las que ya tienen texto, las más recientes primero.
+function novedadesVisibles(){
+  return (typeof NOVEDADES==="undefined" ? [] : NOVEDADES).filter(n=>n.texto && n.texto.trim())
+    .slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+}
+function novedadesVistas(){ try{ return JSON.parse(localStorage.getItem("novedadesVistas")||"[]"); }catch(e){ return []; } }
+
+function hayAvisosNuevos(){
+  const vistos = new Set(avisosVistos()), nvistas = new Set(novedadesVistas());
+  return avisosActuales().some(a=>!vistos.has(a.id)) || novedadesVisibles().some(n=>!nvistas.has(n.id));
+}
 
 function renderNotificaciones(){
   const avisos = avisosActuales();
   const vistos = new Set(avisosVistos());
   // Al abrir la pantalla quedan todos como vistos (se guardan solo los actuales, así la lista no crece).
   try{ localStorage.setItem("avisosVistos", JSON.stringify(avisos.map(a=>a.id))); }catch(e){}
+  const novedades = novedadesVisibles();
+  const nvistas = new Set(novedadesVistas());
+  try{ localStorage.setItem("novedadesVistas", JSON.stringify(novedades.map(n=>n.id))); }catch(e){}
   return `
   <div class="hola">
     <div style="display:flex;align-items:center;gap:12px">
@@ -55,7 +72,16 @@ function renderNotificaciones(){
     </button>`).join("")}
   </div>` : `<div class="card" style="text-align:center;padding:36px 18px">
     ${vacio("nube","¡Todo al día!","No tienes avisos pendientes.")}
-  </div>`}`;
+  </div>`}
+  ${novedades.length ? `<h3 class="titulo-novedades">Novedades de la app</h3>
+  <div class="list">
+    ${novedades.map(n=>`
+    <button class="fila aviso novedad ${nvistas.has(n.id)?"":"nuevo"}" ${n.tab?`data-ir-aviso="${esc(n.tab)}"`:""}>
+      <div class="ico" style="background:var(--accent-soft)">✨</div>
+      <div class="txt">${n.titulo?`<b>${esc(n.titulo)}</b>`:""}<div class="meta">${esc(n.texto)}</div><div class="meta fecha-novedad">${esc(etiquetaDia(n.fecha))}</div></div>
+      ${n.tab?`<svg class="flecha" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`:""}
+    </button>`).join("")}
+  </div>` : ""}`;
 }
 
 function wireEventosNotificaciones(){

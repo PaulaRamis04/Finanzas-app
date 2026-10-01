@@ -66,7 +66,7 @@ function renderCuentas(){
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">${panelCompartir(c)}</div>` : ""}
       ${ajustarSaldoId===c.id? `
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
-        <label>Saldo real actual (€)</label>
+        <label>Saldo real actual (${simboloMoneda()})</label>
         <input type="number" step="0.01" id="saldoRealInput" value="${saldo.toFixed(2)}">
         <p class="meta" style="margin:0">Se creará un movimiento de "Ajuste" por la diferencia, así el histórico queda intacto.</p>
         <div style="display:flex;gap:8px">
@@ -98,7 +98,7 @@ function renderCuentas(){
     <form id="fCuenta">
       <div class="row2">
         <div><label>Nombre</label><input name="nombre" placeholder="ej. Trade Republic" required></div>
-        <div><label>Saldo inicial (€)</label><input name="saldoInicial" type="number" step="0.01" value="0" required></div>
+        <div><label>Saldo inicial (${simboloMoneda()})</label><input name="saldoInicial" type="number" step="0.01" value="0" required></div>
       </div>
       <button class="btn" type="submit">Añadir</button>
     </form>

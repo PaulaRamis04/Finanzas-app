@@ -4,7 +4,7 @@ function renderGastos(){
   const enP = movimientosEfectivos();
   const ingresos = enP.filter(m=>m.tipo==="ingreso").reduce((s,m)=>sumarDinero(s, m.importe),0);
   const ahorro = enP.filter(m=>m.tipo==="gasto" && m.categoria==="Inversión").reduce((s,m)=>sumarDinero(s, m.importe),0);
-  const disponible = restarDinero(ingresos, ahorro);
+  const disponible = sumarDinero(restarDinero(ingresos, ahorro), arrastrePeriodo());
   const gastosReales = enP.filter(m=>m.tipo==="gasto" && m.categoria!=="Inversión" && m.importe>0);
   const gastado = gastosReales.reduce((s,m)=>sumarDinero(s, m.importe),0);
   const restante = restarDinero(disponible, gastado);
@@ -25,7 +25,7 @@ function renderGastos(){
     <div class="stat"><i style="background:var(--mint-soft)">💰</i><b class="pos">${eur(ingresos)}</b><span>Ingresos</span></div>
     <div class="stat"><i style="background:var(--lav-soft)">🌱</i><b>${eur(ahorro)}</b><span>Ahorro (inversiones)</span></div>
   </div>
-  <p class="meta" style="margin:-6px 4px 0">Disponible = ingresos menos lo que aportas a inversiones.</p>
+  <p class="meta" style="margin:-6px 4px 0">Disponible = ingresos menos lo que aportas a inversiones.${notaArrastre() ? ` ${notaArrastre()}.` : ""}</p>
   <div class="section-title">Por categoría</div>
   <div class="list">
     ${Object.keys(porCategoria).length? Object.entries(porCategoria).sort((a,b)=>b[1]-a[1]).map(([cat,total])=>`

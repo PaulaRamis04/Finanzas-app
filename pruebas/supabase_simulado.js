@@ -15,7 +15,7 @@
     categorias:[{id:"k1", tipo:"gasto", padre:"Imprescindible", nombre:"Comida"},{id:"k2", tipo:"gasto", padre:"Prescindible", nombre:"Ocio"},{id:"k3", tipo:"ingreso", padre:null, nombre:"Nómina"}],
     presupuestos:[{id:"p1", categoria:"Comida", limite:300, rollover:false},{id:"p2", categoria:"Ocio", limite:100, rollover:false}],
     recurrentes:[{id:"r1", tipo:"gasto", categoria:"Comida", importe:10, cuenta_id:"c1", dia_mes:1, activo:true, fecha_inicio:"2026-01-01", ultima_generada:"2026-09-01"}],
-    objetivos:[], hitos:[], salud_config:[], movimientos_pendientes:[], preferencias:[], cuentas_miembros:[], comunidad:[],
+    objetivos:[], hitos:[], salud_config:[], movimientos_pendientes:[], preferencias:[], cuentas_miembros:[], comunidad:[], saldo_arrastre:[],
     suscripciones:[], asesoria_mensajes:[]
   };
   const usuarios = {"ana@x.com":"u2", "p@x.com":"u1"};
@@ -35,6 +35,8 @@
   db.inversiones.push({id:"g1", nombre:"Fondos", tipo:"", valor_actual:0, valor_inicial:0, estado:"activa", es_grupo:true, orden:1});
   db.inversiones.push({id:"i1", nombre:"Indexado", tipo:"fondo", valor_actual:1200, valor_inicial:1000, estado:"activa", es_grupo:false, padre_id:"g1", orden:1});
   db.aportaciones_inversion.push({id:"a1", inversion_id:"i1", importe:200, fecha:f(y,mAct,5), cuenta_id:"c1", movimiento_id:"ma"});
+  // El saldo del mes pasado ya está decidido para este mes, para que la pregunta no salga en cada prueba.
+  db.saldo_arrastre.push({mes:f(y,mAct,1).slice(0,7), decision:"no", importe:0});
   db.objetivos.push({id:"o1", nombre:"Colchón", meta:5000, tipo_vinculo:"cuenta", vinculo_id:"c1", orden:1});
   if(url.searchParams.get("compartida")==="1"){
     db.cuentas.push({id:"c4", nombre:"Piso", saldo_inicial:100, orden:4, archivada:false, user_id:"u2"});
@@ -87,7 +89,7 @@
         match.forEach(r=>Object.assign(r, this.data)); return {data:null, error:null};
       }
       if(this.op==="delete"){ db[this.t] = tabla.filter(r=>!match.includes(r)); return {error:null}; }
-      if(this.op==="upsert"){ db[this.t] = [this.data]; return {error:null}; }
+      if(this.op==="upsert"){ db[this.t] = [{...(db[this.t][0]||{}), ...this.data}]; return {error:null}; }
     }
   }
   const listeners = [];
@@ -127,6 +129,11 @@
         const g = {};
         db.movimientos.forEach(m=>{ const k = m.cuenta_id+"|"+m.fecha.slice(0,7)+"-01"; g[k] = g[k] || {cuenta_id:m.cuenta_id, mes:m.fecha.slice(0,7)+"-01", ingresos:0, gastos:0, n:0}; g[k][m.tipo==="ingreso"?"ingresos":"gastos"] += m.importe; g[k].n++; });
         return {data:Object.values(g), error:null};
+      }
+      if(name==="borrar_mi_cuenta"){
+        try{ localStorage.setItem("__cuentaBorrada", "1"); }catch(e){}
+        Object.keys(db).forEach(t=>{ if(Array.isArray(db[t])) db[t] = []; });
+        return {data:null, error:null};
       }
       if(name.startsWith("procesar_")) return {data:null, error:null};
       if(name==="marcar_asesoria_leida"){ db.asesoria_mensajes.forEach(m=>{ if(m.user_id==="u1" && m.autor==="admin") m.leido = true; }); return {data:null, error:null}; }

@@ -79,11 +79,23 @@ prueba("todas las pestañas se pintan", async ()=>{
     assert.ok((await p.evaluate(()=>document.getElementById("app").innerText)).trim().length > 0, t);
   }
 });
-prueba("Inicio avisa de presupuestos al 80 % y compara con el mes anterior", async ()=>{
+prueba("Inicio solo avisa de presupuestos superados; los del 80 % van a Notificaciones", async ()=>{
   const p = await abrir();
   const txt = await p.evaluate(()=>document.getElementById("app").innerText);
-  assert.match(txt, /Presupuestos al límite/);
   assert.match(txt, /vs [a-z]+/);
+  const r = await p.evaluate(()=>{
+    const alertas = presupuestosEnAlerta();
+    const pasados = alertas.filter(a=>a.gastado>a.limite).length, cerca = alertas.length - pasados;
+    const inicio = document.getElementById("app").innerText;
+    const avisos = avisosActuales().filter(a=>a.tab==="Presupuestos");
+    return {pasados, cerca, enInicio: /Presupuestos superados/.test(inicio),
+      cercaSuaves: avisos.filter(a=>!a.ico.includes("🚨")).every(a=>!a.ico.includes("⚠️") && a.ico.startsWith("<svg")),
+      cercaEnNotif: avisos.filter(a=>/se acerca al límite/.test(a.titulo)).length};
+  });
+  assert.ok(r.pasados + r.cerca > 0, "los datos de prueba tienen algún presupuesto en alerta");
+  assert.strictEqual(r.enInicio, r.pasados > 0);
+  assert.strictEqual(r.cercaEnNotif, r.cerca);
+  assert.ok(r.cercaSuaves);
 });
 prueba("renombrar una categoría actualiza movimientos, presupuestos y recurrentes", async ()=>{
   const p = await abrir();
@@ -153,6 +165,10 @@ prueba("Inicio muestra saldo, barras del mes, acciones y recientes", async ()=>{
   assert.deepStrictEqual(await p.$$eval(".hero-grid span", s=>s.map(x=>x.textContent)), ["Disponible","Inversiones","Me deben","Debo"]);
   assert.strictEqual(await p.$$eval(".barra-mes", b=>b.length), 3);
   assert.match(await p.$$eval(".barra-cab", b=>b[1].innerText), /Ahorro\s*€200,00/, "el ahorro es lo apartado, no lo que sobra");
+  assert.match(txt, /Gasto de \w+/);
+  assert.ok(await p.isVisible("#graficoGastoInicio svg circle"), "gráfica del gasto acumulado día a día");
+  const dias = await p.evaluate(()=>periodoMes==="todos" ? null : new Date(periodoAnio, Number(periodoMes), 0).getDate());
+  if(dias) assert.match(await p.$eval("#graficoGastoInicio svg", s=>s.textContent), new RegExp(`${dias}\\s*$`), "el eje va hasta el último día del mes");
   assert.match(txt, /Movimientos recientes/);
   assert.ok(await p.isHidden("header"), "en Inicio no se ve la cabecera");
   assert.strictEqual(await p.$$eval("[data-accion]", b=>b.length), 0, "las acciones rápidas empiezan vacías");
@@ -222,6 +238,41 @@ prueba("el ojito oculta todos los importes y se recuerda", async ()=>{
   await p.click("#btnOjo");
   assert.match(await p.evaluate(()=>document.getElementById("app").innerText), /€\d/);
 });
+prueba("formato de cada moneda", ()=>{
+  const ctx = {};
+  new Function("ctx", fs.readFileSync(path.join(RAIZ, "js/helpers.js"), "utf8") + "\nctx.h = {eur, fijarMoneda, importeRedondo, importeMensaje};")(ctx);
+  const {eur, fijarMoneda, importeRedondo, importeMensaje} = ctx.h;
+  assert.strictEqual(eur(1234.5), "€1234,50", "el euro se ve como siempre");
+  assert.strictEqual(eur(-12), "-€12,00");
+  assert.strictEqual(importeRedondo(1000), "1.000 €");
+  assert.strictEqual(importeMensaje(12), "12,00 €");
+  fijarMoneda("USD"); assert.strictEqual(eur(1234.5), "$1,234.50");
+  fijarMoneda("COP"); assert.strictEqual(eur(1234567.89), "$1.234.568", "el peso colombiano va sin decimales");
+  fijarMoneda("PEN"); assert.strictEqual(eur(-1234.5), "-S/ 1,234.50");
+  fijarMoneda("XXX"); assert.strictEqual(eur(1), "€1,00", "una moneda desconocida vuelve al euro");
+});
+prueba("la moneda se elige en Preferencias, cambia todos los importes y se guarda en la cuenta", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>{ tab = "Preferencias"; render(); });
+  await p.selectOption("#prefMoneda", "MXN");
+  await p.waitForFunction(()=>__db.preferencias[0]?.moneda==="MXN");
+  assert.match(await p.textContent("#prefMonedaEjemplo"), /\$1,234\.56/);
+  await p.evaluate(()=>{ tab = "Inicio"; render(); });
+  let txt = await p.evaluate(()=>document.getElementById("app").innerText);
+  assert.ok(!/€/.test(txt), "no queda ningún € en Inicio");
+  assert.match(txt, /\$\d/);
+  await p.evaluate(()=>{ tab = "Hitos"; render(); });
+  assert.match(await p.evaluate(()=>document.getElementById("app").innerText), /Primeros \$500/);
+  await p.evaluate(()=>{ tab = "Movimientos"; render(); });
+  assert.match(await p.evaluate(()=>document.getElementById("app").innerText), /Importe \(\$\)/);
+  // Otro dispositivo (sin nada en localStorage) la recupera de la cuenta.
+  await p.evaluate(async ()=>{ fijarMoneda("EUR"); localStorage.removeItem("moneda"); await recargar(["preferencias"]); });
+  assert.strictEqual(await p.evaluate(()=>moneda), "MXN");
+  await p.evaluate(()=>{ tab = "Preferencias"; render(); });
+  await p.selectOption("#prefMoneda", "EUR");
+  await p.waitForFunction(()=>__db.preferencias[0]?.moneda==="EUR");
+  assert.match(await p.textContent("#prefMonedaEjemplo"), /€1234,56/);
+});
 prueba("Objetivos: el resumen de arriba suma lo ahorrado, no la meta", async ()=>{
   const p = await abrir();
   const txt = await p.evaluate(()=>{
@@ -235,22 +286,64 @@ prueba("Objetivos: el resumen de arriba suma lo ahorrado, no la meta", async ()=
   assert.match(txt, new RegExp(`${Math.round(ahorrado/4000*100)}% de la meta`));
   assert.ok(!/Todas tus huchas están llenas/.test(txt));
 });
-prueba("huchas: la barra de iconos se rellena, se echa y se saca dinero y se elige el icono", async ()=>{
+prueba("huchas: el brillo de la barra se quita y se pone en Preferencias y se recuerda", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>{ tab = "Preferencias"; render(); });
+  assert.ok(!(await p.evaluate(()=>document.documentElement.classList.contains("sin-brillo"))));
+  await p.selectOption("#prefBrillo", "no");
+  assert.ok(await p.evaluate(()=>document.documentElement.classList.contains("sin-brillo")));
+  await p.reload();
+  await p.waitForFunction(()=>typeof ready!=="undefined" && ready);
+  assert.ok(await p.evaluate(()=>document.documentElement.classList.contains("sin-brillo")), "se recuerda al volver a abrir");
+  await p.evaluate(()=>{ tab = "Preferencias"; render(); });
+  await p.selectOption("#prefBrillo", "si");
+  assert.ok(!(await p.evaluate(()=>document.documentElement.classList.contains("sin-brillo"))));
+});
+prueba("vibración al guardar un movimiento y sonido de moneda solo si se activa en Preferencias", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>{
+    window.__vibraciones = []; window.__notas = 0;
+    navigator.vibrate = ms=>{ __vibraciones.push(ms); return true; };
+    window.AudioContext = class { constructor(){ this.state = "running"; this.currentTime = 0; this.destination = {}; }
+      createOscillator(){ __notas++; return {frequency:{}, connect:n=>n, start(){}, stop(){}}; }
+      createGain(){ return {gain:{setValueAtTime(){}, exponentialRampToValueAtTime(){}}, connect:n=>n}; } };
+  });
+  const guardar = async ()=>{
+    await p.evaluate(()=>{ tab = "Movimientos"; render(); });
+    await p.fill("#movImporte", "3");
+    await p.click('#fMov button[type="submit"]');
+  };
+  const antes = await p.evaluate(()=>__db.movimientos.length);
+  await guardar();
+  await p.waitForFunction(n=>__db.movimientos.length===n+1, antes);
+  assert.deepStrictEqual(await p.evaluate(()=>__vibraciones), [10]);
+  assert.strictEqual(await p.evaluate(()=>__notas), 0, "sin sonido por defecto");
+  await p.evaluate(()=>{ tab = "Preferencias"; render(); });
+  await p.selectOption("#prefSonido", "si");
+  assert.strictEqual(await p.evaluate(()=>localStorage.getItem("sonidoMovimientos")), "si");
+  await p.evaluate(()=>{ __notas = 0; });
+  await guardar();
+  await p.waitForFunction(n=>__db.movimientos.length===n+2, antes);
+  await p.waitForFunction(()=>__notas===2);
+  await p.evaluate(()=>{ tab = "Preferencias"; render(); });
+  await p.selectOption("#prefSonido", "no");
+});
+prueba("huchas: la barra en cápsula se rellena, se echa y se saca dinero y se elige el icono", async ()=>{
   const p = await abrir();
   await p.evaluate(()=>{ __db.objetivos.push({id:"o2", nombre:"Viaje a Japón", meta:1000, tipo_vinculo:"ninguno", vinculo_id:null, orden:2, ahorrado:250}); });
   await p.evaluate(()=>recargar(["objetivos"]));
   await p.evaluate(()=>{ tab = "Objetivos"; render(); });
   const tarjeta = '[data-sort-id="o2"]';
-  const barra = ()=>p.$$eval(`${tarjeta} .hucha-barra .hucha-lleno`, els=>els.map(e=>e.textContent + "|" + e.style.clipPath));
-  let llenos = await barra();
-  assert.strictEqual(llenos.length, 3, "250 de 1000: dos iconos llenos y medio");
-  assert.ok(llenos.every(t=>t.startsWith("✈️")), "el nombre elige el tema de viaje");
-  assert.match(llenos[2], /inset\(0(px)? 50%/);
+  const barra = ()=>p.$eval(tarjeta, el=>({icono:el.querySelector(".hucha-icono").textContent, ancho:el.querySelector(".hucha-relleno").style.width, pct:el.querySelector(".hucha-pct").textContent}));
+  let b = await barra();
+  assert.strictEqual(b.ancho, "25%", "250 de 1000: la cápsula va por la cuarta parte");
+  assert.strictEqual(b.pct, "25%");
+  assert.strictEqual(b.icono, "✈️", "el nombre elige el tema de viaje");
   await p.click(`${tarjeta} [data-meter-hucha]`);
   await p.fill("#huchaImporte", "250");
   await p.click(`${tarjeta} [data-hucha-mover][data-signo="1"]`);
   await p.waitForFunction(()=>objetivos.find(o=>o.id==="o2").ahorrado===500);
-  assert.strictEqual((await barra()).length, 5);
+  assert.strictEqual((await barra()).ancho, "50%");
   await p.click(`${tarjeta} [data-meter-hucha]`);
   await p.fill("#huchaImporte", "600");
   await p.click(`${tarjeta} [data-hucha-mover][data-signo="-1"]`);
@@ -259,7 +352,7 @@ prueba("huchas: la barra de iconos se rellena, se echa y se saca dinero y se eli
   await p.click(`${tarjeta} [data-tema-hucha]`);
   await p.click(`${tarjeta} [data-elegir-tema="concierto"]`);
   await p.waitForFunction(()=>objetivos.find(o=>o.id==="o2").tema==="concierto");
-  assert.ok((await barra()).every(t=>t.startsWith("🎤")));
+  assert.strictEqual((await barra()).icono, "🎤");
   // Hucha nueva: el icono elegido se guarda; sin elegir, sale del nombre.
   await p.evaluate(()=>{ formsEstado.objetivo = true; render(); });
   await p.fill('#fObjetivo [name="nombre"]', "Fondo de emergencia");
@@ -287,6 +380,22 @@ prueba("la campana abre la pantalla de notificaciones y solo al tocar un aviso v
   await p.click("#btnAvisos");
   await p.click('[data-ir-aviso="Presupuestos"]');
   assert.strictEqual(await p.evaluate(()=>tab), "Presupuestos");
+});
+prueba("las novedades con texto salen en notificaciones y las vacías no", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>{ localStorage.setItem("avisosVistos", JSON.stringify(avisosActuales().map(a=>a.id)));
+    NOVEDADES.length = 0; NOVEDADES.push({id:"n1", fecha:today(), tab:"Simulador", titulo:"Título de prueba", texto:"Texto de prueba"}, {id:"n2", fecha:today(), tab:"", titulo:"Sin texto", texto:""});
+    tab = "Inicio"; render(); });
+  assert.ok(await p.isVisible("#btnAvisos .punto"), "novedad nueva: punto en la campana");
+  await p.click("#btnAvisos");
+  const txt = await p.evaluate(()=>document.getElementById("app").innerText);
+  assert.match(txt, /Texto de prueba/);
+  assert.doesNotMatch(txt, /Sin texto/);
+  await p.click("#btnVolverAvisos");
+  assert.ok(await p.isHidden("#btnAvisos .punto"), "ya vista: sin punto");
+  await p.click("#btnAvisos");
+  await p.click('[data-ir-aviso="Simulador"]');
+  assert.strictEqual(await p.evaluate(()=>tab), "Simulador");
 });
 prueba("personalización: tema, color, fondo e imagen se aplican, se recuerdan y se borran al salir", async ()=>{
   const p = await abrir();
@@ -500,6 +609,25 @@ prueba("acceso con contraseña: error, registro, recuperar y entrar", async ()=>
   assert.ok(await p.isVisible("#appShell"));
   assert.ok(await p.isHidden("#authScreen"));
 });
+prueba("medidor de contraseña: aviso amarillo, tick verde y deja registrarse igual", async ()=>{
+  const p = await navegador.newPage({viewport:MOVIL});
+  p.on("pageerror", e=>errores.push(e.message));
+  await p.goto("file://" + HTML_PRUEBA + "?sinsesion=1");
+  await p.waitForSelector("#fLogin", {state:"visible"});
+  await p.click('[data-auth="registro"]');
+  assert.ok(await p.isHidden("#medidor-regPass"), "sin contraseña no se enseña");
+  await p.fill("#regNombre", "Ana"); await p.fill("#regEmail", "ana@x.com");
+  await p.fill("#regPass", "ana12345");
+  assert.match(await p.textContent("#medidor-regPass"), /Podría ser más segura/);
+  assert.ok(!(await p.getAttribute("#medidor-regPass", "class")).includes("segura"));
+  assert.match(await p.textContent("#medidor-regPass"), /puedes continuar igualmente/);
+  await p.fill("#regPass", "Girasol-Azul-27");
+  assert.match(await p.textContent("#medidor-regPass"), /✓ Contraseña segura/);
+  assert.ok((await p.getAttribute("#medidor-regPass", "class")).includes("segura"));
+  await p.fill("#regPass", "ana12345");
+  await p.click("#fRegistro button[type=submit]");
+  await p.waitForFunction(()=>/confirmar la cuenta/.test(document.getElementById("loginMsg").textContent));
+});
 prueba("el enlace de recuperar pide la contraseña nueva antes de entrar", async ()=>{
   const p = await navegador.newPage({viewport:MOVIL});
   p.on("pageerror", e=>errores.push(e.message));
@@ -518,6 +646,24 @@ prueba("cerrar sesión recarga y borra los datos locales", async ()=>{
   await p.click("#navMas");
   await Promise.all([p.waitForNavigation(), p.click("#menuLogout")]);
   assert.strictEqual(await p.evaluate(()=>localStorage.getItem("cuentaDefecto")), null);
+});
+prueba("eliminar cuenta: pide escribir ELIMINAR, confirma, borra los datos y cierra la sesión", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>localStorage.setItem("cuentaDefecto", "c1"));
+  await p.evaluate(()=>{ tab = "Preferencias"; render(); });
+  assert.ok(await p.isDisabled("#btnBorrarCuenta"));
+  await p.fill("#borrarCuentaTexto", "eliminar");
+  assert.ok(!(await p.isDisabled("#btnBorrarCuenta")));
+  // Cancelar en la hoja no borra nada.
+  await p.click("#btnBorrarCuenta");
+  await p.click("#hojaNo");
+  assert.ok(await p.evaluate(()=>__db.movimientos.length) > 0);
+  await p.click("#btnBorrarCuenta");
+  await Promise.all([p.waitForNavigation(), p.click("#hojaOk")]);
+  assert.strictEqual(await p.evaluate(()=>localStorage.getItem("__cuentaBorrada")), "1");
+  assert.ok(await p.isVisible("#loginEmail"));
+  assert.strictEqual(await p.evaluate(()=>localStorage.getItem("cuentaDefecto")), null);
+  assert.ok(!(await p.evaluate(()=>JSON.parse(localStorage.getItem("perfiles")||"[]").length)));
 });
 prueba("perfiles: añadir otra cuenta, cambiar con la flecha y cerrar solo uno", async ()=>{
   const p = await abrir();
@@ -699,6 +845,50 @@ prueba("¿cómo estoy?: semáforo con nota y objetivos configurables", async ()=
   });
   assert.strictEqual(local.enBd, false);
   assert.strictEqual(local.local.inversion, 15);
+});
+
+prueba("saldo del mes pasado: pregunta una vez al empezar el mes y lo suma al disponible", async ()=>{
+  const p = await abrir();
+  // Sin decisión para este mes, al cargar sale la hoja con el saldo positivo del mes pasado.
+  const previo = await p.evaluate(async ()=>{
+    __db.saldo_arrastre = []; arrastres = {}; arrastreRevisado = false; localStorage.removeItem("arrastresMes");
+    await recargar(["saldo_arrastre"]);
+    const h = new Date(); const m = h.getMonth()+1;
+    return disponibleMes(m===1 ? h.getFullYear()-1 : h.getFullYear(), m===1 ? 12 : m-1);
+  });
+  assert.ok(previo>0, "previo "+previo);
+  await p.waitForSelector("#hojaArrastreSi");
+  const texto = await p.textContent("#hoja");
+  assert.ok(texto.includes("¡Bien hecho!") && texto.includes("te sobraron") && texto.includes("No, dejarlo como ahorro 🌱"), texto);
+  const antes = await p.evaluate(()=>{ tab = "Inicio"; periodoMes = String(new Date().getMonth()+1); periodoAnio = new Date().getFullYear(); return arrastrePeriodo(); });
+  assert.strictEqual(antes, 0);
+  await p.click("#hojaArrastreSi");
+  await p.waitForFunction(()=>__db.saldo_arrastre.length===1);
+  const fila = await p.evaluate(()=>__db.saldo_arrastre[0]);
+  assert.strictEqual(fila.decision, "si");
+  assert.strictEqual(fila.importe, previo);
+  assert.strictEqual(await p.evaluate(()=>arrastrePeriodo()), previo);
+  assert.ok((await p.evaluate(()=>document.getElementById("app").innerText)).includes("que te sobraron en"));
+  // Ya decidido: no vuelve a preguntar este mes.
+  await p.evaluate(async ()=>{ arrastreRevisado = false; await recargar(["saldo_arrastre"]); });
+  await p.waitForTimeout(700);
+  assert.ok(!(await p.$("#hojaArrastreSi")));
+  // En negativo pregunta si descontarlo; «No» no cambia el disponible. Sin la tabla se guarda en el dispositivo.
+  const neg = await p.evaluate(async ()=>{
+    delete __db.saldo_arrastre; arrastres = {}; arrastreRevisado = false; localStorage.removeItem("arrastresMes");
+    const h = new Date(); const m = h.getMonth()+1;
+    const y = m===1 ? h.getFullYear()-1 : h.getFullYear(), pm = m===1 ? 12 : m-1;
+    __db.movimientos.push({id:"mneg", tipo:"gasto", categoria:"Ocio", importe:5000, fecha:`${y}-${String(pm).padStart(2,"0")}-15`, cuenta_id:"c1"});
+    await recargar(["movimientos","saldo_arrastre"]);
+    return disponibleMes(y, pm);
+  });
+  assert.ok(neg<0);
+  await p.waitForSelector("#hojaArrastreNo");
+  assert.ok((await p.textContent("#hoja")).includes("más de lo planeado"));
+  await p.click("#hojaArrastreNo");
+  await p.waitForFunction(()=>Object.keys(JSON.parse(localStorage.getItem("arrastresMes")||"{}")).length===1);
+  assert.strictEqual(await p.evaluate(()=>arrastrePeriodo()), 0);
+  assert.strictEqual(await p.evaluate(()=>arrastresEnBd), false);
 });
 
 prueba("simulador de vivienda: cifras, hucha 🏠 y comparación con otra persona", async ()=>{

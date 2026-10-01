@@ -1,13 +1,24 @@
 // Pestaña «Objetivos» (las huchas de ahorro): su render y sus eventos.
 
-// Barra de 10 iconos del tema de la hucha que se van rellenando según lo ahorrado.
-function barraHucha(o, pct, mini = false){
+// Degradado pastel del relleno según el color del tema de la hucha.
+const DEGRADADOS_HUCHA = {
+  "var(--accent-soft)":["#ffc9a8","#f2a9bb"], // melocotón a rosa empolvado
+  "var(--peach-soft)":["#ffd3a6","#f6b0a4"],  // albaricoque a coral suave
+  "var(--lav-soft)":["#c9bdf2","#f2b3cc"],    // lavanda a rosa
+  "var(--mint-soft)":["#a9dfca","#c4b8f0"]    // menta a lavanda
+};
+
+// Barra de progreso en cápsula: relleno pastel continuo con un punto de luz donde termina y el porcentaje al final.
+// Con «conIcono» lleva delante el icono del tema en su burbuja (en la tarjeta de la hucha el icono ya va en la cabecera).
+function barraHucha(o, pct, conIcono = false){
   const tema = TEMAS_HUCHA[temaObjetivo(o)];
-  const llenos = Math.min(Math.max(pct,0),100)/10;
-  return `<div class="hucha-barra${mini?" mini":""}" style="background:${tema.fondo}" role="img" aria-label="${pct.toFixed(0)}% ahorrado">${Array.from({length:10}, (_,i)=>{
-    const parte = Math.min(Math.max(llenos-i,0),1);
-    return `<span class="hucha-slot"><span class="hucha-vacio">${tema.icono}</span>${parte>0? `<span class="hucha-lleno" style="--i:${i};clip-path:inset(0 ${((1-parte)*100).toFixed(1)}% 0 0)">${tema.icono}</span>` : ""}</span>`;
-  }).join("")}</div>`;
+  const [g1, g2] = DEGRADADOS_HUCHA[tema.fondo] || DEGRADADOS_HUCHA["var(--accent-soft)"];
+  const p = Math.min(Math.max(pct,0),100);
+  return `<div class="hucha-barra" role="img" aria-label="${p.toFixed(0)}% ahorrado">
+    ${conIcono? `<span class="hucha-burbuja" style="background:${tema.fondo}">${tema.icono}</span>` : ""}
+    <div class="hucha-capsula">${p>0? `<div class="hucha-relleno" style="width:${p.toFixed(1)}%;--g1:${g1};--g2:${g2}"><span class="hucha-punta"></span></div>` : ""}</div>
+    <span class="hucha-pct">${p.toFixed(0)}%</span>
+  </div>`;
 }
 
 function selectorTemas(marcado){
@@ -74,7 +85,7 @@ function renderObjetivos(){
       </div>
       ${editarAutoObjId===o.id? `
       <div class="item" style="flex-direction:column;align-items:stretch;gap:8px;margin-top:10px">
-        <label>Cuota mensual (€)</label>
+        <label>Cuota mensual (${simboloMoneda()})</label>
         <input type="number" step="0.01" min="0.01" id="autoObjCuota" value="${o.autoCuota||''}">
         <label>Día del mes</label>
         <input type="number" min="1" max="28" id="autoObjDia" value="${o.autoDiaMes||1}">
@@ -89,7 +100,7 @@ function renderObjetivos(){
       </div>` : ""}
       ${huchaMeterId===o.id? `
       <div class="item" style="flex-direction:column;align-items:stretch;gap:8px;margin-top:10px">
-        <label for="huchaImporte">Importe (€)</label>
+        <label for="huchaImporte">Importe (${simboloMoneda()})</label>
         <input type="number" step="0.01" min="0.01" id="huchaImporte" inputmode="decimal">
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn" data-hucha-mover="${o.id}" data-signo="1">Echar a la hucha</button>
@@ -111,7 +122,7 @@ function renderObjetivos(){
     <form id="fObjetivo">
       <div class="row2">
         <div><label>Nombre</label><input name="nombre" placeholder="ej. Viaje a Japón" required></div>
-        <div><label>Meta (€)</label><input name="meta" type="number" step="0.01" min="0" required></div>
+        <div><label>Meta (${simboloMoneda()})</label><input name="meta" type="number" step="0.01" min="0" required></div>
       </div>
       <label>Icono <span class="meta">(si no eliges, lo pongo según el nombre)</span></label>
       ${selectorTemas(null)}
@@ -170,7 +181,7 @@ function wireEventosObjetivos(){
   }));
   document.querySelectorAll("[data-meter-hucha]").forEach(b=>b.onclick=()=>{ huchaMeterId = huchaMeterId===b.dataset.meterHucha ? null : b.dataset.meterHucha; huchaTemaId = null; pendienteEnfoque = "huchaImporte"; render(); });
   document.querySelectorAll("[data-cancelar-hucha]").forEach(b=>b.onclick=()=>{ huchaMeterId = null; render(); });
-  document.querySelectorAll("[data-hucha-mover]").forEach(b=>b.onclick=()=>conCarga(b, "Guardando…", async ()=>{
+  document.querySelectorAll("[data-hucha-mover]").forEach(b=>b.onclick=()=>{ vibrar(); conCarga(b, "Guardando…", async ()=>{
     const o = objetivos.find(x=>x.id===b.dataset.huchaMover);
     const importe = parseFloat(document.getElementById("huchaImporte")?.value);
     if(!o || isNaN(importe) || importe<=0){ showError("Pon un importe mayor que 0."); return; }
@@ -180,7 +191,7 @@ function wireEventosObjetivos(){
     const {error} = await sb.from("objetivos").update({ahorrado}).eq("id", o.id);
     if(error){ showError(errorColumnaHucha(error) || "No se pudo guardar: "+error.message); return; }
     hideError(); huchaMeterId = null; await recargar(["objetivos"]);
-  }));
+  }); });
   document.querySelectorAll("[data-tema-hucha]").forEach(b=>b.onclick=()=>{ huchaTemaId = huchaTemaId===b.dataset.temaHucha ? null : b.dataset.temaHucha; huchaMeterId = null; render(); });
   document.querySelectorAll("[data-elegir-tema]").forEach(b=>b.onclick=()=>conCarga(b, "…", async ()=>{
     const {error} = await sb.from("objetivos").update({tema:b.dataset.elegirTema}).eq("id", b.dataset.obj);

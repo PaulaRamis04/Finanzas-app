@@ -21,7 +21,49 @@ const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto"
 
 let ocultarSaldos = false;
 try{ ocultarSaldos = localStorage.getItem("ocultarSaldos")==="1"; }catch(e){}
-function eur(n){ return ocultarSaldos ? "•••• €" : (n<0?"-":"") + "€" + Math.abs(n).toFixed(2).replace(".",","); }
+
+// ── Moneda: solo cambia el símbolo y el formato de los números; los importes guardados no se convierten.
+// miles: separador de miles ("" = sin separar, como siempre en euros); dec: decimales que se muestran.
+const MONEDAS = {
+  EUR:{nombre:"Euro", simbolo:"€", miles:"", decimal:",", dec:2},
+  USD:{nombre:"Dólar estadounidense", simbolo:"$", miles:",", decimal:".", dec:2, pista:"EE. UU., Ecuador, El Salvador, Panamá, Puerto Rico"},
+  ARS:{nombre:"Peso argentino", simbolo:"$", miles:".", decimal:",", dec:2},
+  BOB:{nombre:"Boliviano", simbolo:"Bs ", miles:".", decimal:",", dec:2},
+  BRL:{nombre:"Real brasileño", simbolo:"R$ ", miles:".", decimal:",", dec:2},
+  CLP:{nombre:"Peso chileno", simbolo:"$", miles:".", decimal:",", dec:0},
+  COP:{nombre:"Peso colombiano", simbolo:"$", miles:".", decimal:",", dec:0},
+  CRC:{nombre:"Colón costarricense", simbolo:"₡", miles:".", decimal:",", dec:2},
+  CUP:{nombre:"Peso cubano", simbolo:"$", miles:",", decimal:".", dec:2},
+  DOP:{nombre:"Peso dominicano", simbolo:"RD$", miles:",", decimal:".", dec:2},
+  GTQ:{nombre:"Quetzal guatemalteco", simbolo:"Q", miles:",", decimal:".", dec:2},
+  HNL:{nombre:"Lempira hondureño", simbolo:"L ", miles:",", decimal:".", dec:2},
+  HTG:{nombre:"Gourde haitiano", simbolo:"G ", miles:",", decimal:".", dec:2},
+  MXN:{nombre:"Peso mexicano", simbolo:"$", miles:",", decimal:".", dec:2},
+  NIO:{nombre:"Córdoba nicaragüense", simbolo:"C$", miles:",", decimal:".", dec:2},
+  PAB:{nombre:"Balboa panameño", simbolo:"B/.", miles:",", decimal:".", dec:2},
+  PEN:{nombre:"Sol peruano", simbolo:"S/ ", miles:",", decimal:".", dec:2},
+  PYG:{nombre:"Guaraní paraguayo", simbolo:"₲", miles:".", decimal:",", dec:0},
+  UYU:{nombre:"Peso uruguayo", simbolo:"$", miles:".", decimal:",", dec:2},
+  VES:{nombre:"Bolívar venezolano", simbolo:"Bs. ", miles:".", decimal:",", dec:2}
+};
+let moneda = "EUR";
+try{ const m = localStorage.getItem("moneda"); if(MONEDAS[m]) moneda = m; }catch(e){}
+function monedaInfo(){ return MONEDAS[moneda] || MONEDAS.EUR; }
+function simboloMoneda(){ return monedaInfo().simbolo.trim(); }
+function cifra(n, dec = monedaInfo().dec, m = monedaInfo()){
+  const [ent, fr] = Math.abs(Number(n)||0).toFixed(dec).split(".");
+  const e = m.miles ? ent.replace(/\B(?=(\d{3})+(?!\d))/g, m.miles) : ent;
+  return fr ? e + m.decimal + fr : e;
+}
+function eur(n){ const m = monedaInfo(); return ocultarSaldos ? "•••• " + simboloMoneda() : (n<0?"-":"") + m.simbolo + cifra(n); }
+// Importe redondo para textos («Primeros 1.000 €»): en euros se mantiene el estilo de siempre, con el símbolo detrás.
+function importeRedondo(n){ return moneda==="EUR" ? `${cifra(n, 0, {miles:"."})} €` : monedaInfo().simbolo + cifra(n, 0); }
+// Importe para mensajes que se envían (Bizum): siempre con la cifra real, aunque estén ocultos los saldos.
+function importeMensaje(n){ return moneda==="EUR" ? `${cifra(n)} €` : monedaInfo().simbolo + cifra(n); }
+function fijarMoneda(m){
+  moneda = MONEDAS[m] ? m : "EUR";
+  try{ localStorage.setItem("moneda", moneda); }catch(e){}
+}
 
 function esc(s){
   if(s==null) return "";
@@ -92,9 +134,10 @@ function graficoInteractivo(svg, W, H, puntos){
 
 function graficoGastoMes(acumulado, etiquetas, presupuesto, titulos){
   const W=320,H=150,padL=6,padR=8,padT=14,padB=20;
-  const n = acumulado.length;
+  const n = acumulado.length, total = etiquetas.length;
   const max = Math.max(1, presupuesto||0, ...acumulado) * 1.08;
-  const x = i => padL + (W-padL-padR) * (n>1 ? i/(n-1) : 0);
+  // El eje x abarca el periodo entero, así la línea se queda en el día de hoy y no se estira hasta el final.
+  const x = i => padL + (W-padL-padR) * (total>1 ? i/(total-1) : 0);
   const y = v => (H-padB) - (H-padT-padB) * (v/max);
   // Curva suave que no se sale de los puntos (controles a media distancia en horizontal).
   const puntos = acumulado.map((v,i)=>[x(i), y(v)]);
@@ -105,8 +148,6 @@ function graficoGastoMes(acumulado, etiquetas, presupuesto, titulos){
   }).join(" ");
   const [ux,uy] = puntos[n-1] || [padL, H-padB];
   const area = n ? `${linea} L${ux.toFixed(1)},${H-padB} L${padL},${H-padB} Z` : "";
-  const total = etiquetas.length;
-  const xe = i => padL + (W-padL-padR) * (total>1 ? i/(total-1) : 0);
   const marcas = total>12 ? [0,6,13,20,total-1] : etiquetas.map((_,i)=>i);
   const yp = presupuesto>0 ? y(presupuesto) : null;
   const tit = titulos || etiquetas;
@@ -119,7 +160,7 @@ function graficoGastoMes(acumulado, etiquetas, presupuesto, titulos){
     <path d="${linea}" fill="none" stroke="var(--mint)" stroke-width="2.6" stroke-linecap="round"/>
     <line x1="${ux.toFixed(1)}" y1="${uy.toFixed(1)}" x2="${ux.toFixed(1)}" y2="${H-padB}" stroke="var(--mint)" stroke-width="1" opacity=".5"/>
     <circle cx="${ux.toFixed(1)}" cy="${uy.toFixed(1)}" r="4.2" fill="var(--card)" stroke="var(--mint)" stroke-width="2.2"/>` : ""}
-    ${marcas.map(i=>`<text x="${xe(i).toFixed(1)}" y="${H-5}" font-size="9" fill="var(--muted)" text-anchor="${i===0?"start":i===total-1?"end":"middle"}">${esc(etiquetas[i])}</text>`).join("")}
+    ${marcas.map(i=>`<text x="${x(i).toFixed(1)}" y="${H-5}" font-size="9" fill="var(--muted)" text-anchor="${i===0?"start":i===total-1?"end":"middle"}">${esc(etiquetas[i])}</text>`).join("")}
   </svg>`, W, H, acumulado.map((v,i)=>({x:x(i), titulo:tit[i], series:[{y:y(v), color:"var(--mint)", valor:eur(v)+(presupuesto>0 ? ` de ${eur(presupuesto)}` : "")}]})));
 }
 
@@ -285,3 +326,34 @@ function mesesEntre(desde, hastaExclusivo){
 function gripHtml(){ return `<span class="grip" title="Mantén pulsado y arrastra para ordenar" aria-label="Arrastrar para ordenar"><i></i><i></i><i></i></span>`; }
 
 function sortItem(id, html){ return `<div class="sort-item" data-sort-id="${id}">${html}</div>`; }
+
+// Vibración muy ligera al pulsar botones clave. Los navegadores sin vibración (iPhone, escritorio) la ignoran.
+function vibrar(ms = 10){
+  try{ if(navigator.vibrate) navigator.vibrate(ms); }catch(e){}
+}
+
+// Sonido opcional tipo tintineo de moneda al registrar un movimiento. Se genera con Web Audio (sin archivos).
+let audioCtx = null;
+function sonarMoneda(){
+  if(!sonidoMovimientos) return;
+  try{
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return;
+    audioCtx = audioCtx || new AC();
+    if(audioCtx.state==="suspended") audioCtx.resume();
+    const t = audioCtx.currentTime;
+    // Dos notas cortas y suaves (si5 → mi6), como una moneda.
+    [[987.77, 0], [1318.51, 0.07]].forEach(([freq, retraso])=>{
+      const osc = audioCtx.createOscillator();
+      const vol = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      vol.gain.setValueAtTime(0.0001, t+retraso);
+      vol.gain.exponentialRampToValueAtTime(0.12, t+retraso+0.01);
+      vol.gain.exponentialRampToValueAtTime(0.0001, t+retraso+0.28);
+      osc.connect(vol).connect(audioCtx.destination);
+      osc.start(t+retraso);
+      osc.stop(t+retraso+0.3);
+    });
+  }catch(e){}
+}

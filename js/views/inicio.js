@@ -15,7 +15,8 @@ function renderInicio(){
   const inversionMes = enP.filter(m=>m.tipo==="gasto" && m.categoria==="Inversión").reduce((s,m)=>sumarDinero(s, m.importe),0);
   const gastosReales = enP.filter(m=>m.tipo==="gasto" && m.categoria!=="Inversión").reduce((s,m)=>sumarDinero(s, m.importe),0);
   // Ahorro es lo apartado a propósito (movimientos de la categoría «Inversión»), no lo que sobra.
-  const disponible = restarDinero(restarDinero(ingresos, gastosReales), inversionMes);
+  // Más (o menos) el saldo del mes pasado, si se eligió arrastrarlo.
+  const disponible = sumarDinero(restarDinero(restarDinero(ingresos, gastosReales), inversionMes), arrastrePeriodo());
 
   const mesAnt = mesAnteriorCargado();
   const tAnt = mesAnt ? totalesEfectivos(movimientosEfectivos(mesAnt.dentro)) : null;
@@ -26,24 +27,22 @@ function renderInicio(){
     const bueno = (pct>0)===masEsBueno;
     return `<div class="meta" style="color:var(${bueno?'--pos':'--neg'})">${pct>0?"▲":"▼"} ${Math.abs(pct).toFixed(0)}% vs ${MESES[mesAnt.m-1].toLowerCase()}</div>`;
   };
-  const alertas = presupuestosEnAlerta();
+  // En Inicio solo se avisa cuando ya te has pasado; lo de «cerca del límite» va a Notificaciones.
+  const alertas = presupuestosEnAlerta().filter(a=>a.gastado>a.limite);
   const bloqueAlertas = alertas.length ? `
   <div class="card">
-    <h2>⚠️ Presupuestos al límite</h2>
+    <h2>⚠️ Presupuestos superados</h2>
     <div class="list" style="margin-top:8px">
-      ${alertas.map(a=>{
-        const pasado = a.gastado>a.limite;
-        return `
+      ${alertas.map(a=>`
         <div>
           <div style="display:flex;justify-content:space-between;font-size:14px;margin-bottom:5px">
             <span>${esc(a.categoria)}</span>
-            <strong class="${pasado?'neg':''}">${eur(a.gastado)} de ${eur(a.limite)}</strong>
+            <strong class="neg">${eur(a.gastado)} de ${eur(a.limite)}</strong>
           </div>
           <div style="height:7px;background:var(--line);border-radius:999px;overflow:hidden">
-            <div style="height:100%;width:${Math.min(a.pct,100)}%;background:${pasado?'var(--neg)':'#e0ac4e'};border-radius:999px"></div>
+            <div style="height:100%;width:${Math.min(a.pct,100)}%;background:var(--neg);border-radius:999px"></div>
           </div>
-        </div>`;
-      }).join("")}
+        </div>`).join("")}
     </div>
     <button class="btn ghost" data-ir-tab="Presupuestos" style="margin-top:14px">Ver presupuestos</button>
   </div>` : "";
@@ -59,10 +58,7 @@ function renderInicio(){
         const pct = o.meta>0 ? Math.min(actual/o.meta*100,100) : 0;
         return `
         <div>
-          <div style="display:flex;justify-content:space-between;font-size:14px;margin-bottom:5px">
-            <span>${emojiObjetivo(o)} ${esc(o.nombre)}</span>
-            <strong>${pct.toFixed(0)}%</strong>
-          </div>
+          <div style="font-size:14px;margin-bottom:2px">${esc(o.nombre)}</div>
           ${barraHucha(o, pct, true)}
         </div>`;
       }).join("")}
@@ -107,7 +103,21 @@ function renderInicio(){
     <button class="btn ghost" data-ir-tab="Salud">Ver mi semáforo</button>
   </div>`;
 
+  // Gráfico de gasto acumulado: por días si hay un mes elegido, por meses si es el año entero.
+  const hoy = new Date();
   const porMes = periodoMes!=="todos";
+  const mesSel = Number(periodoMes);
+  const esActual = porMes ? (periodoAnio===hoy.getFullYear() && mesSel===hoy.getMonth()+1) : periodoAnio===hoy.getFullYear();
+  const nTramos = porMes ? new Date(periodoAnio, mesSel, 0).getDate() : 12;
+  const etiquetasGasto = porMes ? Array.from({length:nTramos}, (_,i)=>String(i+1)) : MESES.map(x=>x.slice(0,3));
+  const hastaTramo = esActual ? (porMes ? hoy.getDate() : hoy.getMonth()+1) : nTramos;
+  const gastoTramo = Array(nTramos).fill(0);
+  enP.filter(m=>m.tipo==="gasto" && m.categoria!=="Inversión").forEach(m=>{
+    const i = porMes ? Number(m.fecha.slice(8,10))-1 : Number(m.fecha.slice(5,7))-1;
+    if(i>=0 && i<nTramos) gastoTramo[i] = sumarDinero(gastoTramo[i], m.importe);
+  });
+  const acumulado = [];
+  gastoTramo.slice(0, hastaTramo).forEach(v=>acumulado.push(sumarDinero(acumulado.length ? acumulado[acumulado.length-1] : 0, v)));
   const presupuestoTotal = porMes ? presupuestos.reduce((s,p)=>sumarDinero(s, p.limite, rolloverAcumulado(p)), 0) : 0;
   const pctPat = patIni ? delta/Math.abs(patIni)*100 : 0;
   const nombre = (session?.user?.user_metadata?.full_name || "").trim().split(/\s+/)[0];
@@ -144,6 +154,14 @@ function renderInicio(){
   <div class="card barras-mes">
     <h2>${porMes ? MESES[Number(periodoMes)-1] : "Año "+periodoAnio} de un vistazo</h2>
     ${barrasMes(gastosReales, presupuestoTotal, ingresos, inversionMes, disponible, tAnt ? comparar(gastosReales, tAnt.gastos, false) : "")}
+  </div>
+  <div class="card grafico" id="graficoGastoInicio">
+    <h2 style="margin-bottom:6px">Gasto de ${porMes ? MESES[mesSel-1].toLowerCase() : periodoAnio}</h2>
+    <div class="meta" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+      <span style="width:9px;height:9px;border-radius:50%;background:var(--mint);display:inline-block"></span>
+      ${porMes ? "Lo que llevas gastado día a día" : "Lo que llevas gastado mes a mes"}${presupuestoTotal>0 ? ` · <span style="color:var(--accent)">- - -</span> presupuesto` : ""}
+    </div>
+    <div style="margin-top:10px">${graficoGastoMes(acumulado, etiquetasGasto, presupuestoTotal, porMes ? etiquetasGasto.map(d=>`${d} ${MESES[mesSel-1].slice(0,3).toLowerCase()}`) : MESES.map(m=>`Hasta ${m.toLowerCase()}`))}</div>
   </div>
   <div class="tit-fila" style="margin-top:22px"><h2>Acciones rápidas</h2>${accionesElegidas().length ? `<button class="auth-link" data-editar-acciones="1">Editar</button>` : ""}</div>
   <div class="acciones">
@@ -188,7 +206,7 @@ function barrasMes(gastado, presupuesto, ingresos, ahorro, disponible, vsAnterio
       presupuesto>0 ? (gastado>presupuesto ? `Te has pasado ${eur(restarDinero(gastado, presupuesto))}` : `Te quedan ${eur(restarDinero(presupuesto, gastado))} del presupuesto`)
         : (ingresos>0 ? `${Math.round(uso)} % de tus ingresos` : "Sin presupuesto ni ingresos"), vsAnterior)
     + fila("Ahorro", eur(ahorro), pct(ahorro, ingresos), "#8b7fd6", ahorro>0 ? `Apartado a propósito · ${deIngresos(ahorro)}` : "Aún no has apartado nada en este periodo")
-    + fila("Disponible", eur(disponible), pct(disponible, ingresos), "var(--accent)", `Lo que sobra tras gastos y ahorro · ${deIngresos(disponible)}`);
+    + fila("Disponible", eur(disponible), pct(disponible, ingresos), "var(--accent)", `Lo que sobra tras gastos y ahorro · ${deIngresos(disponible)}`, notaArrastre() ? `<div class="meta">${notaArrastre()}</div>` : "");
 }
 
 // Acciones rápidas personalizables: empiezan vacías y cada uno elige las suyas (se guardan en este dispositivo).
