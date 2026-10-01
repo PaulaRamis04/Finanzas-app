@@ -32,6 +32,14 @@ function renderPreferencias(){
     </select>
   </div>
   <div class="card">
+    <h2>Sonido al registrar un movimiento</h2>
+    <p class="meta" style="margin:0 0 10px">Al guardar un gasto o un ingreso puede sonar un tintineo suave de moneda. Esta preferencia se guarda en este dispositivo.</p>
+    <select id="prefSonido">
+      <option value="no"${!sonidoMovimientos?" selected":""}>Sin sonido</option>
+      <option value="si"${sonidoMovimientos?" selected":""}>Con sonido</option>
+    </select>
+  </div>
+  <div class="card">
     <h2>Copia de seguridad</h2>
     <p class="meta" style="margin:0 0 10px">Descarga un archivo con todos tus datos (movimientos, cuentas, deudas, inversiones, presupuestos, objetivos, categorías...) tal como están ahora mismo.</p>
     <button class="btn" id="btnExportar">Descargar copia (.json)</button>
@@ -134,6 +142,12 @@ function wireEventosPreferencias(){
     brilloHuchas = prefBrillo.value !== "no";
     document.documentElement.classList.toggle("sin-brillo", !brilloHuchas);
     try{ localStorage.setItem("brilloHuchas", brilloHuchas ? "si" : "no"); }catch(e){}
+  };
+  const prefSonido = document.getElementById("prefSonido");
+  if(prefSonido) prefSonido.onchange = ()=>{
+    sonidoMovimientos = prefSonido.value === "si";
+    try{ localStorage.setItem("sonidoMovimientos", sonidoMovimientos ? "si" : "no"); }catch(e){}
+    sonarMoneda();
   };
   const prefCuenta = document.getElementById("prefCuenta");
   if(prefCuenta) prefCuenta.onchange = async ()=>{

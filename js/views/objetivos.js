@@ -181,7 +181,7 @@ function wireEventosObjetivos(){
   }));
   document.querySelectorAll("[data-meter-hucha]").forEach(b=>b.onclick=()=>{ huchaMeterId = huchaMeterId===b.dataset.meterHucha ? null : b.dataset.meterHucha; huchaTemaId = null; pendienteEnfoque = "huchaImporte"; render(); });
   document.querySelectorAll("[data-cancelar-hucha]").forEach(b=>b.onclick=()=>{ huchaMeterId = null; render(); });
-  document.querySelectorAll("[data-hucha-mover]").forEach(b=>b.onclick=()=>conCarga(b, "Guardando…", async ()=>{
+  document.querySelectorAll("[data-hucha-mover]").forEach(b=>b.onclick=()=>{ vibrar(); conCarga(b, "Guardando…", async ()=>{
     const o = objetivos.find(x=>x.id===b.dataset.huchaMover);
     const importe = parseFloat(document.getElementById("huchaImporte")?.value);
     if(!o || isNaN(importe) || importe<=0){ showError("Pon un importe mayor que 0."); return; }
@@ -191,7 +191,7 @@ function wireEventosObjetivos(){
     const {error} = await sb.from("objetivos").update({ahorrado}).eq("id", o.id);
     if(error){ showError(errorColumnaHucha(error) || "No se pudo guardar: "+error.message); return; }
     hideError(); huchaMeterId = null; await recargar(["objetivos"]);
-  }));
+  }); });
   document.querySelectorAll("[data-tema-hucha]").forEach(b=>b.onclick=()=>{ huchaTemaId = huchaTemaId===b.dataset.temaHucha ? null : b.dataset.temaHucha; huchaMeterId = null; render(); });
   document.querySelectorAll("[data-elegir-tema]").forEach(b=>b.onclick=()=>conCarga(b, "…", async ()=>{
     const {error} = await sb.from("objetivos").update({tema:b.dataset.elegirTema}).eq("id", b.dataset.obj);
