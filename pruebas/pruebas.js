@@ -556,6 +556,27 @@ prueba("Comunidad: supporter, idea y fallo se guardan y dan las gracias", async 
   const filas = await p.evaluate(()=>__db.comunidad.map(f=>[f.tipo, f.importe, f.texto, !!f.info]));
   assert.deepStrictEqual(filas, [["supporter",10,"",false],["idea",null,"Modo pareja",false],["fallo",null,"No carga",true]]);
 });
+prueba("Comunidad: un supporter puede pedir subir o bajar su aportación", async ()=>{
+  const p = await abrir("?asesoria=1", {width:1280, height:900});
+  await p.evaluate(()=>{ tab = "Comunidad"; render(); });
+  assert.match(await p.innerText("#app"), /Tu aportación ahora:\s*5 €\/mes/);
+  await p.click('[data-comunidad-abrir="cambio"]');
+  assert.match(await p.innerText('[data-supporter-importe="5"]'), /actual/);
+  await p.click('[data-comunidad-enviar="cambio"]');
+  assert.match(await textoError(p), /cantidad distinta/);
+  await p.click('[data-supporter-importe="3"]');
+  assert.match(await p.innerText("#app"), /dejarás de tener la mini asesoría/);
+  await p.fill("#comunidadTexto", "Este mes voy justa");
+  await p.click('[data-comunidad-enviar="cambio"]');
+  await p.waitForSelector(".comunidad-ok");
+  assert.match(await p.innerText("#app"), /confirmar el cambio/);
+  const filas = await p.evaluate(()=>__db.comunidad.map(f=>[f.tipo, f.importe, f.texto]));
+  assert.deepStrictEqual(filas, [["supporter",3,"Este mes voy justa"]]);
+  const q = await abrir("", {width:1280, height:900});
+  await q.evaluate(()=>{ tab = "Comunidad"; render(); });
+  await q.click('[data-comunidad-abrir="cambio"]');
+  assert.match(await q.innerText("#app"), /se suma la mini asesoría/);
+});
 prueba("Comunidad: se ven tus mensajes con su respuesta", async ()=>{
   const p = await abrir("", {width:1280, height:900});
   await p.evaluate(()=>{ __db.comunidad.push({id:"k1", tipo:"idea", texto:"Modo pareja", estado:"resuelto", respuesta:"¡Apuntado!", respondido_en:new Date().toISOString()}, {id:"k2", tipo:"supporter", texto:"", importe:5}); });
