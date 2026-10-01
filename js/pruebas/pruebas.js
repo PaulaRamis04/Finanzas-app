@@ -251,6 +251,19 @@ prueba("Objetivos: el resumen de arriba suma lo ahorrado, no la meta", async ()=
   assert.match(txt, new RegExp(`${Math.round(ahorrado/4000*100)}% de la meta`));
   assert.ok(!/Todas tus huchas están llenas/.test(txt));
 });
+prueba("huchas: el brillo de la barra se quita y se pone en Preferencias y se recuerda", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>{ tab = "Preferencias"; render(); });
+  assert.ok(!(await p.evaluate(()=>document.documentElement.classList.contains("sin-brillo"))));
+  await p.selectOption("#prefBrillo", "no");
+  assert.ok(await p.evaluate(()=>document.documentElement.classList.contains("sin-brillo")));
+  await p.reload();
+  await p.waitForFunction(()=>typeof ready!=="undefined" && ready);
+  assert.ok(await p.evaluate(()=>document.documentElement.classList.contains("sin-brillo")), "se recuerda al volver a abrir");
+  await p.evaluate(()=>{ tab = "Preferencias"; render(); });
+  await p.selectOption("#prefBrillo", "si");
+  assert.ok(!(await p.evaluate(()=>document.documentElement.classList.contains("sin-brillo"))));
+});
 prueba("huchas: la barra en cápsula se rellena, se echa y se saca dinero y se elige el icono", async ()=>{
   const p = await abrir();
   await p.evaluate(()=>{ __db.objetivos.push({id:"o2", nombre:"Viaje a Japón", meta:1000, tipo_vinculo:"ninguno", vinculo_id:null, orden:2, ahorrado:250}); });
