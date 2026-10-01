@@ -494,6 +494,24 @@ prueba("cerrar sesión recarga y borra los datos locales", async ()=>{
   await Promise.all([p.waitForNavigation(), p.click("#menuLogout")]);
   assert.strictEqual(await p.evaluate(()=>localStorage.getItem("cuentaDefecto")), null);
 });
+prueba("eliminar cuenta: pide escribir ELIMINAR, confirma, borra los datos y cierra la sesión", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>localStorage.setItem("cuentaDefecto", "c1"));
+  await p.evaluate(()=>{ tab = "Preferencias"; render(); });
+  assert.ok(await p.isDisabled("#btnBorrarCuenta"));
+  await p.fill("#borrarCuentaTexto", "eliminar");
+  assert.ok(!(await p.isDisabled("#btnBorrarCuenta")));
+  // Cancelar en la hoja no borra nada.
+  await p.click("#btnBorrarCuenta");
+  await p.click("#hojaNo");
+  assert.ok(await p.evaluate(()=>__db.movimientos.length) > 0);
+  await p.click("#btnBorrarCuenta");
+  await Promise.all([p.waitForNavigation(), p.click("#hojaOk")]);
+  assert.strictEqual(await p.evaluate(()=>localStorage.getItem("__cuentaBorrada")), "1");
+  assert.ok(await p.isVisible("#loginEmail"));
+  assert.strictEqual(await p.evaluate(()=>localStorage.getItem("cuentaDefecto")), null);
+  assert.ok(!(await p.evaluate(()=>JSON.parse(localStorage.getItem("perfiles")||"[]").length)));
+});
 prueba("perfiles: añadir otra cuenta, cambiar con la flecha y cerrar solo uno", async ()=>{
   const p = await abrir();
   await p.evaluate(()=>localStorage.setItem("accionesRapidas", '["Gastos"]'));
