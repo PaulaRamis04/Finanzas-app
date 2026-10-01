@@ -584,6 +584,25 @@ prueba("acceso con contraseña: error, registro, recuperar y entrar", async ()=>
   assert.ok(await p.isVisible("#appShell"));
   assert.ok(await p.isHidden("#authScreen"));
 });
+prueba("medidor de contraseña: aviso amarillo, tick verde y deja registrarse igual", async ()=>{
+  const p = await navegador.newPage({viewport:MOVIL});
+  p.on("pageerror", e=>errores.push(e.message));
+  await p.goto("file://" + HTML_PRUEBA + "?sinsesion=1");
+  await p.waitForSelector("#fLogin", {state:"visible"});
+  await p.click('[data-auth="registro"]');
+  assert.ok(await p.isHidden("#medidor-regPass"), "sin contraseña no se enseña");
+  await p.fill("#regNombre", "Ana"); await p.fill("#regEmail", "ana@x.com");
+  await p.fill("#regPass", "ana12345");
+  assert.match(await p.textContent("#medidor-regPass"), /Podría ser más segura/);
+  assert.ok(!(await p.getAttribute("#medidor-regPass", "class")).includes("segura"));
+  assert.match(await p.textContent("#medidor-regPass"), /puedes continuar igualmente/);
+  await p.fill("#regPass", "Girasol-Azul-27");
+  assert.match(await p.textContent("#medidor-regPass"), /✓ Contraseña segura/);
+  assert.ok((await p.getAttribute("#medidor-regPass", "class")).includes("segura"));
+  await p.fill("#regPass", "ana12345");
+  await p.click("#fRegistro button[type=submit]");
+  await p.waitForFunction(()=>/confirmar la cuenta/.test(document.getElementById("loginMsg").textContent));
+});
 prueba("el enlace de recuperar pide la contraseña nueva antes de entrar", async ()=>{
   const p = await navegador.newPage({viewport:MOVIL});
   p.on("pageerror", e=>errores.push(e.message));
