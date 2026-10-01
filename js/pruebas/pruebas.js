@@ -251,22 +251,22 @@ prueba("Objetivos: el resumen de arriba suma lo ahorrado, no la meta", async ()=
   assert.match(txt, new RegExp(`${Math.round(ahorrado/4000*100)}% de la meta`));
   assert.ok(!/Todas tus huchas están llenas/.test(txt));
 });
-prueba("huchas: la barra de iconos se rellena, se echa y se saca dinero y se elige el icono", async ()=>{
+prueba("huchas: la barra en cápsula se rellena, se echa y se saca dinero y se elige el icono", async ()=>{
   const p = await abrir();
   await p.evaluate(()=>{ __db.objetivos.push({id:"o2", nombre:"Viaje a Japón", meta:1000, tipo_vinculo:"ninguno", vinculo_id:null, orden:2, ahorrado:250}); });
   await p.evaluate(()=>recargar(["objetivos"]));
   await p.evaluate(()=>{ tab = "Objetivos"; render(); });
   const tarjeta = '[data-sort-id="o2"]';
-  const barra = ()=>p.$$eval(`${tarjeta} .hucha-barra .hucha-lleno`, els=>els.map(e=>e.textContent + "|" + e.style.clipPath));
-  let llenos = await barra();
-  assert.strictEqual(llenos.length, 3, "250 de 1000: dos iconos llenos y medio");
-  assert.ok(llenos.every(t=>t.startsWith("✈️")), "el nombre elige el tema de viaje");
-  assert.match(llenos[2], /inset\(0(px)? 50%/);
+  const barra = ()=>p.$eval(tarjeta, el=>({icono:el.querySelector(".hucha-icono").textContent, ancho:el.querySelector(".hucha-relleno").style.width, pct:el.querySelector(".hucha-pct").textContent}));
+  let b = await barra();
+  assert.strictEqual(b.ancho, "25%", "250 de 1000: la cápsula va por la cuarta parte");
+  assert.strictEqual(b.pct, "25%");
+  assert.strictEqual(b.icono, "✈️", "el nombre elige el tema de viaje");
   await p.click(`${tarjeta} [data-meter-hucha]`);
   await p.fill("#huchaImporte", "250");
   await p.click(`${tarjeta} [data-hucha-mover][data-signo="1"]`);
   await p.waitForFunction(()=>objetivos.find(o=>o.id==="o2").ahorrado===500);
-  assert.strictEqual((await barra()).length, 5);
+  assert.strictEqual((await barra()).ancho, "50%");
   await p.click(`${tarjeta} [data-meter-hucha]`);
   await p.fill("#huchaImporte", "600");
   await p.click(`${tarjeta} [data-hucha-mover][data-signo="-1"]`);
@@ -275,7 +275,7 @@ prueba("huchas: la barra de iconos se rellena, se echa y se saca dinero y se eli
   await p.click(`${tarjeta} [data-tema-hucha]`);
   await p.click(`${tarjeta} [data-elegir-tema="concierto"]`);
   await p.waitForFunction(()=>objetivos.find(o=>o.id==="o2").tema==="concierto");
-  assert.ok((await barra()).every(t=>t.startsWith("🎤")));
+  assert.strictEqual((await barra()).icono, "🎤");
   // Hucha nueva: el icono elegido se guarda; sin elegir, sale del nombre.
   await p.evaluate(()=>{ formsEstado.objetivo = true; render(); });
   await p.fill('#fObjetivo [name="nombre"]', "Fondo de emergencia");

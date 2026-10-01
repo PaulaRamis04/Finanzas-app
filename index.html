@@ -409,13 +409,15 @@ button.fila{cursor:pointer; -webkit-tap-highlight-color:transparent}
 .chip{border:none; background:var(--accent-soft); color:var(--accent); font-family:inherit; font-size:12.5px; font-weight:700; padding:7px 12px; border-radius:999px; cursor:pointer}
 .chip.ok{background:var(--mint-soft); color:var(--mint)} .chip.lav{background:var(--lav-soft); color:#7a6cc9}
 /* Huchas de ahorro: barra de iconos que se va rellenando */
-.hucha-barra{display:grid; grid-template-columns:repeat(10,1fr); gap:2px; margin-top:10px; padding:7px 8px; border-radius:14px; background:var(--accent-soft)}
-.hucha-barra.mini{margin-top:0; padding:4px 6px; border-radius:10px}
-.hucha-slot{position:relative; text-align:center; font-size:21px; line-height:1.25}
-.hucha-barra.mini .hucha-slot{font-size:14px}
-.hucha-vacio{filter:grayscale(1); opacity:.22}
-.hucha-lleno{position:absolute; inset:0; animation:hucha-pop .45s cubic-bezier(.3,1.6,.5,1) both; animation-delay:calc(var(--i) * 45ms)}
-@keyframes hucha-pop{from{transform:scale(.3); opacity:0}}
+.hucha-barra{display:flex; align-items:center; gap:10px; margin-top:12px}
+.hucha-burbuja{width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0}
+.hucha-capsula{flex:1; height:12px; border-radius:999px; background:var(--line); position:relative}
+.hucha-relleno{position:relative; height:100%; min-width:12px; border-radius:999px; background:linear-gradient(90deg, var(--g1), var(--g2));
+  box-shadow:0 0 10px -1px color-mix(in srgb, var(--g2) 70%, transparent); animation:hucha-crece .8s cubic-bezier(.25,.8,.3,1) both}
+.hucha-punta{position:absolute; right:2px; top:50%; width:8px; height:8px; margin-top:-4px; border-radius:50%; background:#fff;
+  box-shadow:0 0 0 2px color-mix(in srgb, #fff 35%, transparent), 0 0 8px 2px color-mix(in srgb, #fff 70%, transparent)}
+.hucha-pct{font-family:"Nunito",sans-serif; font-size:12.5px; font-weight:700; color:var(--muted); min-width:34px; text-align:right; font-variant-numeric:tabular-nums}
+@keyframes hucha-crece{from{width:0}}
 .hucha-icono{width:46px; height:46px; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:25px; flex-shrink:0}
 .temas-hucha{display:flex; gap:6px; flex-wrap:wrap; margin:4px 0 10px}
 .temas-hucha label{margin:0; cursor:pointer}
@@ -423,7 +425,7 @@ button.fila{cursor:pointer; -webkit-tap-highlight-color:transparent}
 .temas-hucha span, .temas-hucha button{display:flex; align-items:center; justify-content:center; width:42px; height:42px; border-radius:14px; font-size:21px; background:var(--card); border:2px solid var(--line); cursor:pointer; font-family:inherit; padding:0}
 .temas-hucha input:checked + span, .temas-hucha button.activo{border-color:var(--accent); background:var(--accent-soft)}
 .temas-hucha input:focus-visible + span{outline:2px solid var(--accent); outline-offset:2px}
-@media (prefers-reduced-motion: reduce){ .hucha-lleno{animation:none} }
+@media (prefers-reduced-motion: reduce){ .hucha-relleno{animation:none} }
 .chip.peligro{background:transparent; color:var(--muted); border:1.5px solid var(--line)}
 /* El rojo de alerta solo aparece al pulsar (la acción se está confirmando) */
 .chip.peligro:active{color:var(--neg); border-color:var(--neg)}

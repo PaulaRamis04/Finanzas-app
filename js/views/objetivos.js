@@ -1,13 +1,24 @@
 // Pestaña «Objetivos» (las huchas de ahorro): su render y sus eventos.
 
-// Barra de 10 iconos del tema de la hucha que se van rellenando según lo ahorrado.
-function barraHucha(o, pct, mini = false){
+// Degradado pastel del relleno según el color del tema de la hucha.
+const DEGRADADOS_HUCHA = {
+  "var(--accent-soft)":["#ffc9a8","#f2a9bb"], // melocotón a rosa empolvado
+  "var(--peach-soft)":["#ffd3a6","#f6b0a4"],  // albaricoque a coral suave
+  "var(--lav-soft)":["#c9bdf2","#f2b3cc"],    // lavanda a rosa
+  "var(--mint-soft)":["#a9dfca","#c4b8f0"]    // menta a lavanda
+};
+
+// Barra de progreso en cápsula: relleno pastel continuo con un punto de luz donde termina y el porcentaje al final.
+// Con «conIcono» lleva delante el icono del tema en su burbuja (en la tarjeta de la hucha el icono ya va en la cabecera).
+function barraHucha(o, pct, conIcono = false){
   const tema = TEMAS_HUCHA[temaObjetivo(o)];
-  const llenos = Math.min(Math.max(pct,0),100)/10;
-  return `<div class="hucha-barra${mini?" mini":""}" style="background:${tema.fondo}" role="img" aria-label="${pct.toFixed(0)}% ahorrado">${Array.from({length:10}, (_,i)=>{
-    const parte = Math.min(Math.max(llenos-i,0),1);
-    return `<span class="hucha-slot"><span class="hucha-vacio">${tema.icono}</span>${parte>0? `<span class="hucha-lleno" style="--i:${i};clip-path:inset(0 ${((1-parte)*100).toFixed(1)}% 0 0)">${tema.icono}</span>` : ""}</span>`;
-  }).join("")}</div>`;
+  const [g1, g2] = DEGRADADOS_HUCHA[tema.fondo] || DEGRADADOS_HUCHA["var(--accent-soft)"];
+  const p = Math.min(Math.max(pct,0),100);
+  return `<div class="hucha-barra" role="img" aria-label="${p.toFixed(0)}% ahorrado">
+    ${conIcono? `<span class="hucha-burbuja" style="background:${tema.fondo}">${tema.icono}</span>` : ""}
+    <div class="hucha-capsula">${p>0? `<div class="hucha-relleno" style="width:${p.toFixed(1)}%;--g1:${g1};--g2:${g2}"><span class="hucha-punta"></span></div>` : ""}</div>
+    <span class="hucha-pct">${p.toFixed(0)}%</span>
+  </div>`;
 }
 
 function selectorTemas(marcado){
