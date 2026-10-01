@@ -602,6 +602,7 @@ prueba("acceso con contraseña: error, registro, recuperar y entrar", async ()=>
   await p.waitForFunction(()=>/te llegará un enlace/.test(document.getElementById("loginMsg").textContent));
   const llamadas = await p.evaluate(()=>__auth.map(a=>a[0]));
   assert.deepStrictEqual(llamadas, ["signInWithPassword","signUp","resetPasswordForEmail"]);
+  assert.strictEqual(await p.evaluate(()=>__auth[1][1].options.data.bienvenida), "pendiente", "las cuentas nuevas quedan marcadas para ver la bienvenida");
   await p.click('[data-auth="login"]');
   await p.fill("#loginPass", "secreta123");
   await p.click("#fLogin button[type=submit]");
@@ -977,6 +978,32 @@ prueba("¿qué pasaría si…?: compara patrimonio a 1, 3, 5 y 10 años y las hu
   await p.click('[data-sim-quitar="ahorro"]');
   assert.strictEqual(await p.evaluate(()=>sim.cambios.length), 0);
   assert.ok(!(await p.textContent('[data-sim-anio="1"]')).includes("+"));
+});
+
+prueba("bienvenida: solo a cuentas nuevas, tres tarjetas y no vuelve a salir", async ()=>{
+  const p = await abrir();
+  await p.waitForTimeout(700); // deja pasar la hoja del saldo del mes pasado, que sale al cargar
+  // Una cuenta de antes (sin marca) no la ve.
+  await p.evaluate(async ()=>{ document.getElementById("hoja")?.remove(); bienvenidaRevisada = ""; await revisarBienvenida(); });
+  assert.ok(!(await p.$(".hoja-bienvenida")));
+  await p.evaluate(()=>{ document.getElementById("hoja")?.remove(); bienvenidaRevisada = ""; session.user.user_metadata.bienvenida = "pendiente"; revisarBienvenida(); });
+  await p.waitForSelector(".hoja-bienvenida");
+  assert.ok((await p.textContent("#hojaTitulo")).includes("¡Bienvenida a tu espacio de calma!"));
+  assert.strictEqual((await p.textContent("#bvSiguiente")).trim(), "Siguiente ➔");
+  await p.click("#bvSiguiente");
+  assert.ok((await p.textContent("#hojaTitulo")).includes("Lo que puedes hacer aquí"));
+  // La segunda tarjeta es larga: se desplaza dentro de la hoja y la hoja cabe en la pantalla.
+  const medidas = await p.evaluate(()=>{ const c = document.getElementById("bvCuerpo"), h = document.querySelector(".hoja-bienvenida").getBoundingClientRect();
+    return {desplaza:c.scrollHeight>c.clientHeight, cabe:h.top>=0 && h.bottom<=innerHeight+1}; });
+  assert.ok(medidas.desplaza && medidas.cabe, JSON.stringify(medidas));
+  await p.click("#bvSiguiente");
+  assert.ok((await p.textContent("#hojaTitulo")).includes("Habla conmigo cuando quieras"));
+  await p.click("#bvSiguiente");
+  await p.waitForFunction(()=>!document.querySelector(".hoja-bienvenida"));
+  await p.waitForFunction(()=>__auth.some(a=>a[0]==="updateUser" && a[1].data && a[1].data.bienvenida==="vista"));
+  // Aunque la cuenta siga marcada (sin refrescar la sesión), en este dispositivo ya no vuelve a salir.
+  await p.evaluate(async ()=>{ bienvenidaRevisada = ""; await revisarBienvenida(); });
+  assert.ok(!(await p.$(".hoja-bienvenida")));
 });
 
 (async ()=>{
