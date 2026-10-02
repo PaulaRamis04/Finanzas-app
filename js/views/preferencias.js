@@ -4,6 +4,11 @@ function renderPreferencias(){
   const def = cuentaPorDefecto();
   return `
   <div class="card">
+    <h2>Idioma</h2>
+    <p class="meta" style="margin:0 0 10px">El idioma de la app en este dispositivo.</p>
+    <select id="prefIdioma" translate="no">${Object.entries(IDIOMAS).map(([c,n])=>`<option value="${c}"${c===idioma?" selected":""}>${n}</option>`).join("")}</select>
+  </div>
+  <div class="card">
     <h2>Cuenta por defecto</h2>
     <p class="meta" style="margin:0 0 10px">Es la cuenta que aparece ya seleccionada cuando añades un movimiento, aportas o rescatas de una inversión, o saldas una deuda. Siempre puedes elegir otra en cada caso.</p>
     ${cuentasActivas().length? `<select id="prefCuenta"><option value="">Ninguna (la primera de la lista)</option>${cuentasActivas().map(c=>`<option value="${c.id}"${c.id===def?" selected":""}>${esc(c.nombre)}</option>`).join("")}</select>` : `<div class="meta">Crea antes una cuenta en la pestaña "Cuentas".</div>`}
@@ -102,7 +107,7 @@ function wireEventosPreferencias(){
         let copia;
         try{ copia = leerCopia(await archivo.text()); }catch(e){ showError(e.message); return; }
         const f = copia.filas;
-        const fecha = new Date(copia.exportadoEn).toLocaleString("es-ES");
+        const fecha = new Date(copia.exportadoEn).toLocaleString(localeApp());
         if(!(await confirmar(`Copia del ${fecha}: ${f.cuentas.length} cuentas, ${f.movimientos.length} movimientos, ${f.deudas.length} deudas, ${f.inversiones.length} inversiones y ${f.objetivos.length} objetivos. ¿Restaurarla?`))) return;
         try{
           await restaurarCopia(copia, txt=>{ btnRestaurar.textContent = txt; });
@@ -114,7 +119,7 @@ function wireEventosPreferencias(){
   const borrarTexto = document.getElementById("borrarCuentaTexto");
   const btnBorrar = document.getElementById("btnBorrarCuenta");
   if(borrarTexto && btnBorrar){
-    borrarTexto.oninput = ()=>{ btnBorrar.disabled = borrarTexto.value.trim().toUpperCase() !== "ELIMINAR"; };
+    borrarTexto.oninput = ()=>{ btnBorrar.disabled = borrarTexto.value.trim().toUpperCase() !== tr("ELIMINAR"); };
     btnBorrar.onclick = async ()=>{
       if(!(await confirmar("¿Borrar tu cuenta y todos tus datos? Se eliminarán para siempre y no podrás recuperarlos.", {ok:"Sí, borrar mi cuenta"}))) return;
       conCarga(btnBorrar, "Eliminando…", async ()=>{
@@ -125,6 +130,8 @@ function wireEventosPreferencias(){
       });
     };
   }
+  const prefIdioma = document.getElementById("prefIdioma");
+  if(prefIdioma) prefIdioma.onchange = ()=>fijarIdioma(prefIdioma.value);
   const prefForms = document.getElementById("prefForms");
   if(prefForms) prefForms.onchange = ()=>{
     formsPorDefecto = prefForms.value === "cerrados" ? "cerrados" : "abiertos";
