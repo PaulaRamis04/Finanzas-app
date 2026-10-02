@@ -294,7 +294,7 @@ function etiquetaDia(f){
   const dif = Math.round((hoy-d)/86400000);
   if(dif===0) return "Hoy";
   if(dif===1) return "Ayer";
-  const dia = ["dom","lun","mar","mié","jue","vie","sáb"][d.getDay()];
+  const dia = idioma==="es" ? ["dom","lun","mar","mié","jue","vie","sáb"][d.getDay()] : d.toLocaleDateString(localeApp(), {weekday:"short"});
   return `${dia} ${fechaCorta(f)}${d.getFullYear()!==hoy.getFullYear() ? " "+d.getFullYear() : ""}`;
 }
 

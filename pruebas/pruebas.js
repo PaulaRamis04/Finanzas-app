@@ -31,7 +31,7 @@ prueba("las sumas de dinero no arrastran decimales", ()=>{
 let navegador, errores = [];
 const MOVIL = {width:390, height:844};
 async function abrir(qs = "", viewport = MOVIL){
-  const p = await navegador.newPage({viewport});
+  const p = await navegador.newPage({viewport, locale:"es-ES"});
   p.on("pageerror", e=>errores.push(e.message));
   p.on("dialog", d=>d.accept());
   await p.goto("file://" + HTML_PRUEBA + qs);
@@ -603,7 +603,7 @@ prueba("mini asesoría: se ve el chat, se marca leído y se envía", async ()=>{
   assert.deepStrictEqual(await p.evaluate(()=>__db.asesoria_mensajes.slice(-1).map(m=>[m.autor, m.texto])), [["cliente","Gracias, ¿y el ahorro?"]]);
 });
 prueba("acceso con contraseña: error, registro, recuperar y entrar", async ()=>{
-  const p = await navegador.newPage({viewport:MOVIL});
+  const p = await navegador.newPage({viewport:MOVIL, locale:"es-ES"});
   p.on("pageerror", e=>errores.push(e.message));
   await p.goto("file://" + HTML_PRUEBA + "?sinsesion=1");
   await p.waitForSelector("#fLogin", {state:"visible"});
@@ -632,7 +632,7 @@ prueba("acceso con contraseña: error, registro, recuperar y entrar", async ()=>
   assert.ok(await p.isHidden("#authScreen"));
 });
 prueba("medidor de contraseña: aviso amarillo, tick verde y deja registrarse igual", async ()=>{
-  const p = await navegador.newPage({viewport:MOVIL});
+  const p = await navegador.newPage({viewport:MOVIL, locale:"es-ES"});
   p.on("pageerror", e=>errores.push(e.message));
   await p.goto("file://" + HTML_PRUEBA + "?sinsesion=1");
   await p.waitForSelector("#fLogin", {state:"visible"});
@@ -651,7 +651,7 @@ prueba("medidor de contraseña: aviso amarillo, tick verde y deja registrarse ig
   await p.waitForFunction(()=>/confirmar la cuenta/.test(document.getElementById("loginMsg").textContent));
 });
 prueba("el enlace de recuperar pide la contraseña nueva antes de entrar", async ()=>{
-  const p = await navegador.newPage({viewport:MOVIL});
+  const p = await navegador.newPage({viewport:MOVIL, locale:"es-ES"});
   p.on("pageerror", e=>errores.push(e.message));
   await p.goto("file://" + HTML_PRUEBA + "#access_token=x&type=recovery");
   await p.waitForSelector("#fNuevaPass", {state:"visible"});
@@ -1039,6 +1039,43 @@ prueba("bienvenida: solo a cuentas nuevas, tres tarjetas y no vuelve a salir", a
   // Aunque la cuenta siga marcada (sin refrescar la sesión), en este dispositivo ya no vuelve a salir.
   await p.evaluate(async ()=>{ bienvenidaRevisada = ""; await revisarBienvenida(); });
   assert.ok(!(await p.$(".hoja-bienvenida")));
+});
+
+prueba("idiomas: sigue el del dispositivo, se cambia en Preferencias y traduce toda la app", async ()=>{
+  const abrirEn = async (locale, qs = "")=>{
+    const p = await navegador.newPage({viewport:MOVIL, locale});
+    p.on("pageerror", e=>errores.push(e.message));
+    await p.goto("file://" + HTML_PRUEBA + qs);
+    await p.waitForFunction(()=>typeof ready!=="undefined" && ready);
+    return p;
+  };
+  // Un idioma que la app no tiene se queda en español.
+  let p = await abrirEn("fr-FR");
+  assert.strictEqual(await p.evaluate(()=>idioma), "es");
+  await p.close();
+  p = await abrirEn("en-GB");
+  assert.strictEqual(await p.evaluate(()=>[idioma, document.documentElement.lang, localStorage.getItem("idioma")]).then(x=>x.join()), "en,en,en");
+  assert.ok((await p.textContent("#navInf")).includes("Transactions"));
+  // Todas las pestañas: lo único sin traducir son los datos de la cuenta (nombres, categorías…) y fechas cortas.
+  const datos = await p.evaluate(()=>JSON.stringify(__db));
+  for(const t of PESTANAS) await p.evaluate(t=>{ tab = t; render(); }, t);
+  await p.evaluate(()=>confirmar("¿Archivar esta cuenta? Conservas su historial y dejará de salir al apuntar movimientos."));
+  assert.strictEqual(await p.textContent("#hojaTitulo"), "Archive this account?");
+  assert.strictEqual(await p.textContent("#hojaOk"), "Yes, archive");
+  const sinTraducir = (await p.evaluate(()=>[...faltanTraducir]))
+    .filter(x=>!x.split(/[·:]/).map(s=>s.replace(/^[^\p{L}]+|[\d\s%]+$/gu,"").trim()).every(s=>!s || datos.includes(s)) && !/\d+ \p{L}{3}\.?$/u.test(x));
+  assert.deepStrictEqual(sinTraducir, []);
+  // Cambiar de idioma en Preferencias recarga la app en ese idioma (y se queda guardado).
+  await p.evaluate(()=>{ tab = "Preferencias"; render(); });
+  await Promise.all([p.waitForNavigation(), p.selectOption("#prefIdioma", "ca")]);
+  await p.waitForFunction(()=>typeof ready!=="undefined" && ready);
+  assert.strictEqual(await p.evaluate(()=>idioma), "ca");
+  assert.ok((await p.textContent("#navInf")).includes("Moviments"));
+  // Las fechas y los meses también, y el texto dibujado en la tarjeta del cierre.
+  assert.strictEqual(await p.evaluate(()=>MESES[9]), "Octubre");
+  assert.strictEqual(await p.evaluate(()=>tr("¿En qué se fue el dinero?")), "En què se'n van anar els diners?");
+  assert.strictEqual(await p.evaluate(()=>tr("Gasto de abril")), "Despesa d'abril");
+  await p.close();
 });
 
 (async ()=>{
