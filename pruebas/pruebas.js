@@ -1059,7 +1059,7 @@ prueba("idiomas: sigue el del dispositivo, se cambia en Preferencias y traduce t
   // Todas las pestañas: lo único sin traducir son los datos de la cuenta (nombres, categorías…) y fechas cortas.
   const datos = await p.evaluate(()=>JSON.stringify(__db));
   for(const t of PESTANAS) await p.evaluate(t=>{ tab = t; render(); }, t);
-  await p.evaluate(()=>confirmar("¿Archivar esta cuenta? Conservas su historial y dejará de salir al apuntar movimientos."));
+  await p.evaluate(()=>{ confirmar("¿Archivar esta cuenta? Conservas su historial y dejará de salir al apuntar movimientos."); });
   assert.strictEqual(await p.textContent("#hojaTitulo"), "Archive this account?");
   assert.strictEqual(await p.textContent("#hojaOk"), "Yes, archive");
   const sinTraducir = (await p.evaluate(()=>[...faltanTraducir]))
