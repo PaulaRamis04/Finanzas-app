@@ -174,7 +174,7 @@ function dibujarCierre(canvas, d, ocultar){
   // Pie
   ctx.textAlign = "center";
   ctx.fillStyle = INK; textoCierre(ctx, fraseCierre(d), W/2, 1290, ancho, 800, 36, 22);
-  ctx.fillStyle = MUTED; fuenteCierre(ctx, 700, 22); ctx.fillText("🐷 Hecho con Cuentas", W/2, 1326);
+  ctx.fillStyle = MUTED; fuenteCierre(ctx, 700, 22); ctx.fillText("🐷 Hecho con PocketZ", W/2, 1326);
   ctx.textAlign = "left";
 }
 

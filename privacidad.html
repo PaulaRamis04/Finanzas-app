@@ -16,10 +16,15 @@
   ul{ padding-left:22px; }
   li{ margin:4px 0; }
   hr{ border:0; border-top:1px solid var(--line); margin:32px 0; }
+  .idiomas{ max-width:720px; margin:0 auto; padding:16px 16px 0; font-size:14px; color:var(--muted); text-align:right; }
+  .idiomas a{ color:var(--muted); text-decoration:none; }
+  .idiomas a.activo{ color:var(--accent); font-weight:700; }
 </style>
+<script src="js/idioma.js" data-solo-idioma></script>
 </head>
 <body>
-<main>
+<nav class="idiomas" translate="no"><a href="#" data-idioma="es">Español</a> · <a href="#" data-idioma="ca">Català</a> · <a href="#" data-idioma="en">English</a></nav>
+<main lang="es" data-idioma="es">
   <h1>Política de privacidad</h1>
   <p class="meta">Última actualización: 2 de octubre de 2026</p>
 
@@ -67,5 +72,113 @@
   <hr>
   <p class="meta"><a href="./">Volver a la app</a></p>
 </main>
+<main lang="ca" data-idioma="ca" hidden>
+  <h1>Política de privacitat</h1>
+  <p class="meta">Última actualització: 2 d'octubre de 2026</p>
+
+  <p>PocketZ és una app per apuntar i organitzar les teves finances personals. Aquí expliquem quines dades desa, per a què i com les pots esborrar. En resum: només desem el que tu escrius a l'app, no venem ni compartim les teves dades amb ningú i no fem servir publicitat ni rastrejadors.</p>
+
+  <h2>Quines dades recollim</h2>
+  <ul>
+    <li><b>Dades del teu compte:</b> el correu amb què et registres, la contrasenya (desada xifrada, ningú no la pot llegir) i, si ho indiques, el teu nom.</li>
+    <li><b>El que apuntes a l'app:</b> comptes, moviments, categories, pressupostos, deutes, inversions, objectius, recurrents i la resta d'informació financera que introdueixes tu a mà o importes des d'un fitxer del teu banc.</li>
+    <li><b>Missatges:</b> el que escrius a la pestanya Comunitat o al xat d'assessoria, per poder-te respondre.</li>
+    <li><b>Subscripció:</b> si tens premium o assessoria i fins quan.</li>
+    <li><b>Al teu dispositiu:</b> algunes preferències (tema, colors, imatge de fons, idioma, quins formularis surten oberts...) es desen només al teu mòbil o navegador i no en surten.</li>
+  </ul>
+  <p>No accedim als teus comptes bancaris, a la teva ubicació, als teus contactes ni a cap altra dada del dispositiu.</p>
+
+  <h2>Per a què les fem servir</h2>
+  <p>Únicament perquè l'app funcioni: desar les teves dades, mostrar-te-les en qualsevol dispositiu on iniciïs sessió, calcular els saldos i els resums, compartir un compte amb qui tu triïs i respondre els teus missatges. No les fem servir per a publicitat ni per crear perfils.</p>
+
+  <h2>Amb qui les compartim</h2>
+  <p>No venem, no lloguem ni compartim la teva informació amb tercers. Les dades s'allotgen a <a href="https://supabase.com/privacy" rel="noopener">Supabase</a>, el proveïdor de base de dades que fa servir l'app, en servidors de la Unió Europea (Frankfurt). Supabase només les desa per nosaltres i no les pot fer servir per a altres finalitats. L'app descarrega la seva llibreria des de jsDelivr, un servei que, com qualsevol web, rep l'adreça IP per lliurar el fitxer.</p>
+  <p>Si comparteixes un compte amb una altra persona des de l'app, aquesta persona veurà els moviments d'aquell compte, perquè així ho has decidit tu.</p>
+
+  <h2>Com les protegim</h2>
+  <ul>
+    <li>Tota la informació viatja xifrada mitjançant HTTPS entre l'app i Supabase.</li>
+    <li>Cada persona només pot llegir i modificar les seves pròpies dades: la base de dades ho comprova a cada petició.</li>
+    <li>Les contrasenyes es desen xifrades.</li>
+  </ul>
+
+  <h2>Quant de temps les conservem</h2>
+  <p>Mentre tinguis el compte. Quan l'elimines, s'esborren el teu compte i totes les teves dades al moment. Les còpies de seguretat automàtiques del proveïdor de base de dades es conserven com a màxim 7 dies, així que passat aquest termini no en queda cap rastre.</p>
+
+  <h2>Com esborrar el teu compte i les teves dades</h2>
+  <p>Des de la mateixa app: <b>Configuració → Preferències → Eliminar el compte i les dades</b>. Escriu ESBORRAR, confirma i s'esborra tot al moment. Abans pots descarregar una còpia de les teves dades a Preferències → Còpia de seguretat. Si no tens l'app instal·lada, mira les altres opcions a <a href="eliminar-cuenta.html">Eliminar el teu compte i les teves dades</a>.</p>
+
+  <h2>Els teus drets</h2>
+  <p>Pots consultar, corregir, descarregar o esborrar les teves dades en qualsevol moment des de l'app. Si vols exercir qualsevol altre dret que et reconegui el RGPD o tens qualsevol dubte, escriu-nos des de la pestanya Comunitat de l'app o a <a href="mailto:soporte.pocketz@gmail.com">soporte.pocketz@gmail.com</a>. També pots presentar una reclamació davant l'Agència Espanyola de Protecció de Dades.</p>
+
+  <h2>Menors</h2>
+  <p>L'app no està adreçada a menors de 14 anys.</p>
+
+  <h2>Canvis en aquesta política</h2>
+  <p>Si canviem alguna cosa important, actualitzarem aquesta pàgina i la data de dalt.</p>
+
+  <hr>
+  <p class="meta"><a href="./">Tornar a l'app</a></p>
+</main>
+<main lang="en" data-idioma="en" hidden>
+  <h1>Privacy policy</h1>
+  <p class="meta">Last updated: 2 October 2026</p>
+
+  <p>PocketZ is an app for logging and organising your personal finances. Here we explain what data it stores, what for, and how you can delete it. In short: we only store what you type into the app, we don't sell or share your data with anyone, and we don't use ads or trackers.</p>
+
+  <h2>What data we collect</h2>
+  <ul>
+    <li><b>Your account details:</b> the email you sign up with, your password (stored encrypted, nobody can read it) and, if you give it, your name.</li>
+    <li><b>What you log in the app:</b> accounts, transactions, categories, budgets, debts, investments, goals, recurring items and any other financial information you enter by hand or import from a bank file.</li>
+    <li><b>Messages:</b> what you write in the Community tab or in the advice chat, so we can reply to you.</li>
+    <li><b>Subscription:</b> whether you have premium or advice, and until when.</li>
+    <li><b>On your device:</b> some preferences (theme, colours, background image, language, which forms start open...) are saved only on your phone or browser and never leave it.</li>
+  </ul>
+  <p>We don't access your bank accounts, your location, your contacts or any other data on your device.</p>
+
+  <h2>What we use it for</h2>
+  <p>Only to make the app work: saving your data, showing it to you on any device you sign in on, calculating your balances and summaries, sharing an account with whoever you choose and replying to your messages. We don't use it for advertising or to build profiles.</p>
+
+  <h2>Who we share it with</h2>
+  <p>We don't sell, rent or share your information with third parties. The data is hosted by <a href="https://supabase.com/privacy" rel="noopener">Supabase</a>, the database provider the app uses, on servers in the European Union (Frankfurt). Supabase only stores it on our behalf and can't use it for anything else. The app downloads its library from jsDelivr, a service that, like any website, receives your IP address in order to deliver the file.</p>
+  <p>If you share an account with someone else from the app, that person will see that account's transactions, because you chose to share it.</p>
+
+  <h2>How we protect it</h2>
+  <ul>
+    <li>All information travels encrypted over HTTPS between the app and Supabase.</li>
+    <li>Each person can only read and change their own data: the database checks this on every request.</li>
+    <li>Passwords are stored encrypted.</li>
+  </ul>
+
+  <h2>How long we keep it</h2>
+  <p>For as long as you have an account. When you delete it, your account and all your data are deleted immediately. The database provider's automatic backups are kept for at most 7 days, so after that no trace remains.</p>
+
+  <h2>How to delete your account and data</h2>
+  <p>From the app itself: <b>Settings → Preferences → Delete account and data</b>. Type DELETE, confirm and everything is deleted immediately. Before that you can download a copy of your data in Preferences → Backup. If you don't have the app installed, see the other options in <a href="eliminar-cuenta.html">Delete your account and data</a>.</p>
+
+  <h2>Your rights</h2>
+  <p>You can view, correct, download or delete your data at any time from the app. If you want to exercise any other right you have under the GDPR, or have any questions, write to us from the app's Community tab or at <a href="mailto:soporte.pocketz@gmail.com">soporte.pocketz@gmail.com</a>. You can also lodge a complaint with the Spanish Data Protection Agency (AEPD).</p>
+
+  <h2>Children</h2>
+  <p>The app is not intended for children under 14.</p>
+
+  <h2>Changes to this policy</h2>
+  <p>If we change anything important, we'll update this page and the date at the top.</p>
+
+  <hr>
+  <p class="meta"><a href="./">Back to the app</a></p>
+</main>
+<script>
+// Muestra la página en el idioma de la app (el mismo que se elige en Preferencias).
+const TITULOS = {"es": "Política de privacidad · PocketZ", "ca": "Política de privacitat · PocketZ", "en": "Privacy policy · PocketZ"};
+function verIdioma(i){
+  document.querySelectorAll("main").forEach(m=>{ m.hidden = m.dataset.idioma!==i; });
+  document.querySelectorAll(".idiomas a").forEach(a=>a.classList.toggle("activo", a.dataset.idioma===i));
+  document.documentElement.lang = i; document.title = TITULOS[i];
+}
+verIdioma(idioma);
+document.querySelectorAll(".idiomas a").forEach(a=>a.onclick = e=>{ e.preventDefault(); try{ localStorage.setItem("idioma", a.dataset.idioma); }catch(_){} verIdioma(a.dataset.idioma); });
+</script>
+
 </body>
 </html>
