@@ -1056,6 +1056,8 @@ prueba("idiomas: sigue el del dispositivo, se cambia en Preferencias y traduce t
   p = await abrirEn("en-GB");
   assert.strictEqual(await p.evaluate(()=>[idioma, document.documentElement.lang, localStorage.getItem("idioma")]).then(x=>x.join()), "en,en,en");
   assert.ok((await p.textContent("#navInf")).includes("Transactions"));
+  // En inglés los importes llevan coma en los miles y punto en los decimales.
+  assert.strictEqual(await p.evaluate(()=>eur(90000)), "€90,000.00");
   // Todas las pestañas: lo único sin traducir son los datos de la cuenta (nombres, categorías…) y fechas cortas.
   const datos = await p.evaluate(()=>JSON.stringify(__db));
   for(const t of PESTANAS) await p.evaluate(t=>{ tab = t; render(); }, t);
@@ -1071,6 +1073,7 @@ prueba("idiomas: sigue el del dispositivo, se cambia en Preferencias y traduce t
   await p.waitForFunction(()=>typeof ready!=="undefined" && ready);
   assert.strictEqual(await p.evaluate(()=>idioma), "ca");
   assert.ok((await p.textContent("#navInf")).includes("Moviments"));
+  assert.strictEqual(await p.evaluate(()=>eur(90000)), "€90.000,00");
   // Las fechas y los meses también, y el texto dibujado en la tarjeta del cierre.
   assert.strictEqual(await p.evaluate(()=>MESES[9]), "Octubre");
   assert.strictEqual(await p.evaluate(()=>tr("¿En qué se fue el dinero?")), "En què se'n van anar els diners?");

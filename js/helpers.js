@@ -50,7 +50,12 @@ let moneda = "EUR";
 try{ const m = localStorage.getItem("moneda"); if(MONEDAS[m]) moneda = m; }catch(e){}
 function monedaInfo(){ return MONEDAS[moneda] || MONEDAS.EUR; }
 function simboloMoneda(){ return monedaInfo().simbolo.trim(); }
+// El euro se escribe como en cada idioma: 90.000,00 en español y catalán, 90,000.00 en inglés.
+function separadores(m){
+  return m===MONEDAS.EUR && typeof idioma!=="undefined" && idioma==="en" ? {...m, miles:",", decimal:"."} : m;
+}
 function cifra(n, dec = monedaInfo().dec, m = monedaInfo()){
+  m = separadores(m);
   const [ent, fr] = Math.abs(Number(n)||0).toFixed(dec).split(".");
   const e = m.miles ? ent.replace(/\B(?=(\d{3})+(?!\d))/g, m.miles) : ent;
   return fr ? e + m.decimal + fr : e;
