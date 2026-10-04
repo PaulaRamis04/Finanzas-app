@@ -229,7 +229,7 @@ function renderTabs(){
   document.getElementById("btnOjo").onclick = alternarPrivacidad;
   const item = id=>{
     const s = SECCIONES.find(x=>x.id===id);
-    return `<button class="menu-item ${s===secActual?"active":""}" data-tab="${ultimaDeSeccion[s.id] || s.tabs[0]}" data-seccion="${s.id}"><span class="mi">${s.ico}</span>${s.titulo}${s.hub ? `<span class="marca-hub">Hub</span>` : ""}</button>`;
+    return `<button class="menu-item ${s===secActual?"active":""}" data-tab="${ultimaDeSeccion[s.id] || s.tabs[0]}" data-seccion="${s.id}"><span class="mi">${s.ico}</span>${s.titulo}</button>`;
   };
   document.getElementById("menuPanel").innerHTML =
     `<div class="menu-marca">${LOGO_HUCHA}PocketZ<span class="menu-version">v${VERSION_APP}</span></div>` +

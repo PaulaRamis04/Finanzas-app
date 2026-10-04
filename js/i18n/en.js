@@ -1250,7 +1250,6 @@ TRADUCCIONES.en = {
   "Recurrentes y Cuotas": "Recurring & Subscriptions",
   "Metas y Huchas": "Goals & Savings jars",
   "Simuladores": "Simulators",
-  "Hub": "Hub",
   "Ajustes y Categorías": "Settings & Categories",
   "Comunidad y Soporte": "Community & Support",
   "Nueva meta": "New goal",

@@ -197,7 +197,7 @@ prueba("en pantalla ancha solo hay menú lateral agrupado, sin barra inferior", 
   assert.strictEqual((await panel.boundingBox()).x, 0, "el menú lateral está fijo a la vista");
   assert.deepStrictEqual(await p.$$eval(".menu-group-title", t=>t.map(x=>x.textContent)), ["Día a día","Patrimonio","Futuro y ahorro","Configuración"]);
   assert.deepStrictEqual(await p.$$eval("#menuPanel .menu-item[data-seccion]", t=>t.map(x=>x.textContent)),
-    ["📊Inicio","🏷️Gastos y Presupuestos","📋Movimientos","👛Cuentas","🤝Deudas y Bizums","🗓️Recurrentes y Cuotas","🎯Metas y Huchas","🔮SimuladoresHub","⚙️Ajustes y Categorías","💌Comunidad y Soporte"]);
+    ["📊Inicio","🏷️Gastos y Presupuestos","📋Movimientos","👛Cuentas","🤝Deudas y Bizums","🗓️Recurrentes y Cuotas","🎯Metas y Huchas","🔮Simuladores","⚙️Ajustes y Categorías","💌Comunidad y Soporte"]);
   await p.click('.menu-item[data-tab="Cuentas"]');
   assert.strictEqual(await p.evaluate(()=>tab), "Cuentas");
   // Las secciones con varias pantallas llevan un selector en cápsula arriba, y el menú recuerda la última.

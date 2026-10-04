@@ -1250,7 +1250,6 @@ TRADUCCIONES.ca = {
   "Recurrentes y Cuotas": "Recurrents i Quotes",
   "Metas y Huchas": "Metes i Guardioles",
   "Simuladores": "Simuladors",
-  "Hub": "Hub",
   "Ajustes y Categorías": "Configuració i Categories",
   "Comunidad y Soporte": "Comunitat i Suport",
   "Nueva meta": "Nova meta",
