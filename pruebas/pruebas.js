@@ -171,8 +171,13 @@ prueba("Inicio muestra saldo, barras del mes, acciones y recientes", async ()=>{
   if(dias) assert.match(await p.$eval("#graficoGastoInicio svg", s=>s.textContent), new RegExp(`${dias}\\s*$`), "el eje va hasta el último día del mes");
   assert.match(txt, /Movimientos recientes/);
   assert.ok(await p.isHidden("header"), "en Inicio no se ve la cabecera");
-  assert.strictEqual(await p.$$eval("[data-accion]", b=>b.length), 0, "las acciones rápidas empiezan vacías");
+  assert.deepStrictEqual(await p.$$eval("[data-accion]", b=>b.map(x=>x.dataset.accion)), ["mov","transferencia","meta"], "las acciones rápidas empiezan con apuntar, transferir y nueva meta");
+  await p.click('[data-accion="meta"]');
+  assert.strictEqual(await p.evaluate(()=>tab), "Objetivos");
+  assert.strictEqual(await p.evaluate(()=>document.activeElement.id), "objNombre");
+  await p.click('[data-nav="Inicio"]');
   await p.click("#btnEditarAcciones");
+  for(const a of ["mov","transferencia","meta"]) await p.click(`[data-elegir-accion="${a}"]`);
   await p.click('[data-elegir-accion="Deudas"]');
   await p.click('[data-elegir-accion="mov"]');
   await p.click("#hojaListo");
@@ -190,9 +195,28 @@ prueba("en pantalla ancha solo hay menú lateral agrupado, sin barra inferior", 
   assert.ok(await p.isHidden("#navInf"));
   const panel = await p.$("#menuPanel");
   assert.strictEqual((await panel.boundingBox()).x, 0, "el menú lateral está fijo a la vista");
-  assert.deepStrictEqual(await p.$$eval(".menu-group-title", t=>t.map(x=>x.textContent)), ["Resumen","Dinero","Ahorro","Ajustes"]);
+  assert.deepStrictEqual(await p.$$eval(".menu-group-title", t=>t.map(x=>x.textContent)), ["Día a día","Patrimonio","Futuro y ahorro","Configuración"]);
+  assert.deepStrictEqual(await p.$$eval("#menuPanel .menu-item[data-seccion]", t=>t.map(x=>x.textContent)),
+    ["📊Inicio","🏷️Gastos y Presupuestos","📋Movimientos","👛Cuentas","🤝Deudas y Bizums","🗓️Recurrentes y Cuotas","🎯Metas y Huchas","🔮SimuladoresHub","⚙️Ajustes y Categorías","💌Comunidad y Soporte"]);
   await p.click('.menu-item[data-tab="Cuentas"]');
   assert.strictEqual(await p.evaluate(()=>tab), "Cuentas");
+  // Las secciones con varias pantallas llevan un selector en cápsula arriba, y el menú recuerda la última.
+  assert.deepStrictEqual(await p.$$eval(".selector-seccion button", b=>b.map(x=>x.textContent)), ["Cuentas","Inversiones"]);
+  await p.click('.selector-seccion [data-ir-tab="Inversiones"]');
+  assert.strictEqual(await p.evaluate(()=>tab), "Inversiones");
+  assert.match(await p.getAttribute('.menu-item[data-seccion="Cuentas"]', "class"), /active/);
+  await p.click('.menu-item[data-seccion="Simuladores"]');
+  assert.deepStrictEqual(await p.$$eval(".selector-seccion.hub button", b=>b.map(x=>x.textContent)), ["Vivienda","¿Me lo puedo permitir?","Proyecciones⭐","¿Y si…?"]);
+  assert.strictEqual(await p.textContent("#tabActual"), "Simuladores");
+  await p.click('.menu-item[data-seccion="Cuentas"]');
+  assert.strictEqual(await p.evaluate(()=>tab), "Inversiones");
+  // Los logros salen del menú: se abren desde Metas y Huchas y se vuelve con «‹ Metas y Huchas».
+  await p.click('.menu-item[data-seccion="Objetivos"]');
+  await p.click('.logros-btn');
+  assert.strictEqual(await p.evaluate(()=>tab), "Hitos");
+  assert.match(await p.getAttribute('.menu-item[data-seccion="Objetivos"]', "class"), /active/);
+  await p.click(".volver-seccion");
+  assert.strictEqual(await p.evaluate(()=>tab), "Objetivos");
   assert.ok(await p.isHidden("#menuOverlay"));
   const m = await p.$eval("main", el=>el.getBoundingClientRect().left);
   assert.ok(m >= 248, "el contenido no queda debajo del menú");
@@ -467,9 +491,9 @@ prueba("sin premium: Proyección bloqueada (Inversiones no), Personalización so
   await p.evaluate(()=>{ tab = "Personalización"; render(); });
   assert.ok(await p.locator("[data-tema]").count() > 0);
   assert.strictEqual(await p.locator("[data-acento], #btnSubirFondo").count(), 0);
-  assert.strictEqual(await p.locator(".marca-premium").count(), 2);
-  // Las secciones premium llevan su estrella; el saludo no, porque no es premium.
-  assert.strictEqual(await p.locator("#menuPanel .estrella-premium").count(), 2);
+  assert.strictEqual(await p.locator(".marca-premium").count(), 0);
+  // Las pantallas premium llevan su estrella en el selector de su sección; el saludo no, porque no es premium.
+  assert.strictEqual(await p.locator(".selector-seccion .estrella-premium").count(), 1);
   await p.evaluate(()=>{ tab = "Inicio"; render(); });
   assert.strictEqual(await p.locator(".hola .estrella-premium").count(), 0);
   await p.evaluate(()=>{ tab = "Cuentas"; render(); });
@@ -524,8 +548,9 @@ prueba("premium: estrella junto al nombre en Inicio y en las secciones premium",
   await p.evaluate(()=>{ tab = "Inicio"; render(); });
   assert.strictEqual(await p.locator(".hola h1 .estrella-premium").count(), 1);
   assert.match(await p.innerText(".hola h1"), /Paula\s*⭐/);
-  assert.strictEqual(await p.locator("#menuPanel .estrella-premium").count(), 2);
   assert.strictEqual(await p.locator(".marca-premium").count(), 0);
+  await p.evaluate(()=>{ tab = "Vivienda"; render(); });
+  assert.strictEqual(await p.locator(".selector-seccion .estrella-premium").count(), 1, "Proyecciones lleva su estrella en Simuladores");
   await p.evaluate(()=>{ tab = "Proyección"; render(); });
   assert.strictEqual(await p.locator("#tabActual .estrella-premium").count(), 1);
   await p.evaluate(()=>{ tab = "Inversiones"; render(); });
@@ -537,7 +562,7 @@ prueba("Comunidad: supporter, idea y fallo se guardan y dan las gracias", async 
   assert.match(await pp.innerText("#app"), /Ya eres premium/);
   assert.strictEqual(await pp.locator('[data-comunidad-abrir="supporter"]').count(), 0, "un premium no puede volver a hacerse supporter");
   const p = await abrir("?premium=0", {width:1280, height:900});
-  await p.click(".menu-comunidad");
+  await p.click('.menu-item[data-seccion="Comunidad"]');
   assert.strictEqual(await p.evaluate(()=>tab), "Comunidad");
   await p.click('[data-comunidad-abrir="supporter"]');
   assert.match(await p.innerText("#app"), /opciones premium/);
@@ -1001,9 +1026,28 @@ prueba("¿qué pasaría si…?: compara patrimonio a 1, 3, 5 y 10 años y las hu
   assert.ok(!(await p.textContent('[data-sim-anio="1"]')).includes("+"));
 });
 
+prueba("cuotas y filtros: próximos cobros con los días que faltan y chips de categoría en Gastos", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>{ tab = "Recurrentes"; render(); });
+  const n = await p.evaluate(()=>recurrentes.filter(r=>r.activo && r.tipo==="gasto").length);
+  assert.ok(n>0);
+  assert.strictEqual(await p.locator(".cuota").count(), n);
+  assert.match(await p.innerText(".cuotas"), /Hoy|Mañana|Faltan \d+ días/);
+  assert.strictEqual(await p.evaluate(()=>textoFaltan(5)), "Faltan 5 días");
+  await p.evaluate(()=>{ tab = "Gastos"; render(); });
+  const cat = await p.$$eval(".chip-filtro", b=>b[1].dataset.gastosCat);
+  await p.click(`.chip-filtro[data-gastos-cat="${cat}"]`);
+  assert.match(await p.getAttribute(`.chip-filtro[data-gastos-cat="${cat}"]`, "class"), /sel/);
+  assert.strictEqual(await p.evaluate(()=>gastosCatSel), cat);
+  await p.click('.chip-filtro[data-gastos-cat=""]');
+  assert.strictEqual(await p.evaluate(()=>gastosCatSel), null);
+});
+
 prueba("presupuestos: el total enseña lo que queda y cada categoría lo gastado", async ()=>{
   const p = await abrir("", {width:1280, height:800});
-  await p.click('.menu-item[data-tab="Presupuestos"]');
+  await p.click('.menu-item[data-seccion="Gastos"]');
+  assert.deepStrictEqual(await p.$$eval(".selector-seccion button", b=>b.map(x=>x.textContent)), ["Gastos","Resumen del mes","Presupuestos"]);
+  await p.click('.selector-seccion [data-ir-tab="Presupuestos"]');
   const datos = await p.evaluate(()=>{
     const gasto = {};
     movimientosEfectivos().filter(m=>m.tipo==="gasto").forEach(m=>gasto[m.categoria]=(gasto[m.categoria]||0)+m.importe);

@@ -24,9 +24,34 @@ function recurrenteItem(r){
   </div>`;
 }
 
+// Calendario de cuotas: los próximos cargos fijos con los días que faltan para cada uno.
+function textoFaltan(dias){ return dias<=0 ? "Hoy" : dias===1 ? "Mañana" : `Faltan ${dias} días`; }
+function renderCalendarioCuotas(){
+  const hoy = today();
+  const proximos = recurrentes.filter(r=>r.activo && r.tipo==="gasto")
+    .map(r=>({r, fecha:proximaFechaRecurrente(r)})).map(x=>({...x, dias:Math.max(diasEntre(hoy, x.fecha), 0)}))
+    .sort((a,b)=>a.dias-b.dias);
+  if(!proximos.length) return "";
+  const totalMes = sumaImportes(proximos, x=>x.r.importe);
+  return `
+  <div class="section-title" style="margin-top:0">Próximos cobros</div>
+  <div class="cuotas">
+    ${proximos.map(({r, fecha, dias})=>`
+    <div class="cuota${dias<=3?" pronto":""}">
+      <div class="cuota-ico">${emojiCategoria(r.categoria, "gasto")}</div>
+      <strong>${esc(r.nota || r.categoria)}</strong>
+      <div class="cuota-imp">${eur(r.importe)}</div>
+      <div class="cuota-dias">${textoFaltan(dias)}</div>
+      <div class="meta">${Number(fecha.slice(8))} ${MESES[Number(fecha.slice(5,7))-1].slice(0,3).toLowerCase()}</div>
+    </div>`).join("")}
+  </div>
+  <p class="meta" style="margin:-4px 4px 14px">Cuotas fijas al mes: <strong style="color:var(--ink)">${eur(totalMes)}</strong></p>`;
+}
+
 function renderRecurrentes(){
   const items = [...recurrentes].sort((a,b)=> (a.activo===b.activo?0:(a.activo?-1:1)) || a.categoria.localeCompare(b.categoria));
   return `
+  ${renderCalendarioCuotas()}
   <div class="card">
     <h2>Nuevo recurrente</h2>
     <p class="meta" style="margin:0 0 10px">Para suscripciones, nóminas u otros pagos o ingresos que se repiten cada mes. Se generan solos en la fecha que digas, sin que tengas que apuntarlos.</p>

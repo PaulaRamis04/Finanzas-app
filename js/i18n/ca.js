@@ -1239,5 +1239,27 @@ TRADUCCIONES.ca = {
   "Miércoles {#}": "Dimecres {}",
   "Jueves {#}": "Dijous {}",
   "Viernes {#}": "Divendres {}",
-  "Sábado {#}": "Dissabte {}"
+  "Sábado {#}": "Dissabte {}",
+  // Menú reorganizado
+  "Día a día": "Dia a dia",
+  "Futuro y ahorro": "Futur i estalvi",
+  "Configuración": "Configuració",
+  "Gastos y Presupuestos": "Despeses i Pressupostos",
+  "Deudas y Bizums": "Deutes i Bizums",
+  "Recurrentes y Cuotas": "Recurrents i Quotes",
+  "Metas y Huchas": "Metes i Guardioles",
+  "Simuladores": "Simuladors",
+  "Hub": "Hub",
+  "Ajustes y Categorías": "Configuració i Categories",
+  "Comunidad y Soporte": "Comunitat i Suport",
+  "Nueva meta": "Nova meta",
+  "Crear una meta": "Crear una meta",
+  "Filtrar por categoría": "Filtrar per categoria",
+  "Proyecciones": "Projeccions",
+  "¿Y si…?": "I si…?",
+  "Tus logros": "Els teus èxits",
+  "Próximos cobros": "Propers cobraments",
+  "Cuotas fijas al mes:": "Quotes fixes al mes:",
+  "Mañana": "Demà",
+  "Faltan {#} días": "Falten {} dies"
 };

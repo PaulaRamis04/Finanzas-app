@@ -42,6 +42,10 @@ function renderGastos(){
     <span>Gastos${gastosCatSel? ` · ${esc(gastosCatSel)}` : ""} <span class="meta" style="font-size:13px">(${gastosMostrados.length})</span></span>
     ${gastosCatSel? `<button class="btn ghost" data-gastos-cat="" style="color:var(--accent)">Ver todos</button>` : ""}
   </div>
+  <div class="chips-filtro" role="group" aria-label="Filtrar por categoría">
+    <button class="chip-filtro ${gastosCatSel?"":"sel"}" data-gastos-cat="" aria-pressed="${!gastosCatSel}">Todas</button>
+    ${Object.entries(porCategoria).sort((a,b)=>b[1]-a[1]).map(([cat])=>`<button class="chip-filtro ${gastosCatSel===cat?"sel":""}" data-gastos-cat="${esc(cat)}" aria-pressed="${gastosCatSel===cat}">${emojiCategoria(cat, "gasto")} ${esc(cat)}</button>`).join("")}
+  </div>
   ${gastosMostrados.length? listaPorDias([...gastosMostrados].sort((a,b)=>b.fecha.localeCompare(a.fecha)), m=>filaMov(m, {fecha:false,
       extra: m.cubierto ? `De ${eur(m.importeOriginal)}; ${eur(m.cubierto)} ya cobrados` : (m.nota ? m.categoria : cuentaNombre(m.cuentaId))}))
     : `<div class="card">${gastosCatSel? vacio("hucha","Nada en esta categoría","Tu hucha lo agradece.") : vacio("nube","¡Todo tranquilo por aquí!","Aún no hay compras registradas este periodo.")}</div>`}` : ""}`;

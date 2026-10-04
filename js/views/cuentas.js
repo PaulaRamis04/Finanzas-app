@@ -24,6 +24,9 @@ function panelCompartir(c){
     </div>`;
 }
 
+// Cada cuenta lleva su tarjeta acolchada con un fondo suave (lila, menta, melocotón…).
+const FONDOS_CUENTA = ["var(--lav-soft)","var(--mint-soft)","var(--peach-soft)","var(--accent-soft)"];
+
 function renderCuentas(){
   const items = cuentasActivas().sort(porOrden);
   const archivadas = cuentas.filter(c=>c.archivada).sort(porOrden);
@@ -47,7 +50,7 @@ function renderCuentas(){
     const col = PALETTE[k%PALETTE.length];
     const nMov = nMovCuenta(c);
     return `
-    <div class="sort-item" data-sort-id="${c.id}"><div class="card">
+    <div class="sort-item" data-sort-id="${c.id}"><div class="card cuenta-tarjeta" style="--fondo-cuenta:${FONDOS_CUENTA[k%FONDOS_CUENTA.length]}">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
         <div style="display:flex;align-items:center;gap:12px;min-width:0">
           ${items.length>1? gripHtml() : ""}

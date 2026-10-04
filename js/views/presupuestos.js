@@ -21,7 +21,7 @@ function renderPresupuestos(){
       <span style="font-size:34px;font-weight:800;letter-spacing:-0.02em;font-variant-numeric:tabular-nums" class="${totalPasado?'neg':''}">${eur(Math.abs(totalQueda))}</span>
       <span class="meta" style="padding-bottom:7px;font-size:14px">de ${eur(totalLimite)} ${mult===12?"al año":"al mes"}</span>
     </div>
-    <div class="barra"><div style="width:${totalPasado?100:Math.max(0,100-totalPct)}%;background:${totalPasado?'var(--neg)':totalPct>=80?'#e0ac4e':'var(--mint)'}"></div></div>
+    <div class="barra"><div style="width:${totalPasado?100:Math.max(0,100-totalPct)}%;background:${totalPasado?'var(--salmon)':totalPct>=80?'#f2b880':'var(--mint)'}"></div></div>
     ${mult===12? `<p class="meta" style="margin:8px 0 0">Vista anual: cada límite mensual se multiplica por 12.</p>` : ""}
   </div>` : "";
 
@@ -58,7 +58,7 @@ function renderPresupuestos(){
             <div class="meta">${eur(gastado)} de ${eur(limiteEf)}${mult===12?" al año":""}${p.rollover?" · con remanente":""}</div>
           </div>
         </div>
-        <div class="barra" style="height:8px"><div style="width:${Math.min(pct,100)}%;background:${pasado?'var(--neg)':pct>=80?'#e0ac4e':'var(--mint)'}"></div></div>
+        <div class="barra" style="height:8px"><div style="width:${Math.min(pct,100)}%;background:${pasado?'var(--salmon)':pct>=80?'#f2b880':'var(--mint)'}"></div></div>
         ${rolloverImp!==0 && mult!==12? `<div class="meta">Incluye ${rolloverImp>=0?"+":""}${eur(rolloverImp)} de meses anteriores</div>` : ""}
         ${ajuste>0? `<div class="meta">Sin contar ${eur(ajuste)} que ya te han devuelto</div>` : ""}
         ${pasado? `<div class="meta" style="color:var(--neg)">Has superado el límite en ${eur(restarDinero(gastado, limiteEf))}</div>` : ""}

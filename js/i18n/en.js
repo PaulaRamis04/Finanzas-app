@@ -1239,5 +1239,27 @@ TRADUCCIONES.en = {
   "Miércoles {#}": "Wednesday {}",
   "Jueves {#}": "Thursday {}",
   "Viernes {#}": "Friday {}",
-  "Sábado {#}": "Saturday {}"
+  "Sábado {#}": "Saturday {}",
+  // Menú reorganizado
+  "Día a día": "Day to day",
+  "Futuro y ahorro": "Future & savings",
+  "Configuración": "Settings",
+  "Gastos y Presupuestos": "Spending & Budgets",
+  "Deudas y Bizums": "Debts & Bizums",
+  "Recurrentes y Cuotas": "Recurring & Subscriptions",
+  "Metas y Huchas": "Goals & Savings jars",
+  "Simuladores": "Simulators",
+  "Hub": "Hub",
+  "Ajustes y Categorías": "Settings & Categories",
+  "Comunidad y Soporte": "Community & Support",
+  "Nueva meta": "New goal",
+  "Crear una meta": "Create a goal",
+  "Filtrar por categoría": "Filter by category",
+  "Proyecciones": "Projections",
+  "¿Y si…?": "What if…?",
+  "Tus logros": "Your achievements",
+  "Próximos cobros": "Upcoming charges",
+  "Cuotas fijas al mes:": "Fixed payments per month:",
+  "Mañana": "Tomorrow",
+  "Faltan {#} días": "{} days to go"
 };

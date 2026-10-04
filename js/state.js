@@ -1,11 +1,26 @@
 const TABS = ["Inicio","Salud","Gastos","Resumen del mes","Presupuestos","Permitir","Movimientos","Cuentas","Deudas","Inversiones","Objetivos","Vivienda","Hitos","Proyección","Simulador","Recurrentes","Categorías","Preferencias"];
 
-const GRUPOS_MENU = [
-  {nombre:"Resumen", tabs:["Salud","Gastos","Resumen del mes","Presupuestos","Permitir"]},
-  {nombre:"Dinero", tabs:["Movimientos","Cuentas","Deudas","Recurrentes"]},
-  {nombre:"Ahorro", tabs:["Inversiones","Objetivos","Vivienda","Hitos","Proyección","Simulador"]},
-  {nombre:"Ajustes", tabs:["Categorías","Preferencias","Personalización","Comunidad"]}
+// Menú: cada entrada es una sección. Las que juntan varias pestañas enseñan arriba un selector en cápsula
+// («tabs»); «sub» son pantallas que se abren desde dentro de la sección (no salen en el selector).
+const SECCIONES = [
+  {id:"Inicio", titulo:"Inicio", ico:"📊", tabs:["Inicio"], sub:["Salud","Notificaciones"]},
+  {id:"Gastos", titulo:"Gastos y Presupuestos", ico:"🏷️", tabs:["Gastos","Resumen del mes","Presupuestos"]},
+  {id:"Movimientos", titulo:"Movimientos", ico:"📋", tabs:["Movimientos"]},
+  {id:"Cuentas", titulo:"Cuentas", ico:"👛", tabs:["Cuentas","Inversiones"]},
+  {id:"Deudas", titulo:"Deudas y Bizums", ico:"🤝", tabs:["Deudas"]},
+  {id:"Recurrentes", titulo:"Recurrentes y Cuotas", ico:"🗓️", tabs:["Recurrentes"]},
+  {id:"Objetivos", titulo:"Metas y Huchas", ico:"🎯", tabs:["Objetivos"], sub:["Hitos"]},
+  {id:"Simuladores", titulo:"Simuladores", ico:"🔮", hub:true, tabs:["Vivienda","Permitir","Proyección","Simulador"]},
+  {id:"Ajustes", titulo:"Ajustes y Categorías", ico:"⚙️", tabs:["Preferencias","Categorías","Personalización"]},
+  {id:"Comunidad", titulo:"Comunidad y Soporte", ico:"💌", tabs:["Comunidad"]}
 ];
+const GRUPOS_MENU = [
+  {nombre:"Día a día", secciones:["Inicio","Gastos","Movimientos"]},
+  {nombre:"Patrimonio", secciones:["Cuentas","Deudas","Recurrentes"]},
+  {nombre:"Futuro y ahorro", secciones:["Objetivos","Simuladores"]},
+  {nombre:"Configuración", secciones:["Ajustes","Comunidad"]}
+];
+const seccionDe = t=> SECCIONES.find(s=>s.tabs.includes(t) || (s.sub||[]).includes(t)) || SECCIONES[0];
 
 let tab = "Inicio";
 

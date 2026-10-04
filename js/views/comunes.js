@@ -174,9 +174,11 @@ function closeMenu(){
   document.getElementById("menuOverlay")?.classList.remove("open");
 }
 
-const TITULOS_TAB = {"Salud":"¿Cómo estoy?","Resumen del mes":"Análisis","Permitir":"¿Me lo puedo permitir?","Vivienda":"Simulador de vivienda","Comunidad":"Comunidad & Feedback","Simulador":"¿Qué pasaría si…?"};
-const ICONOS_MENU = {"Inicio":"🏠","Salud":"🚦","Gastos":"💸","Resumen del mes":"📊","Presupuestos":"🧮","Permitir":"🧾","Movimientos":"📒","Cuentas":"👛","Deudas":"🤝","Recurrentes":"📅",
-  "Inversiones":"🌱","Objetivos":"🐷","Vivienda":"🏡","Hitos":"🏆","Proyección":"🔮","Simulador":"🧪","Categorías":"🏷️","Preferencias":"⚙️","Personalización":"🎨","Comunidad":"🌸"};
+const TITULOS_TAB = {"Salud":"¿Cómo estoy?","Resumen del mes":"Análisis","Permitir":"¿Me lo puedo permitir?","Vivienda":"Simulador de vivienda","Comunidad":"Comunidad y Soporte","Simulador":"¿Qué pasaría si…?","Hitos":"Tus logros"};
+// Nombre corto de cada pestaña en el selector en cápsula de su sección.
+const PILDORAS_TAB = {"Resumen del mes":"Resumen del mes","Permitir":"¿Me lo puedo permitir?","Proyección":"Proyecciones","Simulador":"¿Y si…?","Preferencias":"Ajustes"};
+// Última pestaña vista de cada sección: el menú vuelve a ella.
+const ultimaDeSeccion = {};
 // Versión de la app que se muestra en el menú (cámbiala aquí al publicar una nueva)
 const VERSION_APP = "0.9.5";
 
@@ -202,23 +204,44 @@ function avisoPremium(que){
   </div>`;
 }
 
+// Título de la cabecera: el de la sección si junta varias pestañas; si no, el de la pestaña.
+function tituloPestana(t){
+  const sec = seccionDe(t);
+  return sec.tabs.length>1 && sec.tabs.includes(t) ? sec.titulo : (TITULOS_TAB[t] || (sec.tabs[0]===t ? sec.titulo : t));
+}
+
+// Arriba de cada pantalla: el selector en cápsula de su sección, o «‹ Volver» en las que se abren desde dentro.
+function selectorSeccion(){
+  const sec = seccionDe(tab);
+  if(sec.tabs.length>1 && sec.tabs.includes(tab)) return `
+  <div class="selector-seccion${sec.hub?" hub":""}" role="tablist">
+    ${sec.tabs.map(t=>`<button role="tab" aria-selected="${t===tab}" class="${t===tab?"activa":""}" data-ir-tab="${t}">${PILDORAS_TAB[t]||t}${esTabPremium(t) ? ESTRELLA_PREMIUM : ""}</button>`).join("")}
+  </div>`;
+  if((sec.sub||[]).includes(tab) && tab!=="Notificaciones") return `<button class="volver-seccion" data-ir-tab="${ultimaDeSeccion[sec.id] || sec.tabs[0]}">‹ ${sec.titulo}</button>`;
+  return "";
+}
+
 function renderTabs(){
-  document.getElementById("tabActual").innerHTML = esc(TITULOS_TAB[tab] || tab) + (esTabPremium(tab) ? ESTRELLA_PREMIUM : "");
+  const secActual = seccionDe(tab);
+  if(secActual.tabs.includes(tab)) ultimaDeSeccion[secActual.id] = tab;
+  document.getElementById("tabActual").innerHTML = esc(tituloPestana(tab)) + (esTabPremium(tab) ? ESTRELLA_PREMIUM : "");
   document.getElementById("ojoCab").innerHTML = botonOjo("btnOjo");
   document.getElementById("btnOjo").onclick = alternarPrivacidad;
-  const item = t=>`<button class="menu-item ${t===tab?"active":""}" data-tab="${t}"><span class="mi">${ICONOS_MENU[t]||"•"}</span>${TITULOS_TAB[t]||t}${esTabPremium(t) ? ESTRELLA_PREMIUM : ""}${!esPremium && esTabPremium(t) ? `<span class="marca-premium">Premium</span>` : ""}</button>`;
+  const item = id=>{
+    const s = SECCIONES.find(x=>x.id===id);
+    return `<button class="menu-item ${s===secActual?"active":""}" data-tab="${ultimaDeSeccion[s.id] || s.tabs[0]}" data-seccion="${s.id}"><span class="mi">${s.ico}</span>${s.titulo}${s.hub ? `<span class="marca-hub">Hub</span>` : ""}</button>`;
+  };
   document.getElementById("menuPanel").innerHTML =
-    `<div class="menu-marca">${LOGO_HUCHA}PocketZ<span class="menu-version">v${VERSION_APP}</span></div>` + item("Inicio") +
-    GRUPOS_MENU.map(g=>`<div class="menu-group-title">${g.nombre}</div>${g.tabs.map(item).join("")}`).join("") +
-    `<button class="menu-comunidad" data-tab="Comunidad"><strong>🌸 Comunidad &amp; Feedback</strong><span>Ideas, ayuda y supporters</span></button>` +
-    `<button class="menu-item menu-salir" id="menuLogout"><span class="mi">↩</span>Cerrar sesión</button>`;
-  document.querySelectorAll("#menuPanel [data-tab]").forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; closeMenu(); render(); });
+    `<div class="menu-marca">${LOGO_HUCHA}PocketZ<span class="menu-version">v${VERSION_APP}</span></div>` +
+    GRUPOS_MENU.map(g=>`<div class="menu-group-title">${g.nombre}</div>${g.secciones.map(item).join("")}`).join("") +
+    `<button class="menu-item menu-salir" id="menuLogout"><span class="mi">🚪</span>Cerrar sesión</button>`;
+  document.querySelectorAll("#menuPanel [data-tab]").forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; closeMenu(); render(); window.scrollTo(0,0); });
   document.getElementById("menuLogout").onclick = ()=> sb.auth.signOut();
   document.querySelectorAll("[data-nav]").forEach(b=>{
-    b.classList.toggle("active", b.dataset.nav===tab);
+    b.classList.toggle("active", seccionDe(b.dataset.nav)===secActual && tab!=="Notificaciones");
     b.onclick = ()=>{ tab = b.dataset.nav; closeMenu(); render(); window.scrollTo(0,0); };
   });
-  const enNav = [...document.querySelectorAll("[data-nav]")].some(b=>b.dataset.nav===tab);
+  const enNav = [...document.querySelectorAll("[data-nav]")].some(b=>seccionDe(b.dataset.nav)===secActual);
   document.getElementById("navMas").classList.toggle("active", !enNav && tab!=="Notificaciones");
   const menuBtn = document.getElementById("menuBtn");
   const overlay = document.getElementById("menuOverlay");

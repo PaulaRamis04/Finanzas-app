@@ -116,12 +116,14 @@ function renderObjetivos(){
       </div>` : ""}
     </div></div>`;
   };
+  const logros = HITOS.filter(h=>(hitosGuardados||{})[h.id]).length;
   return `
+  <div class="logros-fila"><button class="logros-btn" data-ir-tab="Hitos">🏆 Tus logros <b>${logros}/${HITOS.length}</b></button></div>
   <div class="card">
     <h2>Nueva hucha</h2>
     <form id="fObjetivo">
       <div class="row2">
-        <div><label>Nombre</label><input name="nombre" placeholder="ej. Viaje a Japón" required></div>
+        <div><label for="objNombre">Nombre</label><input id="objNombre" name="nombre" placeholder="ej. Viaje a Japón" required></div>
         <div><label>Meta (${simboloMoneda()})</label><input name="meta" type="number" step="0.01" min="0" required></div>
       </div>
       <label>Icono <span class="meta">(si no eliges, lo pongo según el nombre)</span></label>

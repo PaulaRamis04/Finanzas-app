@@ -34,6 +34,13 @@ function render(){
   else if(tab==="Personalización") app.innerHTML = renderPersonalizacion();
   else if(tab==="Comunidad") app.innerHTML = renderComunidad();
   else app.innerHTML = renderCategorias();
+  const selector = selectorSeccion();
+  if(selector){
+    app.insertAdjacentHTML("afterbegin", selector);
+    // Si las pastillas no caben, la elegida queda a la vista.
+    const sel = app.querySelector(".selector-seccion"), act = sel && sel.querySelector(".activa");
+    if(act && sel.scrollWidth>sel.clientWidth) sel.scrollLeft = act.offsetLeft - (sel.clientWidth-act.offsetWidth)/2;
+  }
   wireEvents();
   aplicarPlegables();
   activarOrdenar();
