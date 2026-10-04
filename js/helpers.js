@@ -23,9 +23,9 @@ let ocultarSaldos = false;
 try{ ocultarSaldos = localStorage.getItem("ocultarSaldos")==="1"; }catch(e){}
 
 // ── Moneda: solo cambia el símbolo y el formato de los números; los importes guardados no se convierten.
-// miles: separador de miles ("" = sin separar, como siempre en euros); dec: decimales que se muestran.
+// miles: separador de miles ("" = sin separar); dec: decimales que se muestran.
 const MONEDAS = {
-  EUR:{nombre:"Euro", simbolo:"€", miles:"", decimal:",", dec:2},
+  EUR:{nombre:"Euro", simbolo:"€", miles:".", decimal:",", dec:2},
   USD:{nombre:"Dólar estadounidense", simbolo:"$", miles:",", decimal:".", dec:2, pista:"EE. UU., Ecuador, El Salvador, Panamá, Puerto Rico"},
   ARS:{nombre:"Peso argentino", simbolo:"$", miles:".", decimal:",", dec:2},
   BOB:{nombre:"Boliviano", simbolo:"Bs ", miles:".", decimal:",", dec:2},
@@ -50,14 +50,19 @@ let moneda = "EUR";
 try{ const m = localStorage.getItem("moneda"); if(MONEDAS[m]) moneda = m; }catch(e){}
 function monedaInfo(){ return MONEDAS[moneda] || MONEDAS.EUR; }
 function simboloMoneda(){ return monedaInfo().simbolo.trim(); }
+// El euro se escribe como en cada idioma: 90.000,00 en español y catalán, 90,000.00 en inglés.
+function separadores(m){
+  return m===MONEDAS.EUR && typeof idioma!=="undefined" && idioma==="en" ? {...m, miles:",", decimal:"."} : m;
+}
 function cifra(n, dec = monedaInfo().dec, m = monedaInfo()){
+  m = separadores(m);
   const [ent, fr] = Math.abs(Number(n)||0).toFixed(dec).split(".");
   const e = m.miles ? ent.replace(/\B(?=(\d{3})+(?!\d))/g, m.miles) : ent;
   return fr ? e + m.decimal + fr : e;
 }
 function eur(n){ const m = monedaInfo(); return ocultarSaldos ? "•••• " + simboloMoneda() : (n<0?"-":"") + m.simbolo + cifra(n); }
 // Importe redondo para textos («Primeros 1.000 €»): en euros se mantiene el estilo de siempre, con el símbolo detrás.
-function importeRedondo(n){ return moneda==="EUR" ? `${cifra(n, 0, {miles:"."})} €` : monedaInfo().simbolo + cifra(n, 0); }
+function importeRedondo(n){ return moneda==="EUR" ? `${cifra(n, 0)} €` : monedaInfo().simbolo + cifra(n, 0); }
 // Importe para mensajes que se envían (Bizum): siempre con la cifra real, aunque estén ocultos los saldos.
 function importeMensaje(n){ return moneda==="EUR" ? `${cifra(n)} €` : monedaInfo().simbolo + cifra(n); }
 function fijarMoneda(m){

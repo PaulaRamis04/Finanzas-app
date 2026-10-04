@@ -242,7 +242,7 @@ prueba("formato de cada moneda", ()=>{
   const ctx = {};
   new Function("ctx", fs.readFileSync(path.join(RAIZ, "js/helpers.js"), "utf8") + "\nctx.h = {eur, fijarMoneda, importeRedondo, importeMensaje};")(ctx);
   const {eur, fijarMoneda, importeRedondo, importeMensaje} = ctx.h;
-  assert.strictEqual(eur(1234.5), "€1234,50", "el euro se ve como siempre");
+  assert.strictEqual(eur(1234.5), "€1.234,50", "el euro separa los miles con punto");
   assert.strictEqual(eur(-12), "-€12,00");
   assert.strictEqual(importeRedondo(1000), "1.000 €");
   assert.strictEqual(importeMensaje(12), "12,00 €");
@@ -271,7 +271,7 @@ prueba("la moneda se elige en Preferencias, cambia todos los importes y se guard
   await p.evaluate(()=>{ tab = "Preferencias"; render(); });
   await p.selectOption("#prefMoneda", "EUR");
   await p.waitForFunction(()=>__db.preferencias[0]?.moneda==="EUR");
-  assert.match(await p.textContent("#prefMonedaEjemplo"), /€1234,56/);
+  assert.match(await p.textContent("#prefMonedaEjemplo"), /€1\.234,56/);
 });
 prueba("Objetivos: el resumen de arriba suma lo ahorrado, no la meta", async ()=>{
   const p = await abrir();
@@ -924,12 +924,12 @@ prueba("simulador de vivienda: cifras, hucha 🏠 y comparación con otra person
   // 300.000 € con 20 % de entrada y 10 % de gastos, partiendo de la hucha (20.000 € y 1.000 €/mes).
   assert.strictEqual(await p.inputValue("#vivAhorro"), "20000");
   assert.strictEqual(await p.inputValue("#vivMensual"), "1000");
-  assert.strictEqual(await txt("vivNecesario"), "€90000,00");
-  assert.strictEqual(await txt("vivFaltan"), "€70000,00");
+  assert.strictEqual(await txt("vivNecesario"), "€90.000,00");
+  assert.strictEqual(await txt("vivFaltan"), "€70.000,00");
   assert.strictEqual(await txt("vivTiempo"), "5 años y 10 meses");
   // Se recalcula al escribir, sin perder el foco.
   await p.fill("#vivGastos", "0");
-  assert.strictEqual(await txt("vivNecesario"), "€60000,00");
+  assert.strictEqual(await txt("vivNecesario"), "€60.000,00");
   assert.strictEqual(await txt("vivTiempo"), "3 años y 4 meses");
   assert.strictEqual(await p.evaluate(()=>document.activeElement.id), "vivGastos");
   await p.fill("#vivMensual", "0");
@@ -982,8 +982,8 @@ prueba("¿qué pasaría si…?: compara patrimonio a 1, 3, 5 y 10 años y las hu
   // Base fija para que no dependa de la fecha: 500 €/mes de ahorro; a la hucha «Colchón» le faltan 5000 − saldo.
   await p.evaluate(()=>{ sim.base = {...sim.base, ingresos:2000, gastos:1500, inversion:0, tasa:0}; render(); });
   await p.click('[data-sim-ejemplo="0"]');
-  assert.ok((await p.textContent('[data-sim-anio="1"]')).includes("+€1200,00"));
-  assert.ok((await p.textContent('[data-sim-anio="10"]')).includes("+€12000,00"));
+  assert.ok((await p.textContent('[data-sim-anio="1"]')).includes("+€1.200,00"));
+  assert.ok((await p.textContent('[data-sim-anio="10"]')).includes("+€12.000,00"));
   const hucha = await p.evaluate(()=>{ const falta = Math.max(5000 - progresoObjetivo(objetivos[0]), 0); return {antes:Math.ceil(falta/500), despues:Math.ceil(falta/600)}; });
   const txtHucha = await p.textContent('[data-sim-hucha="o1"]');
   if(hucha.antes>hucha.despues) assert.ok(txtHucha.includes("antes"), txtHucha);
@@ -1056,6 +1056,8 @@ prueba("idiomas: sigue el del dispositivo, se cambia en Preferencias y traduce t
   p = await abrirEn("en-GB");
   assert.strictEqual(await p.evaluate(()=>[idioma, document.documentElement.lang, localStorage.getItem("idioma")]).then(x=>x.join()), "en,en,en");
   assert.ok((await p.textContent("#navInf")).includes("Transactions"));
+  // En inglés los importes llevan coma en los miles y punto en los decimales.
+  assert.strictEqual(await p.evaluate(()=>eur(90000)), "€90,000.00");
   // Todas las pestañas: lo único sin traducir son los datos de la cuenta (nombres, categorías…) y fechas cortas.
   const datos = await p.evaluate(()=>JSON.stringify(__db));
   for(const t of PESTANAS) await p.evaluate(t=>{ tab = t; render(); }, t);
@@ -1076,6 +1078,7 @@ prueba("idiomas: sigue el del dispositivo, se cambia en Preferencias y traduce t
   await p.waitForFunction(()=>typeof ready!=="undefined" && ready);
   assert.strictEqual(await p.evaluate(()=>idioma), "ca");
   assert.ok((await p.textContent("#navInf")).includes("Moviments"));
+  assert.strictEqual(await p.evaluate(()=>eur(90000)), "€90.000,00");
   // Las fechas y los meses también, y el texto dibujado en la tarjeta del cierre.
   assert.strictEqual(await p.evaluate(()=>MESES[9]), "Octubre");
   assert.strictEqual(await p.evaluate(()=>tr("¿En qué se fue el dinero?")), "En què se'n van anar els diners?");
