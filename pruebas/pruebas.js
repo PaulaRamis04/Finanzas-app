@@ -397,6 +397,29 @@ prueba("las novedades con texto salen en notificaciones y las vacías no", async
   await p.click('[data-ir-aviso="Simulador"]');
   assert.strictEqual(await p.evaluate(()=>tab), "Simulador");
 });
+prueba("se puede borrar una notificación y no vuelve a salir", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>{ NOVEDADES.length = 0; NOVEDADES.push({id:"n1", fecha:today(), tab:"", titulo:"Novedad borrable", texto:"Texto borrable"}); tab = "Inicio"; render(); });
+  await p.click("#btnAvisos");
+  const total = await p.locator("[data-borrar-aviso]").count();
+  assert.ok(total >= 2);
+  const id = await p.evaluate(()=>avisosActuales().find(a=>a.titulo==="Te has pasado en Ocio").id);
+  await p.click(`[data-borrar-aviso="${id}"]`);
+  await p.click('[data-borrar-aviso="nov-n1"]');
+  assert.strictEqual(await p.locator("[data-borrar-aviso]").count(), total - 2);
+  let txt = await p.evaluate(()=>document.getElementById("app").innerText);
+  assert.doesNotMatch(txt, /Te has pasado en Ocio|Texto borrable/);
+  assert.strictEqual(await p.evaluate(()=>tab), "Notificaciones", "borrar no cambia de pestaña");
+  await p.click("#btnVolverAvisos");
+  await p.click("#btnAvisos");
+  txt = await p.evaluate(()=>document.getElementById("app").innerText);
+  assert.doesNotMatch(txt, /Te has pasado en Ocio|Texto borrable/);
+  // Si se borran todas, sale «¡Todo al día!» y la campana se queda sin punto.
+  while(await p.locator("[data-borrar-aviso]").count()) await p.locator("[data-borrar-aviso]").first().click();
+  assert.match(await p.evaluate(()=>document.getElementById("app").innerText), /Todo al día/);
+  await p.click("#btnVolverAvisos");
+  assert.ok(await p.isHidden("#btnAvisos .punto"));
+});
 prueba("personalización: tema, color, fondo e imagen se aplican, se recuerdan y se borran al salir", async ()=>{
   const p = await abrir();
   await p.evaluate(()=>{ tab = "Personalización"; render(); });

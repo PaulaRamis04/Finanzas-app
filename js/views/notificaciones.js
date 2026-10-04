@@ -1,5 +1,6 @@
 // Pantalla «Notificaciones» (se abre con la campana del Inicio). Lista los avisos y solo al tocar uno
 // lleva a su pestaña. Los ya vistos se recuerdan en este dispositivo para que la campana no marque punto.
+// Cada aviso o novedad se puede borrar con la ✕: queda oculto para ese usuario (avisosBorrados, por perfil).
 
 const ICONO_AVISO_SUAVE = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:.75"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.5h.01"/></svg>`;
 
@@ -43,17 +44,29 @@ function novedadesVisibles(){
 }
 function novedadesVistas(){ try{ return JSON.parse(localStorage.getItem("novedadesVistas")||"[]"); }catch(e){ return []; } }
 
+// Borradas: avisos por su id y novedades como «nov-<id>», para que no choquen.
+function avisosBorrados(){ try{ return new Set(JSON.parse(localStorage.getItem("avisosBorrados")||"[]")); }catch(e){ return new Set(); } }
+function avisosSinBorrar(){ const b = avisosBorrados(); return avisosActuales().filter(a=>!b.has(a.id)); }
+function novedadesSinBorrar(){ const b = avisosBorrados(); return novedadesVisibles().filter(n=>!b.has("nov-"+n.id)); }
+function borrarAviso(clave){
+  // Solo se guardan las que siguen existiendo, así la lista no crece con avisos que ya no salen.
+  const existen = new Set([...avisosActuales().map(a=>a.id), ...novedadesVisibles().map(n=>"nov-"+n.id)]);
+  const b = [...avisosBorrados()].filter(k=>existen.has(k));
+  b.push(clave);
+  try{ localStorage.setItem("avisosBorrados", JSON.stringify(b)); }catch(e){}
+}
+
 function hayAvisosNuevos(){
   const vistos = new Set(avisosVistos()), nvistas = new Set(novedadesVistas());
-  return avisosActuales().some(a=>!vistos.has(a.id)) || novedadesVisibles().some(n=>!nvistas.has(n.id));
+  return avisosSinBorrar().some(a=>!vistos.has(a.id)) || novedadesSinBorrar().some(n=>!nvistas.has(n.id));
 }
 
 function renderNotificaciones(){
-  const avisos = avisosActuales();
+  const avisos = avisosSinBorrar();
   const vistos = new Set(avisosVistos());
   // Al abrir la pantalla quedan todos como vistos (se guardan solo los actuales, así la lista no crece).
   try{ localStorage.setItem("avisosVistos", JSON.stringify(avisos.map(a=>a.id))); }catch(e){}
-  const novedades = novedadesVisibles();
+  const novedades = novedadesSinBorrar();
   const nvistas = new Set(novedadesVistas());
   try{ localStorage.setItem("novedadesVistas", JSON.stringify(novedades.map(n=>n.id))); }catch(e){}
   return `
@@ -65,22 +78,28 @@ function renderNotificaciones(){
   </div>
   ${avisos.length ? `<div class="list">
     ${avisos.map(a=>`
+    <div class="aviso-caja">
     <button class="fila aviso ${vistos.has(a.id)?"":"nuevo"}" data-ir-aviso="${esc(a.tab)}">
       <div class="ico" style="background:${a.fondo}">${a.ico}</div>
       <div class="txt"><b>${esc(a.titulo)}</b><div class="meta">${esc(a.texto)}</div></div>
       <svg class="flecha" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-    </button>`).join("")}
+    </button>
+    <button class="aviso-borrar" data-borrar-aviso="${esc(a.id)}" aria-label="Borrar notificación" title="Borrar notificación"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+    </div>`).join("")}
   </div>` : `<div class="card" style="text-align:center;padding:36px 18px">
     ${vacio("nube","¡Todo al día!","No tienes avisos pendientes.")}
   </div>`}
   ${novedades.length ? `<h3 class="titulo-novedades">Novedades de la app</h3>
   <div class="list">
     ${novedades.map(n=>`
+    <div class="aviso-caja">
     <button class="fila aviso novedad ${nvistas.has(n.id)?"":"nuevo"}" ${n.tab?`data-ir-aviso="${esc(n.tab)}"`:""}>
       <div class="ico" style="background:var(--accent-soft)">✨</div>
       <div class="txt">${n.titulo?`<b>${esc(n.titulo)}</b>`:""}<div class="meta">${esc(n.texto)}</div><div class="meta fecha-novedad">${esc(etiquetaDia(n.fecha))}</div></div>
       ${n.tab?`<svg class="flecha" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`:""}
-    </button>`).join("")}
+    </button>
+    <button class="aviso-borrar" data-borrar-aviso="nov-${esc(n.id)}" aria-label="Borrar notificación" title="Borrar notificación"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+    </div>`).join("")}
   </div>` : ""}`;
 }
 
@@ -88,4 +107,5 @@ function wireEventosNotificaciones(){
   const volver = document.getElementById("btnVolverAvisos");
   if(volver) volver.onclick = ()=>{ tab = "Inicio"; render(); window.scrollTo(0,0); };
   document.querySelectorAll("[data-ir-aviso]").forEach(b=>b.onclick=()=>{ tab = b.dataset.irAviso; render(); window.scrollTo(0,0); });
+  document.querySelectorAll("[data-borrar-aviso]").forEach(b=>b.onclick=()=>{ borrarAviso(b.dataset.borrarAviso); render(); });
 }
