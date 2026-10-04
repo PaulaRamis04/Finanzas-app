@@ -1183,7 +1183,6 @@ TRADUCCIONES.en = {
   "{} Los gastos de compra (impuestos, notaría, registro…) suelen rondar el 10 % del precio.": "{} Buying costs (taxes, notary, registry…) are usually around 10% of the price.",
   "Comparar con otra persona ahorrando contigo": "Compare with someone else saving with you",
   "PocketZ": "PocketZ",
-  "Mis cuentas": "My accounts",
   "Email": "Email",
   "Contraseña": "Password",
   "Entrar": "Sign in",
@@ -1240,6 +1239,7 @@ TRADUCCIONES.en = {
   "Jueves {#}": "Thursday {}",
   "Viernes {#}": "Friday {}",
   "Sábado {#}": "Saturday {}",
+  "Toda la app cambia a este idioma en este dispositivo.": "The whole app switches to this language on this device.",
   // Menú reorganizado
   "Día a día": "Day to day",
   "Futuro y ahorro": "Future & savings",
