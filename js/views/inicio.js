@@ -209,10 +209,11 @@ function barrasMes(gastado, presupuesto, ingresos, ahorro, disponible, vsAnterio
     + fila("Disponible", eur(disponible), pct(disponible, ingresos), "var(--accent)", `Lo que sobra tras gastos y ahorro · ${deIngresos(disponible)}`, notaArrastre() ? `<div class="meta">${notaArrastre()}</div>` : "");
 }
 
-// Acciones rápidas personalizables: empiezan vacías y cada uno elige las suyas (se guardan en este dispositivo).
+// Acciones rápidas personalizables: empiezan con apuntar, transferir y nueva meta, y cada uno elige las suyas (se guardan en este dispositivo).
 const CATALOGO_ACCIONES = [
   {id:"mov", ico:"✍️", txt:"Apuntar", largo:"Apuntar movimiento", fondo:"var(--lav-soft)"},
   {id:"transferencia", ico:"🔁", txt:"Transferir", largo:"Transferir entre cuentas", fondo:"var(--accent-soft)"},
+  {id:"meta", ico:"🎯", txt:"Nueva meta", largo:"Crear una meta", fondo:"var(--mint-soft)"},
   {id:"Movimientos", ico:"📒", txt:"Movim.", largo:"Movimientos", fondo:"var(--peach-soft)"},
   {id:"Gastos", ico:"💸", txt:"Gastos", largo:"Gastos", fondo:"var(--accent-soft)"},
   {id:"Resumen del mes", ico:"📊", txt:"Análisis", largo:"Análisis", fondo:"var(--lav-soft)"},
@@ -230,7 +231,8 @@ const CATALOGO_ACCIONES = [
   {id:"Personalización", ico:"🎨", txt:"Aspecto", largo:"Personalización", fondo:"var(--accent-soft)"},
 ];
 
-function leerAcciones(){ try{ const a = JSON.parse(localStorage.getItem("accionesRapidas")||"[]"); return Array.isArray(a) ? a : []; }catch(e){ return []; } }
+const ACCIONES_INICIALES = ["mov","transferencia","meta"];
+function leerAcciones(){ try{ const a = JSON.parse(localStorage.getItem("accionesRapidas") ?? JSON.stringify(ACCIONES_INICIALES)); return Array.isArray(a) ? a : []; }catch(e){ return []; } }
 function accionesElegidas(){ return leerAcciones().map(id=>CATALOGO_ACCIONES.find(a=>a.id===id)).filter(Boolean); }
 
 // Hoja inferior con todo el catálogo: tocar marca o desmarca; el orden es el de elección.
@@ -315,6 +317,8 @@ function wireEventosInicio(){
     if(d==="mov" || d==="transferencia"){
       tab = "Movimientos"; formsEstado[d] = true;
       pendienteEnfoque = d==="mov" ? "movImporte" : "trOrigen";
+    } else if(d==="meta"){
+      tab = "Objetivos"; formsEstado.objetivo = true; pendienteEnfoque = "objNombre";
     } else tab = d;
     const enfocar = !!pendienteEnfoque;
     render();

@@ -41,7 +41,7 @@ aplicarPersonalizacion();
   --ink:#4a3b3b; --paper:var(--paper-l,#fdf7f2); --line:#f0e4dc;
   --accent:#f07f76; --accent-2:#e66b62; --accent-soft:#fde6e3;
   --mint:#3fae92; --mint-soft:#e1f4ed; --lav-soft:#ece8fb; --peach-soft:#fdebd8;
-  --pos:#2f9e7a; --neg:#e0556a; --aviso:#c98a00; --muted:#9a8a86; --card:#ffffff; --on-accent:#fff;
+  --pos:#2f9e7a; --neg:#e0556a; --salmon:#f0958a; --aviso:#c98a00; --muted:#9a8a86; --card:#ffffff; --on-accent:#fff;
   padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
   box-sizing:border-box;
 }
@@ -50,14 +50,14 @@ aplicarPersonalizacion();
     --ink:#f5ecea; --paper:var(--paper-d,#1c1718); --line:#3a3132;
     --accent:#f59a92; --accent-2:#f8aea7; --accent-soft:#3d2826;
     --mint:#7fd6bb; --mint-soft:#1f3530; --lav-soft:#2b2740; --peach-soft:#3a2d20;
-    --pos:#6fd3ad; --neg:#ff8a9a; --aviso:#f2c14e; --muted:#b3a4a1; --card:#262021; --on-accent:#2b1917;
+    --pos:#6fd3ad; --neg:#ff8a9a; --salmon:#f4a69c; --aviso:#f2c14e; --muted:#b3a4a1; --card:#262021; --on-accent:#2b1917;
   }
 }
 :root[data-theme="dark"]{
   --ink:#f5ecea; --paper:var(--paper-d,#1c1718); --line:#3a3132;
   --accent:#f59a92; --accent-2:#f8aea7; --accent-soft:#3d2826;
   --mint:#7fd6bb; --mint-soft:#1f3530; --lav-soft:#2b2740; --peach-soft:#3a2d20;
-  --pos:#6fd3ad; --neg:#ff8a9a; --aviso:#f2c14e; --muted:#b3a4a1; --card:#262021; --on-accent:#2b1917;
+  --pos:#6fd3ad; --neg:#ff8a9a; --salmon:#f4a69c; --aviso:#f2c14e; --muted:#b3a4a1; --card:#262021; --on-accent:#2b1917;
 }
 *{box-sizing:border-box}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
@@ -96,8 +96,9 @@ header .mini{margin-bottom:0}
   padding-top:calc(22px + env(safe-area-inset-top,0px));
 }
 .menu-panel.open{transform:translateX(0)}
-.menu-marca{display:flex; align-items:center; gap:10px; font-size:17px; font-weight:800; margin:0 4px 18px}
-.menu-marca svg{width:34px; height:34px}
+.menu-marca{display:inline-flex; align-items:center; gap:8px; font-size:16px; font-weight:800; margin:0 4px 10px; padding:6px 16px 6px 10px;
+  border-radius:999px; background:var(--accent-soft); border:1.5px solid color-mix(in srgb, var(--accent) 25%, transparent); color:var(--accent)}
+.menu-marca svg{width:26px; height:26px}
 .menu-version{font-size:12px; font-weight:600; color:var(--muted); margin-left:2px}
 .menu-group-title{font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); opacity:.8; margin:18px 10px 4px}
 .menu-item{
@@ -106,7 +107,30 @@ header .mini{margin-bottom:0}
 }
 .menu-item .mi{width:20px; text-align:center; font-size:15px; opacity:.85}
 .menu-item:hover{background:color-mix(in srgb, var(--accent-soft) 55%, transparent)}
-.marca-premium{margin-left:auto; font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:999px; background:var(--peach-soft); color:#c9803a}
+.marca-hub{margin-left:auto; font-size:10.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; padding:3px 10px; border-radius:999px;
+  background:var(--peach-soft); color:#c9803a; border:1px solid color-mix(in srgb, #c9803a 25%, transparent)}
+/* Selector en cápsula de las secciones con varias pantallas (Gastos y Presupuestos, Simuladores…) */
+.selector-seccion{display:flex; gap:4px; padding:4px; margin:0 0 14px; background:var(--card); border:1px solid var(--line); border-radius:999px;
+  overflow-x:auto; scrollbar-width:none; box-shadow:0 4px 14px rgba(0,0,0,.04)}
+.selector-seccion::-webkit-scrollbar{display:none}
+.selector-seccion button{flex:1 0 auto; border:none; background:none; font-family:inherit; font-size:13.5px; font-weight:600; color:var(--muted);
+  padding:9px 14px; border-radius:999px; cursor:pointer; white-space:nowrap; transition:background .15s, color .15s}
+.selector-seccion button.activa{background:var(--accent-soft); color:var(--accent); font-weight:700}
+.selector-seccion.hub button.activa{background:var(--lav-soft); color:#7a6cc9}
+.card.cuenta-tarjeta{background:linear-gradient(140deg, var(--fondo-cuenta) 0%, color-mix(in srgb, var(--fondo-cuenta) 35%, var(--card)) 100%); border-color:transparent; border-radius:28px}
+.cuotas{display:flex; gap:10px; overflow-x:auto; scrollbar-width:none; margin:0 -16px 14px; padding:2px 16px 4px}
+.cuotas::-webkit-scrollbar{display:none}
+.cuota{flex:0 0 132px; background:var(--card); border:1px solid var(--line); border-radius:22px; padding:14px; display:flex; flex-direction:column; gap:3px}
+.cuota strong{font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.cuota-ico{width:38px; height:38px; border-radius:50%; background:var(--lav-soft); display:flex; align-items:center; justify-content:center; font-size:18px; margin-bottom:6px}
+.cuota-imp{font-weight:800; font-variant-numeric:tabular-nums}
+.cuota-dias{align-self:flex-start; margin-top:6px; font-size:11.5px; font-weight:700; padding:3px 9px; border-radius:999px; background:var(--mint-soft); color:var(--mint)}
+.cuota.pronto .cuota-dias{background:var(--peach-soft); color:#c9803a}
+.logros-fila{display:flex; justify-content:flex-end; margin:-4px 0 12px}
+.logros-btn{border:1px solid var(--line); background:var(--card); color:var(--ink); font-family:inherit; font-size:13.5px; font-weight:600; padding:8px 14px; border-radius:999px; cursor:pointer}
+.logros-btn b{margin-left:4px; color:var(--muted); font-weight:700}
+.volver-seccion{border:none; background:var(--card); border:1px solid var(--line); color:var(--muted); font-family:inherit; font-size:13.5px; font-weight:600;
+  padding:8px 14px; border-radius:999px; cursor:pointer; margin:0 0 14px}
 .estrella-premium{margin-left:6px; font-size:.8em; vertical-align:.08em}
 .premium-aviso{text-align:center; padding:28px 20px}
 .premium-aviso .premium-icono{width:64px; height:64px; margin:0 auto 10px; border-radius:50%; background:var(--peach-soft); display:flex; align-items:center; justify-content:center; font-size:30px}
@@ -115,10 +139,6 @@ header .mini{margin-bottom:0}
 .miembro span{min-width:0; overflow-wrap:anywhere}
 .miembro:first-child{border-top:none; padding-top:0}
 /* Comunidad */
-.menu-comunidad{display:none; width:100%; text-align:left; border:none; cursor:pointer; font-family:inherit; margin:18px 0 6px; padding:12px 14px; border-radius:16px;
-  background:linear-gradient(135deg, var(--accent-soft), var(--lav-soft)); color:var(--ink)}
-.menu-comunidad strong{display:block; font-size:14px} .menu-comunidad span{font-size:12px; color:var(--muted)}
-@media (min-width:768px){ .menu-comunidad{display:block} .menu-item[data-tab="Comunidad"]{display:none} }
 .comunidad-hero{font-size:18px; font-weight:800; margin:0 4px 14px}
 .comunidad-cab{display:flex; align-items:center; gap:10px}
 .comunidad-cab h2{margin:0; display:flex; align-items:center; gap:8px; flex-wrap:wrap}
@@ -414,6 +434,11 @@ h2{font-size:16px; margin:0 0 12px; font-weight:800}
 .titulo-novedades{margin:22px 4px 10px; font-size:15px}
 .fila.aviso .fecha-novedad{font-size:11px; opacity:.7; margin-top:2px}
 .aviso.nuevo::after{content:""; position:absolute; top:10px; right:10px; width:8px; height:8px; border-radius:50%; background:var(--accent)}
+.aviso-caja{position:relative}
+.aviso-caja .fila.aviso{padding-right:46px}
+.aviso-caja .aviso.nuevo::after{right:auto; left:8px; top:8px}
+.aviso-borrar{position:absolute; top:0; bottom:0; margin:auto 0; right:6px; width:34px; height:34px; border:none; border-radius:50%; background:transparent; color:var(--muted); display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0}
+.aviso-borrar:hover{background:var(--line); color:var(--ink)}
 /* Cifras que se adaptan al ancho (importes largos en pantallas estrechas) */
 .cifra-adapt{font-size:clamp(22px,7.5vw,30px); font-weight:800; letter-spacing:-0.02em; font-variant-numeric:tabular-nums; line-height:1.15; margin:4px 0 2px; overflow-wrap:anywhere; min-width:0}
 .mini.ajustable{flex-wrap:wrap; overflow:visible}
@@ -452,6 +477,11 @@ button.fila{cursor:pointer; -webkit-tap-highlight-color:transparent}
 .fila-extra label{margin-bottom:-6px}
 .ico-cat{width:40px; height:40px; border-radius:12px; background:var(--peach-soft); display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0}
 .chips{display:flex; gap:6px; flex-wrap:wrap}
+.chips-filtro{display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; margin:0 -16px 12px; padding:2px 16px}
+.chips-filtro::-webkit-scrollbar{display:none}
+.chip-filtro{flex:0 0 auto; border:1.5px solid var(--line); background:var(--card); color:var(--ink); font-family:inherit; font-size:13px; font-weight:600;
+  padding:7px 13px; border-radius:999px; cursor:pointer; white-space:nowrap; transition:background .15s, border-color .15s}
+.chip-filtro.sel{background:var(--accent-soft); border-color:color-mix(in srgb, var(--accent) 40%, transparent); color:var(--accent)}
 .chip{border:none; background:var(--accent-soft); color:var(--accent); font-family:inherit; font-size:12.5px; font-weight:700; padding:7px 12px; border-radius:999px; cursor:pointer}
 .chip.ok{background:var(--mint-soft); color:var(--mint)} .chip.lav{background:var(--lav-soft); color:#7a6cc9}
 /* Huchas de ahorro: barra de iconos que se va rellenando */
@@ -614,7 +644,7 @@ button:not(:disabled):active, .fila:active, .cat-fila:active, .color-propio:acti
       <circle cx="39" cy="50" r="3.4" fill="#4a3b3b"/><circle cx="40" cy="49" r="1" fill="#fff"/>
       <ellipse cx="45" cy="64" rx="5.5" ry="3.2" fill="#f28ba0" opacity=".6"/>
     </svg></div>
-    <div class="auth-marca">Mis cuentas</div>
+    <div class="auth-marca">PocketZ</div>
     <h1 id="authTitulo">¡Hola de nuevo!</h1>
     <p class="auth-sub" id="authSub">Entra para ver tus cuentas</p>
     <div class="auth-perfiles" id="authPerfiles" hidden></div>
@@ -663,7 +693,7 @@ button:not(:disabled):active, .fila:active, .cat-fila:active, .color-propio:acti
     <button class="nav-item" data-nav="Inicio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>Inicio</button>
     <button class="nav-item" data-nav="Movimientos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/></svg>Movimientos</button>
     <button class="nav-item" data-nav="Cuentas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a1 1 0 0 1-1-1V6a2 2 0 0 1 2-2h11v3"/><circle cx="16" cy="13.5" r="1.2"/></svg>Cuentas</button>
-    <button class="nav-item" data-nav="Resumen del mes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 20v-6M12 20V5M19 20v-9"/></svg>Análisis</button>
+    <button class="nav-item" data-nav="Gastos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>Gastos</button>
     <button class="nav-item" id="navMas"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>Más</button>
   </nav>
 </div>

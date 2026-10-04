@@ -42,12 +42,12 @@ function renderProyeccion(){
     <h2>Proyección de patrimonio</h2>
     <p class="meta" style="margin:0 0 10px">Calcula cómo podría crecer tu dinero con aportaciones periódicas. Es una estimación, no una garantía: los mercados no crecen de forma constante.</p>
     <div class="row2">
-      <div><label>Capital inicial (${simboloMoneda()})</label><input type="number" step="0.01" id="proyInicial" value="${proy.inicial}"></div>
-      <div><label>Aportación mensual (${simboloMoneda()})</label><input type="number" step="0.01" id="proyAporte" value="${proy.aporte}"></div>
+      <div><label>Capital inicial (${simboloMoneda()})</label><input type="number" step="0.01" inputmode="decimal" id="proyInicial" value="${proy.inicial}"></div>
+      <div><label>Aportación mensual (${simboloMoneda()})</label><input type="number" step="0.01" inputmode="decimal" id="proyAporte" value="${proy.aporte}"></div>
     </div>
     <div class="row2">
-      <div><label>Años</label><input type="number" step="1" min="1" max="60" id="proyAnios" value="${proy.anios}"></div>
-      <div><label>Rentabilidad anual estimada (%)</label><input type="number" step="0.1" id="proyTasa" value="${proy.tasa}"></div>
+      <div><label>Años</label><input type="number" step="1" min="1" max="60" inputmode="numeric" id="proyAnios" value="${proy.anios}"></div>
+      <div><label>Rentabilidad anual estimada (%)</label><input type="number" step="0.1" inputmode="decimal" id="proyTasa" value="${proy.tasa}"></div>
     </div>
     <p class="meta" style="margin:8px 0 0">Conservador y optimista se calculan solos: 2 puntos por debajo y por encima de la rentabilidad que pongas.</p>
     <button class="btn" id="proyCalcular" style="margin-top:10px">Calcular</button>

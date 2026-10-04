@@ -22,7 +22,7 @@ function movItem(m, cubMov, pendMov){
     pendMov[m.id] ? `Te deben ${eur(pendMov[m.id])} (pendiente: hasta que lo cobres, cuenta entero)` : "",
     cubMov[m.id] ? `Ya cobrado: ${eur(cubMov[m.id])} · cuenta ${eur(Math.max(0,restarDinero(m.importe, cubMov[m.id])))} como gasto tuyo` : "",
   ].filter(Boolean);
-  const sub = `${m.nota ? m.categoria : ""}${m.nota ? " · " : ""}${cuentaNombre(m.cuentaId)}${m.conciliado ? " · ✓" : ""}`;
+  const sub = `${m.nota ? m.categoria : ""}${m.nota ? " · " : ""}${cuentaNombre(m.cuentaId)}`;
   return `
   ${filaMov(m, {attrs:`data-abrir-mov="${m.id}"`, extra:sub, fecha:false, clase:abierto?"abierta":""})}
   ${abierto? `<div class="fila-extra">
@@ -31,7 +31,6 @@ function movItem(m, cubMov, pendMov){
       ${!protegido? `<button class="chip" data-editar-mov="${m.id}">Editar</button>` : ""}
       <button class="chip lav" data-duplicar-mov="${m.id}">Repetir</button>
       ${m.tipo==='gasto' && !m.reembolsoDe && m.categoria!=='Inversión' && m.categoria!=='Ajuste' && m.categoria!=='Transferencia'? `<button class="chip" data-me-deben="${m.id}" style="background:var(--peach-soft);color:#c77a2e">Me deben…</button>` : ""}
-      <button class="chip ${m.conciliado?'ok':''}" data-toggle-conciliado="${m.id}" ${m.conciliado?"":`style="background:var(--line);color:var(--muted)"`}>${m.conciliado?"✓ Conciliado":"Sin conciliar"}</button>
       <button class="chip peligro" data-del-mov="${m.id}">Borrar</button>
     </div>` : ""}
     ${meDebenMovId===m.id? `
@@ -198,13 +197,6 @@ function wireEventosMovimientos(){
       const {error} = await sb.from("deudas").insert({persona, importe:imp, importe_inicial:imp, direccion:"me_deben", fecha:m.fecha, concepto:m.nota||m.categoria, estado:"pendiente", movimiento_id:m.id});
       if(error){ showError("No se pudo crear la deuda: "+error.message); return; }
       hideError(); meDebenMovId = null; await recargar(["deudas"]);
-    }));
-    document.querySelectorAll("[data-toggle-conciliado]").forEach(b=>b.onclick=()=>conCarga(b, "…", async ()=>{
-      const m = movimientos.find(x=>x.id===b.dataset.toggleConciliado);
-      if(!m) return;
-      const {error} = await sb.from("movimientos").update({conciliado: !m.conciliado}).eq("id", m.id);
-      if(error){ showError("No se pudo actualizar: "+error.message); return; }
-      hideError(); await recargar(["movimientos"]);
     }));
     document.querySelectorAll("[data-editar-mov]").forEach(b=>b.onclick=()=>{ editarMovId = b.dataset.editarMov; meDebenMovId=null; render(); });
     document.querySelectorAll("[data-duplicar-mov]").forEach(b=>b.onclick=()=>{

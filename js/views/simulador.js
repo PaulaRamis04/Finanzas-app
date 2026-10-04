@@ -164,7 +164,7 @@ function renderSimulador(){
     sim.base = baseDesdeMisDatos();
   }
   const b = sim.base;
-  const campo = (id, etiqueta, valor, paso="0.01")=>`<div><label for="${id}">${etiqueta}</label><input type="number" step="${paso}" id="${id}" data-sim-base="${id.slice(3).toLowerCase()}" value="${valor}"></div>`;
+  const campo = (id, etiqueta, valor, paso="0.01")=>`<div><label for="${id}">${etiqueta}</label><input type="number" step="${paso}" inputmode="decimal" id="${id}" data-sim-base="${id.slice(3).toLowerCase()}" value="${valor}"></div>`;
   const tipo = SIM_TIPOS[sim.tipo];
   return `
   <div class="card">
@@ -173,7 +173,7 @@ function renderSimulador(){
     <div class="chips">${SIM_EJEMPLOS.map((e,i)=>`<button class="chip" data-sim-ejemplo="${i}">${e.texto}</button>`).join("")}</div>
     <div class="row2" style="margin-top:12px">
       <div><label for="simTipo">Cambio</label><select id="simTipo">${Object.entries(SIM_TIPOS).map(([k,t])=>`<option value="${k}"${k===sim.tipo?" selected":""}>${t.texto}</option>`).join("")}</select></div>
-      <div><label for="simValor">${tipo.pide}</label><input type="number" step="${sim.tipo==="pausa"?"1":"0.01"}" min="0" id="simValor" placeholder="${sim.tipo==="pausa"?"12":"100"}"></div>
+      <div><label for="simValor">${tipo.pide}</label><input type="number" step="${sim.tipo==="pausa"?"1":"0.01"}" min="0" inputmode="decimal" id="simValor" placeholder="${sim.tipo==="pausa"?"12":"100"}"></div>
     </div>
     <button class="btn" id="simAnadir" style="margin-top:10px">Añadir cambio</button>
     ${sim.cambios.length? `

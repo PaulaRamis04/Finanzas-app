@@ -174,11 +174,13 @@ function closeMenu(){
   document.getElementById("menuOverlay")?.classList.remove("open");
 }
 
-const TITULOS_TAB = {"Salud":"¿Cómo estoy?","Resumen del mes":"Análisis","Permitir":"¿Me lo puedo permitir?","Vivienda":"Simulador de vivienda","Comunidad":"Comunidad & Feedback","Simulador":"¿Qué pasaría si…?"};
-const ICONOS_MENU = {"Inicio":"🏠","Salud":"🚦","Gastos":"💸","Resumen del mes":"📊","Presupuestos":"🧮","Permitir":"🧾","Movimientos":"📒","Cuentas":"👛","Deudas":"🤝","Recurrentes":"📅",
-  "Inversiones":"🌱","Objetivos":"🐷","Vivienda":"🏡","Hitos":"🏆","Proyección":"🔮","Simulador":"🧪","Categorías":"🏷️","Preferencias":"⚙️","Personalización":"🎨","Comunidad":"🌸"};
+const TITULOS_TAB = {"Salud":"¿Cómo estoy?","Resumen del mes":"Análisis","Permitir":"¿Me lo puedo permitir?","Vivienda":"Simulador de vivienda","Comunidad":"Comunidad y Soporte","Simulador":"¿Qué pasaría si…?","Hitos":"Tus logros"};
+// Nombre corto de cada pestaña en el selector en cápsula de su sección.
+const PILDORAS_TAB = {"Resumen del mes":"Resumen del mes","Permitir":"¿Me lo puedo permitir?","Proyección":"Proyecciones","Simulador":"¿Y si…?","Preferencias":"Ajustes"};
+// Última pestaña vista de cada sección: el menú vuelve a ella.
+const ultimaDeSeccion = {};
 // Versión de la app que se muestra en el menú (cámbiala aquí al publicar una nueva)
-const VERSION_APP = "0.9.5";
+const VERSION_APP = "0.9.6";
 
 const LOGO_HUCHA = `<svg viewBox="0 0 64 64" aria-hidden="true"><ellipse cx="32" cy="36" rx="22" ry="17" fill="#f7b3ac"/><circle cx="54" cy="36" r="6" fill="#f39c93"/><circle cx="52.5" cy="35" r="1.2" fill="#b8615a"/><circle cx="55.5" cy="35" r="1.2" fill="#b8615a"/><path d="M20 22l-2-9 9 5z" fill="#f39c93"/><circle cx="44" cy="30" r="2" fill="#4a3b3b"/><rect x="26" y="19" width="12" height="3" rx="1.5" fill="#b8615a"/><rect x="18" y="48" width="6" height="8" rx="3" fill="#f39c93"/><rect x="38" y="48" width="6" height="8" rx="3" fill="#f39c93"/></svg>`;
 
@@ -202,23 +204,45 @@ function avisoPremium(que){
   </div>`;
 }
 
+// Título de la cabecera: el de la sección si junta varias pestañas; si no, el de la pestaña.
+function tituloPestana(t){
+  const sec = seccionDe(t);
+  return sec.tabs.length>1 && sec.tabs.includes(t) ? sec.titulo : (TITULOS_TAB[t] || (sec.tabs[0]===t ? sec.titulo : t));
+}
+
+// Arriba de cada pantalla: el selector en cápsula de su sección, o «‹ Volver» en las que se abren desde dentro.
+function selectorSeccion(){
+  const sec = seccionDe(tab);
+  if(sec.tabs.length>1 && sec.tabs.includes(tab)) return `
+  <div class="selector-seccion${sec.hub?" hub":""}" role="tablist">
+    ${sec.tabs.map(t=>`<button role="tab" aria-selected="${t===tab}" class="${t===tab?"activa":""}" data-ir-tab="${t}">${PILDORAS_TAB[t]||t}${esTabPremium(t) ? ESTRELLA_PREMIUM : ""}</button>`).join("")}
+  </div>`;
+  if((sec.sub||[]).includes(tab) && tab!=="Notificaciones") return `<button class="volver-seccion" data-ir-tab="${ultimaDeSeccion[sec.id] || sec.tabs[0]}">‹ ${sec.titulo}</button>`;
+  return "";
+}
+
 function renderTabs(){
-  document.getElementById("tabActual").innerHTML = esc(TITULOS_TAB[tab] || tab) + (esTabPremium(tab) ? ESTRELLA_PREMIUM : "");
+  const secActual = seccionDe(tab);
+  if(secActual.tabs.includes(tab)) ultimaDeSeccion[secActual.id] = tab;
+  document.getElementById("tabActual").innerHTML = esc(tituloPestana(tab)) + (esTabPremium(tab) ? ESTRELLA_PREMIUM : "");
   document.getElementById("ojoCab").innerHTML = botonOjo("btnOjo");
   document.getElementById("btnOjo").onclick = alternarPrivacidad;
-  const item = t=>`<button class="menu-item ${t===tab?"active":""}" data-tab="${t}"><span class="mi">${ICONOS_MENU[t]||"•"}</span>${TITULOS_TAB[t]||t}${esTabPremium(t) ? ESTRELLA_PREMIUM : ""}${!esPremium && esTabPremium(t) ? `<span class="marca-premium">Premium</span>` : ""}</button>`;
+  const item = id=>{
+    const s = SECCIONES.find(x=>x.id===id);
+    return `<button class="menu-item ${s===secActual?"active":""}" data-tab="${ultimaDeSeccion[s.id] || s.tabs[0]}" data-seccion="${s.id}"><span class="mi">${s.ico}</span>${s.titulo}${s.hub ? `<span class="marca-hub">Hub</span>` : ""}</button>`;
+  };
   document.getElementById("menuPanel").innerHTML =
-    `<div class="menu-marca">${LOGO_HUCHA}PocketZ<span class="menu-version">v${VERSION_APP}</span></div>` + item("Inicio") +
-    GRUPOS_MENU.map(g=>`<div class="menu-group-title">${g.nombre}</div>${g.tabs.map(item).join("")}`).join("") +
-    `<button class="menu-comunidad" data-tab="Comunidad"><strong>🌸 Comunidad &amp; Feedback</strong><span>Ideas, ayuda y supporters</span></button>` +
-    `<button class="menu-item menu-salir" id="menuLogout"><span class="mi">↩</span>Cerrar sesión</button>`;
-  document.querySelectorAll("#menuPanel [data-tab]").forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; closeMenu(); render(); });
+    `<div class="menu-marca">${LOGO_HUCHA}PocketZ<span class="menu-version">v${VERSION_APP}</span></div>` +
+    GRUPOS_MENU.map(g=>`<div class="menu-group-title">${g.nombre}</div>${g.secciones.map(item).join("")}${g.nombre==="Configuración" ? `<button class="menu-item" id="menuIdioma"><span class="mi">🌐</span>Idioma<span class="meta" style="margin-left:auto" translate="no">${IDIOMAS[idioma]}</span></button>` : ""}`).join("") +
+    `<button class="menu-item menu-salir" id="menuLogout"><span class="mi">🚪</span>Cerrar sesión</button>`;
+  document.querySelectorAll("#menuPanel [data-tab]").forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; closeMenu(); render(); window.scrollTo(0,0); });
   document.getElementById("menuLogout").onclick = ()=> sb.auth.signOut();
+  document.getElementById("menuIdioma").onclick = ()=>{ closeMenu(); hojaIdioma(); };
   document.querySelectorAll("[data-nav]").forEach(b=>{
-    b.classList.toggle("active", b.dataset.nav===tab);
+    b.classList.toggle("active", seccionDe(b.dataset.nav)===secActual && tab!=="Notificaciones");
     b.onclick = ()=>{ tab = b.dataset.nav; closeMenu(); render(); window.scrollTo(0,0); };
   });
-  const enNav = [...document.querySelectorAll("[data-nav]")].some(b=>b.dataset.nav===tab);
+  const enNav = [...document.querySelectorAll("[data-nav]")].some(b=>seccionDe(b.dataset.nav)===secActual);
   document.getElementById("navMas").classList.toggle("active", !enNav && tab!=="Notificaciones");
   const menuBtn = document.getElementById("menuBtn");
   const overlay = document.getElementById("menuOverlay");
@@ -424,6 +448,29 @@ function confirmar(texto, opciones = {}){
     cont.querySelector("#hojaOk").onclick = ()=>cerrar(true);
     setTimeout(()=>{ try{ cont.querySelector("#hojaOk").focus({preventScroll:true}); }catch(e){} }, 60);
   });
+}
+
+// Hoja para elegir el idioma de toda la app (también está en Preferencias).
+function hojaIdioma(){
+  document.getElementById("hoja")?.remove();
+  const cont = document.createElement("div");
+  cont.id = "hoja";
+  cont.innerHTML = `
+    <div class="hoja-fondo"></div>
+    <div class="hoja" role="dialog" aria-modal="true" aria-labelledby="hojaTitulo">
+      <div class="hoja-asa"></div>
+      <div class="hoja-ico">🌐</div>
+      <h2 id="hojaTitulo">Idioma</h2>
+      <p>Toda la app cambia a este idioma en este dispositivo.</p>
+      <div class="hoja-btns" style="flex-direction:column" translate="no">
+        ${Object.entries(IDIOMAS).map(([c,n])=>`<button class="${c===idioma?"hoja-si":"hoja-no"}" data-idioma="${c}">${n}${c===idioma?" ✓":""}</button>`).join("")}
+      </div>
+    </div>`;
+  document.body.appendChild(cont);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>cont.classList.add("abierta")));
+  const cerrar = ()=>{ cont.classList.remove("abierta"); setTimeout(()=>cont.remove(), 260); };
+  cont.querySelector(".hoja-fondo").onclick = cerrar;
+  cont.querySelectorAll("[data-idioma]").forEach(b=>b.onclick = ()=>{ if(b.dataset.idioma===idioma) cerrar(); else fijarIdioma(b.dataset.idioma); });
 }
 
 // Estados vacíos con ilustración: la hucha dormida o una nube sonriente con monedas.
