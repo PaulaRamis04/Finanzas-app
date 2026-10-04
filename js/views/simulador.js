@@ -1,5 +1,5 @@
 // Pestaña «¿Qué pasaría si…?»: simulador que cambia ingresos, gastos o inversión
-// y muestra cómo afecta a tu patrimonio a 1, 3, 5 y 10 años y a tus huchas. Para todos, no es premium.
+// y muestra cómo afecta a tu patrimonio a 1, 3, 5 y 10 años y a tus huchas. Solo para premium.
 
 const SIM_HORIZONTES = [1,3,5,10];
 const SIM_TIPOS = {

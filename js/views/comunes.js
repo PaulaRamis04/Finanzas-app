@@ -186,7 +186,10 @@ const LOGO_HUCHA = `<svg viewBox="0 0 64 64" aria-hidden="true"><ellipse cx="32"
 
 // Aviso amable en lo que es solo para premium. Aún no hay pago: premium se activa desde Supabase.
 const TEXTO_PREMIUM = {
+  "Vivienda":"Calcula cuánto necesitas ahorrar para tu casa y cuánto te costaría la hipoteca.",
+  "Permitir":"Antes de una compra grande, mira si te la puedes permitir sin pasarte.",
   "Proyección":"Mira cómo puede crecer tu dinero con escenarios a futuro.",
+  "Simulador":"Prueba qué pasaría con tu patrimonio y tus huchas si cambias algo.",
   "Personalización":"Elige tu color, un fondo a tu gusto o una foto tuya.",
   "compartir":"Lleva una cuenta a medias con tu pareja o tu piso: los dos veis y apuntáis sus movimientos."
 };

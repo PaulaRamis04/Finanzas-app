@@ -82,7 +82,7 @@ let session = null, appStarted = false;
 // Premium (tabla perfiles, se activa a mano en Supabase) y cuentas compartidas (tabla cuentas_miembros).
 let esPremium = false;
 let cuentasMiembros = [], compartirCuentaId = null;
-const TABS_PREMIUM = ["Proyección"];
+const TABS_PREMIUM = ["Vivienda","Permitir","Proyección","Simulador"];
 // Suscripción (tabla suscripciones), respuestas del buzón y mini asesoría (schema_gestion.sql).
 let miSuscripcion = null, misMensajesComunidad = [], mensajesAsesoria = [];
 function tieneAsesoria(){ const s = miSuscripcion; return !!s && s.plan==="asesoria" && s.activa && (!s.hasta || s.hasta>=today()); }

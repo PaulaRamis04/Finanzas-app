@@ -206,8 +206,8 @@ prueba("en pantalla ancha solo hay menú lateral agrupado, sin barra inferior", 
   assert.strictEqual(await p.evaluate(()=>tab), "Inversiones");
   assert.match(await p.getAttribute('.menu-item[data-seccion="Cuentas"]', "class"), /active/);
   await p.click('.menu-item[data-seccion="Simuladores"]');
-  assert.deepStrictEqual(await p.$$eval(".selector-seccion.hub button", b=>b.map(x=>x.textContent)), ["Vivienda","¿Me lo puedo permitir?","Proyecciones⭐","¿Y si…?"]);
-  assert.strictEqual(await p.textContent("#tabActual"), "Simuladores");
+  assert.deepStrictEqual(await p.$$eval(".selector-seccion.hub button", b=>b.map(x=>x.textContent)), ["Vivienda⭐","¿Me lo puedo permitir?⭐","Proyecciones⭐","¿Y si…?⭐"]);
+  assert.strictEqual(await p.textContent("#tabActual"), "Simuladores⭐");
   await p.click('.menu-item[data-seccion="Cuentas"]');
   assert.strictEqual(await p.evaluate(()=>tab), "Inversiones");
   // Los logros salen del menú: se abren desde Metas y Huchas y se vuelve con «‹ Metas y Huchas».
@@ -500,15 +500,17 @@ prueba("cuentas compartidas: se ven, se ajustan, se comparten, no van en la copi
   await aceptarHoja(p);
   await p.waitForFunction(()=>!cuentas.some(c=>c.id==="c4"));
 });
-prueba("sin premium: Proyección bloqueada (Inversiones no), Personalización solo tema y compartir avisa", async ()=>{
+prueba("sin premium: Simuladores bloqueados (Inversiones no), Personalización solo tema y compartir avisa", async ()=>{
   const p = await abrir("?premium=0");
   await p.evaluate(()=>localStorage.setItem("personalizacion", JSON.stringify({tema:"dark", acento:"#3fae92", fondo:"lavanda"})));
   await p.reload(); await p.waitForFunction(()=>typeof ready!=="undefined" && ready);
   await p.waitForFunction(()=>!getComputedStyle(document.documentElement).getPropertyValue("--paper-l").trim());
   assert.deepStrictEqual(await p.evaluate(()=>JSON.parse(localStorage.getItem("personalizacion"))), {tema:"dark"});
   assert.strictEqual(await p.evaluate(()=>document.documentElement.getAttribute("data-theme")), "dark");
-  await p.evaluate(()=>{ tab = "Proyección"; render(); });
-  assert.match(await p.innerText("#app"), /Esto es de Premium/);
+  for(const t of ["Vivienda","Permitir","Proyección","Simulador"]){
+    await p.evaluate(t=>{ tab = t; render(); }, t);
+    assert.match(await p.innerText("#app"), /Esto es de Premium/, t);
+  }
   await p.evaluate(()=>{ tab = "Inversiones"; render(); });
   assert.doesNotMatch(await p.innerText("#app"), /Esto es de Premium/);
   await p.evaluate(()=>{ tab = "Personalización"; render(); });
@@ -573,7 +575,7 @@ prueba("premium: estrella junto al nombre en Inicio y en las secciones premium",
   assert.match(await p.innerText(".hola h1"), /Paula\s*⭐/);
   assert.strictEqual(await p.locator(".marca-premium").count(), 0);
   await p.evaluate(()=>{ tab = "Vivienda"; render(); });
-  assert.strictEqual(await p.locator(".selector-seccion .estrella-premium").count(), 1, "Proyecciones lleva su estrella en Simuladores");
+  assert.strictEqual(await p.locator(".selector-seccion .estrella-premium").count(), 4, "los cuatro simuladores llevan su estrella");
   await p.evaluate(()=>{ tab = "Proyección"; render(); });
   assert.strictEqual(await p.locator("#tabActual .estrella-premium").count(), 1);
   await p.evaluate(()=>{ tab = "Inversiones"; render(); });
@@ -1002,7 +1004,7 @@ prueba("simulador de vivienda: cifras, hucha 🏠 y comparación con otra person
 });
 
 prueba("¿qué pasaría si…?: compara patrimonio a 1, 3, 5 y 10 años y las huchas", async ()=>{
-  const p = await abrir("?premium=0");
+  const p = await abrir("");
   // Cálculo: lo ahorrado de más se queda en cuentas; pausar la inversión cuesta rentabilidad pero no dinero.
   const r = await p.evaluate(()=>{
     const base = {ingresos:2000, gastos:1500, inversion:300, cuentas:1000, invertido:0, tasa:0};
@@ -1023,7 +1025,7 @@ prueba("¿qué pasaría si…?: compara patrimonio a 1, 3, 5 y 10 años y las hu
   assert.strictEqual(r.gasto[1], 7000 + 1200);
   assert.strictEqual(r.pausaSinRenta, 1000 + 500*120);
   assert.ok(r.pausaConRenta < r.conRenta && r.invertirMas > r.conRenta);
-  // Sin premium también se ve y parte de tus datos.
+  // Con premium se ve y parte de tus datos.
   await p.evaluate(()=>{ tab = "Simulador"; render(); });
   assert.ok(await p.isVisible("#simAnadir"));
   assert.strictEqual(await p.evaluate(()=>sim.base.cuentas), await p.evaluate(()=>sumaImportes(cuentas, saldoCuenta)));
