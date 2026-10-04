@@ -281,7 +281,7 @@ TRADUCCIONES.en = {
   "Gasto más grande": "Biggest expense",
   "Mes más gastón": "Biggest spending month",
   "Día más gastón": "Biggest spending day",
-  "🐷 Hecho con Cuentas": "🐷 Made with Cuentas",
+  "🐷 Hecho con PocketZ": "🐷 Made with PocketZ",
   "Ocultar importes (solo porcentajes)": "Hide amounts (percentages only)",
   "🖼️ Imagen": "🖼️ Image",
   "📤 Compartir": "📤 Share",

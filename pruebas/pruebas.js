@@ -1076,6 +1076,14 @@ prueba("idiomas: sigue el del dispositivo, se cambia en Preferencias y traduce t
   assert.strictEqual(await p.evaluate(()=>tr("¿En qué se fue el dinero?")), "En què se'n van anar els diners?");
   assert.strictEqual(await p.evaluate(()=>tr("Gasto de abril")), "Despesa d'abril");
   await p.close();
+  // Las páginas de privacidad y de eliminar la cuenta salen en el idioma del dispositivo.
+  p = await navegador.newPage({viewport:MOVIL, locale:"en-GB"});
+  await p.goto("file://" + path.join(RAIZ, "privacidad.html"));
+  assert.strictEqual(await p.textContent("main:not([hidden]) h1"), "Privacy policy");
+  await p.goto("file://" + path.join(RAIZ, "eliminar-cuenta.html"));
+  await p.click('.idiomas a[data-idioma="ca"]');
+  assert.strictEqual(await p.textContent("main:not([hidden]) h1"), "Eliminar el teu compte i les teves dades de PocketZ");
+  await p.close();
 });
 
 (async ()=>{

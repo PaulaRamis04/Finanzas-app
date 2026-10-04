@@ -18,10 +18,15 @@
   ol{ padding-left:22px; }
   .nota{ background:var(--line); border-radius:10px; padding:12px 14px; }
   hr{ border:0; border-top:1px solid var(--line); margin:32px 0; }
+  .idiomas{ max-width:720px; margin:0 auto; padding:16px 16px 0; font-size:14px; color:var(--muted); text-align:right; }
+  .idiomas a{ color:var(--muted); text-decoration:none; }
+  .idiomas a.activo{ color:var(--accent); font-weight:700; }
 </style>
+<script src="js/idioma.js" data-solo-idioma></script>
 </head>
 <body>
-<main>
+<nav class="idiomas" translate="no"><a href="#" data-idioma="es">Español</a> · <a href="#" data-idioma="ca">Català</a> · <a href="#" data-idioma="en">English</a></nav>
+<main lang="es" data-idioma="es">
   <h1>Eliminar tu cuenta y tus datos de PocketZ</h1>
   <p class="meta">PocketZ · Última actualización: 2 de octubre de 2026</p>
 
@@ -64,5 +69,103 @@
   <hr>
   <p class="meta"><a href="privacidad.html">Política de privacidad</a> · <a href="./">Volver a la app</a></p>
 </main>
+<main lang="ca" data-idioma="ca" hidden>
+  <h1>Eliminar el teu compte i les teves dades de PocketZ</h1>
+  <p class="meta">PocketZ · Última actualització: 2 d'octubre de 2026</p>
+
+  <p>Pots eliminar el teu compte de PocketZ i totes les dades associades en qualsevol moment, sense cost i sense haver de donar explicacions. Aquí tens com fer-ho, què s'esborra i què es conserva.</p>
+
+  <h2>Opció 1: des de l'app (al moment)</h2>
+  <ol>
+    <li>Obre PocketZ i inicia sessió amb el teu compte.</li>
+    <li>Ves a <b>Configuració → Preferències</b>.</li>
+    <li>Baixa fins a la targeta <b>Eliminar el compte i les dades</b>.</li>
+    <li>Escriu <b>ESBORRAR</b> a la casella i prem <b>Eliminar el meu compte i les meves dades</b>.</li>
+    <li>Confirma amb <b>Sí, esborrar el meu compte</b>. El compte i les dades s'esborren en aquell moment i es tanca la sessió.</li>
+  </ol>
+  <p>Si vols conservar alguna cosa, abans pots descarregar una còpia a <b>Configuració → Preferències → Còpia de seguretat</b>.</p>
+
+  <h2>Opció 2: sense tenir l'app instal·lada</h2>
+  <ul>
+    <li><b>Des del navegador:</b> entra a <a href="./">la versió web de PocketZ</a>, inicia sessió i segueix els mateixos passos de l'opció 1.</li>
+    <li><b>Per correu:</b> escriu a <a href="mailto:soporte.pocketz@gmail.com?subject=Eliminar%20el%20meu%20compte">soporte.pocketz@gmail.com</a> amb l'assumpte «Eliminar el meu compte», des del mateix correu amb què et vas registrar (així comprovem que el compte és teu). Eliminarem el compte i totes les seves dades en un termini màxim de 30 dies i et respondrem per confirmar-ho.</li>
+  </ul>
+
+  <h2>Quines dades s'eliminen</h2>
+  <ul>
+    <li><b>El teu compte:</b> correu, contrasenya xifrada i nom.</li>
+    <li><b>Tot el que has apuntat:</b> comptes, moviments, categories, pressupostos, deutes, inversions, objectius, fites, recurrents, preferències i la resta d'informació financera.</li>
+    <li><b>Missatges:</b> el que has escrit a Comunitat i al xat d'assessoria, i les respostes.</li>
+    <li><b>Subscripció:</b> l'estat de premium o assessoria i el seu historial.</li>
+    <li><b>Comptes compartits:</b> els comptes que vas crear i comparties deixen de veure's per a les altres persones, i surts dels que altres persones compartien amb tu.</li>
+  </ul>
+
+  <h2>Què es conserva i durant quant de temps</h2>
+  <ul>
+    <li><b>Còpies de seguretat automàtiques:</b> el nostre proveïdor de base de dades (Supabase, servidors a la Unió Europea) desa còpies de seguretat diàries durant un màxim de <b>7 dies</b>. Les teves dades poden continuar en aquestes còpies fins que caduquin i se sobreescriguin soles, com a molt 7 dies després d'esborrar el compte. Només es fan servir per recuperar el servei en cas d'avaria, mai per a res més.</li>
+    <li><b>Al teu dispositiu:</b> algunes preferències (tema, colors, imatge de fons, idioma...) es desen només al teu mòbil o navegador. S'esborren en desinstal·lar l'app o en esborrar les dades del navegador.</li>
+    <li><b>Res més:</b> no conservem cap altra dada teva després d'eliminar el compte.</li>
+  </ul>
+
+  <p class="nota">Eliminar el compte no es pot desfer. Si més endavant vols tornar a fer servir PocketZ, hauràs de crear un compte nou.</p>
+
+  <hr>
+  <p class="meta"><a href="privacidad.html">Política de privacitat</a> · <a href="./">Tornar a l'app</a></p>
+</main>
+<main lang="en" data-idioma="en" hidden>
+  <h1>Delete your PocketZ account and data</h1>
+  <p class="meta">PocketZ · Last updated: 2 October 2026</p>
+
+  <p>You can delete your PocketZ account and all associated data at any time, free of charge and without giving a reason. Here's how to do it, what gets deleted and what is kept.</p>
+
+  <h2>Option 1: from the app (immediately)</h2>
+  <ol>
+    <li>Open PocketZ and sign in to your account.</li>
+    <li>Go to <b>Settings → Preferences</b>.</li>
+    <li>Scroll down to the <b>Delete account and data</b> card.</li>
+    <li>Type <b>DELETE</b> in the box and tap <b>Delete my account and my data</b>.</li>
+    <li>Confirm with <b>Yes, delete my account</b>. Your account and data are deleted right away and you're signed out.</li>
+  </ol>
+  <p>If you want to keep anything, you can first download a copy in <b>Settings → Preferences → Backup</b>.</p>
+
+  <h2>Option 2: without the app installed</h2>
+  <ul>
+    <li><b>From a browser:</b> go to <a href="./">the PocketZ web version</a>, sign in and follow the same steps as in option 1.</li>
+    <li><b>By email:</b> write to <a href="mailto:soporte.pocketz@gmail.com?subject=Delete%20my%20account">soporte.pocketz@gmail.com</a> with the subject "Delete my account", from the same email you signed up with (so we can check the account is yours). We'll delete the account and all its data within 30 days at most and reply to confirm.</li>
+  </ul>
+
+  <h2>What data is deleted</h2>
+  <ul>
+    <li><b>Your account:</b> email, encrypted password and name.</li>
+    <li><b>Everything you've logged:</b> accounts, transactions, categories, budgets, debts, investments, goals, milestones, recurring items, preferences and any other financial information.</li>
+    <li><b>Messages:</b> what you've written in Community and in the advice chat, and the replies.</li>
+    <li><b>Subscription:</b> your premium or advice status and its history.</li>
+    <li><b>Shared accounts:</b> accounts you created and shared stop being visible to the other people, and you leave the ones other people shared with you.</li>
+  </ul>
+
+  <h2>What is kept and for how long</h2>
+  <ul>
+    <li><b>Automatic backups:</b> our database provider (Supabase, servers in the European Union) keeps daily backups for at most <b>7 days</b>. Your data may remain in those backups until they expire and are overwritten automatically, at most 7 days after you delete your account. They're only used to restore the service after a failure, never for anything else.</li>
+    <li><b>On your device:</b> some preferences (theme, colours, background image, language...) are saved only on your phone or browser. They're removed when you uninstall the app or clear your browser data.</li>
+    <li><b>Nothing else:</b> we don't keep any other data about you after your account is deleted.</li>
+  </ul>
+
+  <p class="nota">Deleting your account can't be undone. If you want to use PocketZ again later, you'll need to create a new account.</p>
+
+  <hr>
+  <p class="meta"><a href="privacidad.html">Privacy policy</a> · <a href="./">Back to the app</a></p>
+</main>
+<script>
+// Muestra la página en el idioma de la app (el mismo que se elige en Preferencias).
+const TITULOS = {"es": "Eliminar tu cuenta y tus datos · PocketZ", "ca": "Eliminar el teu compte i les teves dades · PocketZ", "en": "Delete your account and data · PocketZ"};
+function verIdioma(i){
+  document.querySelectorAll("main").forEach(m=>{ m.hidden = m.dataset.idioma!==i; });
+  document.querySelectorAll(".idiomas a").forEach(a=>a.classList.toggle("activo", a.dataset.idioma===i));
+  document.documentElement.lang = i; document.title = TITULOS[i];
+}
+verIdioma(idioma);
+document.querySelectorAll(".idiomas a").forEach(a=>a.onclick = e=>{ e.preventDefault(); try{ localStorage.setItem("idioma", a.dataset.idioma); }catch(_){} verIdioma(a.dataset.idioma); });
+</script>
+
 </body>
 </html>

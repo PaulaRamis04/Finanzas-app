@@ -281,7 +281,7 @@ TRADUCCIONES.ca = {
   "Gasto más grande": "Despesa més gran",
   "Mes más gastón": "Mes més gastador",
   "Día más gastón": "Dia més gastador",
-  "🐷 Hecho con Cuentas": "🐷 Fet amb Cuentas",
+  "🐷 Hecho con PocketZ": "🐷 Fet amb PocketZ",
   "Ocultar importes (solo porcentajes)": "Amagar imports (només percentatges)",
   "🖼️ Imagen": "🖼️ Imatge",
   "📤 Compartir": "📤 Compartir",

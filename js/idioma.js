@@ -17,7 +17,8 @@ const idioma = (()=>{
   return elegido;
 })();
 document.documentElement.lang = idioma;
-if(idioma!=="es") document.write(`<script src="js/i18n/${idioma}.js"><\/script>`);
+// Las páginas sueltas (privacidad, eliminar cuenta) traen su propio texto en cada idioma: no cargan el diccionario.
+if(idioma!=="es" && !document.currentScript?.hasAttribute("data-solo-idioma")) document.write(`<script src="js/i18n/${idioma}.js"><\/script>`);
 
 function fijarIdioma(i){
   if(!IDIOMAS[i] || i===idioma) return;
