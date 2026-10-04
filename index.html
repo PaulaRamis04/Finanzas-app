@@ -434,6 +434,11 @@ h2{font-size:16px; margin:0 0 12px; font-weight:800}
 .titulo-novedades{margin:22px 4px 10px; font-size:15px}
 .fila.aviso .fecha-novedad{font-size:11px; opacity:.7; margin-top:2px}
 .aviso.nuevo::after{content:""; position:absolute; top:10px; right:10px; width:8px; height:8px; border-radius:50%; background:var(--accent)}
+.aviso-caja{position:relative}
+.aviso-caja .fila.aviso{padding-right:46px}
+.aviso-caja .aviso.nuevo::after{right:auto; left:8px; top:8px}
+.aviso-borrar{position:absolute; top:0; bottom:0; margin:auto 0; right:6px; width:34px; height:34px; border:none; border-radius:50%; background:transparent; color:var(--muted); display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0}
+.aviso-borrar:hover{background:var(--line); color:var(--ink)}
 /* Cifras que se adaptan al ancho (importes largos en pantallas estrechas) */
 .cifra-adapt{font-size:clamp(22px,7.5vw,30px); font-weight:800; letter-spacing:-0.02em; font-variant-numeric:tabular-nums; line-height:1.15; margin:4px 0 2px; overflow-wrap:anywhere; min-width:0}
 .mini.ajustable{flex-wrap:wrap; overflow:visible}

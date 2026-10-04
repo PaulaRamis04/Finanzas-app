@@ -810,6 +810,7 @@ TRADUCCIONES.ca = {
   "Han contestado tu mensaje": "Han contestat el teu missatge",
   "¡Todo al día!": "Tot al dia!",
   "No tienes avisos pendientes.": "No tens avisos pendents.",
+  "Borrar notificación": "Esborra la notificació",
   "Novedades de la app": "Novetats de l'app",
   "Volver": "Tornar",
   "{}% ahorrado": "{}% estalviat",

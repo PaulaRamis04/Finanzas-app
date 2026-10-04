@@ -810,6 +810,7 @@ TRADUCCIONES.en = {
   "Han contestado tu mensaje": "Your message has been answered",
   "¡Todo al día!": "All caught up!",
   "No tienes avisos pendientes.": "You have no pending alerts.",
+  "Borrar notificación": "Delete notification",
   "Novedades de la app": "What's new in the app",
   "Volver": "Back",
   "{}% ahorrado": "{}% saved",
