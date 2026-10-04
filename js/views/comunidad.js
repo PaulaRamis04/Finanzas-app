@@ -73,7 +73,7 @@ function renderAsesoria(){
   <div class="card comunidad">
     <div class="comunidad-cab"><span class="comunidad-ico" aria-hidden="true">🌸</span><h2>Tu mini asesoría</h2></div>
     <p class="meta">Cuéntame qué quieres revisar este mes (presupuestos, categorías, metas de ahorro) y te contesto por aquí.</p>
-    <div class="chat">${mensajesAsesoria.length ? mensajesAsesoria.map(m=>`<div class="burbuja ${m.autor==="admin"?"de-admin":"mia"}">${esc(m.texto)}<small>${new Date(m.creado_en).toLocaleString("es-ES", {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"})}</small></div>`).join("")
+    <div class="chat">${mensajesAsesoria.length ? mensajesAsesoria.map(m=>`<div class="burbuja ${m.autor==="admin"?"de-admin":"mia"}">${esc(m.texto)}<small>${new Date(m.creado_en).toLocaleString(localeApp(), {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"})}</small></div>`).join("")
       : `<p class="meta">Aún no hay mensajes. ¡Escríbeme el primero!</p>`}</div>
     <textarea id="asesoriaTexto" rows="3" maxlength="4000" placeholder="Escribe tu mensaje…"></textarea>
     <div class="comunidad-btns"><button class="btn" id="btnEnviarAsesoria">Enviar</button></div>

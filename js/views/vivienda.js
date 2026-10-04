@@ -36,7 +36,7 @@ function textoMesesViv(m){
 function fechaDentroDeViv(m){
   if(!m) return "";
   const d = new Date(); d.setDate(1); d.setMonth(d.getMonth()+m);
-  return d.toLocaleDateString("es-ES", {month:"long", year:"numeric"});
+  return d.toLocaleDateString(localeApp(), {month:"long", year:"numeric"});
 }
 
 function htmlResultadoVivienda(){

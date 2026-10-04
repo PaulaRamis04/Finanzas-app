@@ -2,6 +2,8 @@
 // con el texto que escribe Paula, tal cual. Mientras «texto» esté vacío, la novedad no se muestra.
 // Para añadir una: copia una entrada, pon un id nuevo que no se repita, la fecha (AAAA-MM-DD), el título,
 // el texto y, si quieres, la pestaña a la que lleva al tocarla (tab). Las más recientes, arriba.
+// En catalán e inglés se ven traducidos: el título y el texto, tal cual, van como clave en
+// js/i18n/ca.js y js/i18n/en.js con su traducción (si no están, salen en español).
 const NOVEDADES = [
   // { id:"ejemplo", fecha:"2026-10-01", tab:"Inicio", titulo:"", texto:"" },
   { id:"cambiar-aportacion", fecha:"2026-10-01", tab:"Comunidad", titulo:"", texto:"" },
