@@ -209,11 +209,12 @@ function renderTabs(){
   const item = t=>`<button class="menu-item ${t===tab?"active":""}" data-tab="${t}"><span class="mi">${ICONOS_MENU[t]||"•"}</span>${TITULOS_TAB[t]||t}${esTabPremium(t) ? ESTRELLA_PREMIUM : ""}${!esPremium && esTabPremium(t) ? `<span class="marca-premium">Premium</span>` : ""}</button>`;
   document.getElementById("menuPanel").innerHTML =
     `<div class="menu-marca">${LOGO_HUCHA}PocketZ<span class="menu-version">v${VERSION_APP}</span></div>` + item("Inicio") +
-    GRUPOS_MENU.map(g=>`<div class="menu-group-title">${g.nombre}</div>${g.tabs.map(item).join("")}`).join("") +
+    GRUPOS_MENU.map(g=>`<div class="menu-group-title">${g.nombre}</div>${g.tabs.map(item).join("")}${g.nombre==="Ajustes" ? `<button class="menu-item" id="menuIdioma"><span class="mi">🌐</span>Idioma<span class="meta" style="margin-left:auto" translate="no">${IDIOMAS[idioma]}</span></button>` : ""}`).join("") +
     `<button class="menu-comunidad" data-tab="Comunidad"><strong>🌸 Comunidad &amp; Feedback</strong><span>Ideas, ayuda y supporters</span></button>` +
     `<button class="menu-item menu-salir" id="menuLogout"><span class="mi">↩</span>Cerrar sesión</button>`;
   document.querySelectorAll("#menuPanel [data-tab]").forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; closeMenu(); render(); });
   document.getElementById("menuLogout").onclick = ()=> sb.auth.signOut();
+  document.getElementById("menuIdioma").onclick = ()=>{ closeMenu(); hojaIdioma(); };
   document.querySelectorAll("[data-nav]").forEach(b=>{
     b.classList.toggle("active", b.dataset.nav===tab);
     b.onclick = ()=>{ tab = b.dataset.nav; closeMenu(); render(); window.scrollTo(0,0); };
@@ -424,6 +425,29 @@ function confirmar(texto, opciones = {}){
     cont.querySelector("#hojaOk").onclick = ()=>cerrar(true);
     setTimeout(()=>{ try{ cont.querySelector("#hojaOk").focus({preventScroll:true}); }catch(e){} }, 60);
   });
+}
+
+// Hoja para elegir el idioma de toda la app (también está en Preferencias).
+function hojaIdioma(){
+  document.getElementById("hoja")?.remove();
+  const cont = document.createElement("div");
+  cont.id = "hoja";
+  cont.innerHTML = `
+    <div class="hoja-fondo"></div>
+    <div class="hoja" role="dialog" aria-modal="true" aria-labelledby="hojaTitulo">
+      <div class="hoja-asa"></div>
+      <div class="hoja-ico">🌐</div>
+      <h2 id="hojaTitulo">Idioma</h2>
+      <p>Toda la app cambia a este idioma en este dispositivo.</p>
+      <div class="hoja-btns" style="flex-direction:column" translate="no">
+        ${Object.entries(IDIOMAS).map(([c,n])=>`<button class="${c===idioma?"hoja-si":"hoja-no"}" data-idioma="${c}">${n}${c===idioma?" ✓":""}</button>`).join("")}
+      </div>
+    </div>`;
+  document.body.appendChild(cont);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>cont.classList.add("abierta")));
+  const cerrar = ()=>{ cont.classList.remove("abierta"); setTimeout(()=>cont.remove(), 260); };
+  cont.querySelector(".hoja-fondo").onclick = cerrar;
+  cont.querySelectorAll("[data-idioma]").forEach(b=>b.onclick = ()=>{ if(b.dataset.idioma===idioma) cerrar(); else fijarIdioma(b.dataset.idioma); });
 }
 
 // Estados vacíos con ilustración: la hucha dormida o una nube sonriente con monedas.

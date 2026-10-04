@@ -1065,6 +1065,11 @@ prueba("idiomas: sigue el del dispositivo, se cambia en Preferencias y traduce t
   const sinTraducir = (await p.evaluate(()=>[...faltanTraducir]))
     .filter(x=>!x.split(/[·:]/).map(s=>s.replace(/^[^\p{L}]+|[\d\s%]+$/gu,"").trim()).every(s=>!s || datos.includes(s)) && !/\d+ \p{L}{3}\.?$/u.test(x));
   assert.deepStrictEqual(sinTraducir, []);
+  // En el menú, dentro de Ajustes, también está «Idioma» con una hoja para elegirlo.
+  assert.ok((await p.textContent("#menuIdioma")).includes("Language"));
+  await p.evaluate(()=>document.getElementById("menuIdioma").click());
+  assert.deepStrictEqual(await p.$$eval("#hoja [data-idioma]", bs=>bs.map(b=>b.dataset.idioma)), ["es","ca","en"]);
+  await p.evaluate(()=>document.getElementById("hoja").remove());
   // Cambiar de idioma en Preferencias recarga la app en ese idioma (y se queda guardado).
   await p.evaluate(()=>{ tab = "Preferencias"; render(); });
   await Promise.all([p.waitForNavigation(), p.selectOption("#prefIdioma", "ca")]);

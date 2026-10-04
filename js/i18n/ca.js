@@ -1238,5 +1238,6 @@ TRADUCCIONES.ca = {
   "Miércoles {#}": "Dimecres {}",
   "Jueves {#}": "Dijous {}",
   "Viernes {#}": "Divendres {}",
-  "Sábado {#}": "Dissabte {}"
+  "Sábado {#}": "Dissabte {}",
+  "Toda la app cambia a este idioma en este dispositivo.": "Tota l'app canvia a aquest idioma en aquest dispositiu."
 };

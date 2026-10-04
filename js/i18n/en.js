@@ -1238,5 +1238,6 @@ TRADUCCIONES.en = {
   "Miércoles {#}": "Wednesday {}",
   "Jueves {#}": "Thursday {}",
   "Viernes {#}": "Friday {}",
-  "Sábado {#}": "Saturday {}"
+  "Sábado {#}": "Saturday {}",
+  "Toda la app cambia a este idioma en este dispositivo.": "The whole app switches to this language on this device."
 };
