@@ -1183,7 +1183,6 @@ TRADUCCIONES.ca = {
   "{} Los gastos de compra (impuestos, notaría, registro…) suelen rondar el 10 % del precio.": "{} Les despeses de compra (impostos, notaria, registre…) acostumen a rondar el 10 % del preu.",
   "Comparar con otra persona ahorrando contigo": "Comparar amb una altra persona que estalviï amb tu",
   "PocketZ": "PocketZ",
-  "Mis cuentas": "Els meus comptes",
   "Email": "Correu",
   "Contraseña": "Contrasenya",
   "Entrar": "Entrar",
