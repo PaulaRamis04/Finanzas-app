@@ -6,6 +6,7 @@
 // js/i18n/ca.js y js/i18n/en.js con su traducción (si no están, salen en español).
 const NOVEDADES = [
   // { id:"ejemplo", fecha:"2026-10-01", tab:"Inicio", titulo:"", texto:"" },
+  { id:"simuladores-premium", fecha:"2026-10-04", tab:"Vivienda",  titulo:"", texto:"" },
   { id:"menu-reorganizado", fecha:"2026-10-04", tab:"Inicio",      titulo:"", texto:"" },
   { id:"separador-miles", fecha:"2026-10-04", tab:"",           titulo:"", texto:"" },
   { id:"cambiar-aportacion", fecha:"2026-10-01", tab:"Comunidad", titulo:"", texto:"" },

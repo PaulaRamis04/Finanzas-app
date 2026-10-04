@@ -180,13 +180,16 @@ const PILDORAS_TAB = {"Resumen del mes":"Resumen del mes","Permitir":"¿Me lo pu
 // Última pestaña vista de cada sección: el menú vuelve a ella.
 const ultimaDeSeccion = {};
 // Versión de la app que se muestra en el menú (cámbiala aquí al publicar una nueva)
-const VERSION_APP = "0.9.6";
+const VERSION_APP = "1.0.0";
 
 const LOGO_HUCHA = `<svg viewBox="0 0 64 64" aria-hidden="true"><ellipse cx="32" cy="36" rx="22" ry="17" fill="#f7b3ac"/><circle cx="54" cy="36" r="6" fill="#f39c93"/><circle cx="52.5" cy="35" r="1.2" fill="#b8615a"/><circle cx="55.5" cy="35" r="1.2" fill="#b8615a"/><path d="M20 22l-2-9 9 5z" fill="#f39c93"/><circle cx="44" cy="30" r="2" fill="#4a3b3b"/><rect x="26" y="19" width="12" height="3" rx="1.5" fill="#b8615a"/><rect x="18" y="48" width="6" height="8" rx="3" fill="#f39c93"/><rect x="38" y="48" width="6" height="8" rx="3" fill="#f39c93"/></svg>`;
 
 // Aviso amable en lo que es solo para premium. Aún no hay pago: premium se activa desde Supabase.
 const TEXTO_PREMIUM = {
+  "Vivienda":"Calcula cuánto necesitas ahorrar para tu casa y cuánto te costaría la hipoteca.",
+  "Permitir":"Antes de una compra grande, mira si te la puedes permitir sin pasarte.",
   "Proyección":"Mira cómo puede crecer tu dinero con escenarios a futuro.",
+  "Simulador":"Prueba qué pasaría con tu patrimonio y tus huchas si cambias algo.",
   "Personalización":"Elige tu color, un fondo a tu gusto o una foto tuya.",
   "compartir":"Lleva una cuenta a medias con tu pareja o tu piso: los dos veis y apuntáis sus movimientos."
 };
