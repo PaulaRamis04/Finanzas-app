@@ -85,7 +85,8 @@ prueba("Inicio solo avisa de presupuestos superados; los del 80 % van a Notifica
   assert.match(txt, /vs [a-z]+/);
   const r = await p.evaluate(()=>{
     const alertas = presupuestosEnAlerta();
-    const pasados = alertas.filter(a=>a.gastado>a.limite).length, cerca = alertas.length - pasados;
+    const pasados = alertas.filter(a=>a.gastado>a.limite).length, agotados = alertas.filter(a=>a.gastado===a.limite).length;
+    const cerca = alertas.length - pasados - agotados;
     const inicio = document.getElementById("app").innerText;
     const avisos = avisosActuales().filter(a=>a.tab==="Presupuestos");
     return {pasados, cerca, enInicio: /Presupuestos superados/.test(inicio),
@@ -96,6 +97,29 @@ prueba("Inicio solo avisa de presupuestos superados; los del 80 % van a Notifica
   assert.strictEqual(r.enInicio, r.pasados > 0);
   assert.strictEqual(r.cercaEnNotif, r.cerca);
   assert.ok(r.cercaSuaves);
+});
+prueba("un presupuesto gastado al 100 % dice que está agotado, no que se acerca al límite", async ()=>{
+  const p = await abrir();
+  const r = await p.evaluate(()=>{
+    const original = presupuestosEnAlerta;
+    presupuestosEnAlerta = ()=>[{categoria:"Ocio", limite:100, gastado:100, pct:100}, {categoria:"Ropa", limite:100, gastado:85, pct:85}];
+    const avisos = avisosActuales().filter(a=>a.tab==="Presupuestos");
+    presupuestosEnAlerta = original;
+    return avisos.map(a=>a.titulo+" | "+a.texto);
+  });
+  assert.match(r[0], /Has agotado el presupuesto de Ocio/);
+  assert.match(r[0], /Ya no te queda nada/);
+  assert.doesNotMatch(r[0], /se acerca|Aún te quedan/);
+  assert.match(r[1], /Ropa se acerca al límite/);
+  // En la pestaña Presupuestos: barra en rojo y el aviso de agotado.
+  const txt = await p.evaluate(()=>{
+    const pres = presupuestos[0];
+    const gasto = movimientosEfectivos().filter(m=>m.tipo==="gasto" && m.categoria===pres.categoria).reduce((s,m)=>sumarDinero(s, m.importe), 0);
+    pres.limite = restarDinero(gasto, rolloverAcumulado(pres));
+    tab = "Presupuestos"; render();
+    return document.getElementById("app").innerText;
+  });
+  assert.match(txt, /Has agotado este presupuesto/);
 });
 prueba("renombrar una categoría actualiza movimientos, presupuestos y recurrentes", async ()=>{
   const p = await abrir();

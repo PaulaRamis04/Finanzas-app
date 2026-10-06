@@ -13,10 +13,14 @@ function avisosActuales(){
   const avisos = [];
   presupuestosEnAlerta().forEach(a=>{
     const pasado = a.gastado>a.limite;
+    // Gastado justo el 100 %: ya no queda nada, así que no es «cerca del límite».
+    const agotado = !pasado && a.gastado>=a.limite;
+    const estado = pasado ? "pasado" : agotado ? "agotado" : "80";
     // Si aún no te has pasado es solo un aviso tranquilo: icono suave en vez de una señal de alarma.
-    avisos.push({id:`pres-${a.categoria}-${periodoAnio}-${periodoMes}-${pasado?"pasado":"80"}`, tab:"Presupuestos", ico:pasado?"🚨":ICONO_AVISO_SUAVE, fondo:pasado?"var(--accent-soft)":"var(--mint-soft)",
-      titulo: pasado ? `Te has pasado en ${a.categoria}` : `${a.categoria} se acerca al límite`,
+    avisos.push({id:`pres-${a.categoria}-${periodoAnio}-${periodoMes}-${estado}`, tab:"Presupuestos", ico:pasado?"🚨":ICONO_AVISO_SUAVE, fondo:pasado||agotado?"var(--accent-soft)":"var(--mint-soft)",
+      titulo: pasado ? `Te has pasado en ${a.categoria}` : agotado ? `Has agotado el presupuesto de ${a.categoria}` : `${a.categoria} se acerca al límite`,
       texto: pasado ? `${eur(a.gastado)} de ${eur(a.limite)} (${isFinite(a.pct)?a.pct.toFixed(0):"—"} %)`
+        : agotado ? `Llevas ${eur(a.gastado)} de ${eur(a.limite)} (100 %). Ya no te queda nada.`
         : `Llevas ${eur(a.gastado)} de ${eur(a.limite)} (${a.pct.toFixed(0)} %). Aún te quedan ${eur(restarDinero(a.limite, a.gastado))}.`});
   });
   recurrentes.filter(r=>r.activo).forEach(r=>{
