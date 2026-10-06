@@ -629,13 +629,15 @@ prueba("Comunidad: un supporter puede pedir subir o bajar su aportación", async
 });
 prueba("Comunidad: se ven tus mensajes con su respuesta", async ()=>{
   const p = await abrir("", {width:1280, height:900});
-  await p.evaluate(()=>{ __db.comunidad.push({id:"k1", tipo:"idea", texto:"Modo pareja", estado:"resuelto", respuesta:"¡Apuntado!", respondido_en:new Date().toISOString()}, {id:"k2", tipo:"supporter", texto:"", importe:5}); });
+  await p.evaluate(()=>{ __db.comunidad.push({id:"k1", tipo:"idea", texto:"Modo pareja", estado:"resuelto", respuesta:"¡Apuntado!", respondido_en:new Date().toISOString()}, {id:"k2", tipo:"supporter", texto:"", importe:5}, {id:"k3", tipo:"fallo", texto:"No carga", estado:"nuevo"}, {id:"k4", tipo:"fallo", texto:"Se cierra", estado:"en_curso"}); });
   await p.evaluate(()=>recargar(["comunidad"]));
   await p.evaluate(()=>{ tab = "Comunidad"; render(); });
   const texto = await p.innerText("#app");
   assert.match(texto, /Tus mensajes/);
   assert.match(texto, /Modo pareja/);
   assert.match(texto, /¡Apuntado!/);
+  const estados = await p.$$eval(".mi-mensaje", ms=>Object.fromEntries(ms.map(m=>[m.querySelector("p").textContent, m.querySelector(".estado-mensaje").textContent])));
+  assert.deepStrictEqual(estados, {"Modo pareja":"✅ Solucionado", "No carga":"⏳ Pendiente", "Se cierra":"🛠️ En curso"}, "cada mensaje dice si está solucionado");
   assert.doesNotMatch(texto, /Tu mini asesoría/, "sin plan con asesoría no hay chat");
   assert.ok(await p.evaluate(()=>avisosActuales().some(a=>a.id.startsWith("resp-k1"))), "la respuesta llega como aviso");
 });

@@ -66,6 +66,9 @@ function tarjetaComunidad(clave, ico, titulo, texto, boton, cuerpo){
 }
 
 const TIPOS_MENSAJE = {idea:"💬 Idea", fallo:"🐞 Fallo"};
+// Estado de cada mensaje: lo cambia la dueña desde la app de gestión (al responder queda «resuelto»).
+const ESTADOS_MENSAJE = {nuevo:["pendiente","⏳ Pendiente"], en_curso:["en-curso","🛠️ En curso"], resuelto:["resuelto","✅ Solucionado"]};
+const estadoMensaje = f=>ESTADOS_MENSAJE[f.estado==="resuelto" || f.respuesta ? "resuelto" : f.estado==="en_curso" ? "en_curso" : "nuevo"];
 
 function renderAsesoria(){
   if(!tieneAsesoria()) return "";
@@ -87,9 +90,9 @@ function renderMisMensajes(){
     <div class="comunidad-cab"><span class="comunidad-ico" aria-hidden="true">💌</span><h2>Tus mensajes</h2></div>
     <div class="mis-mensajes">${misMensajesComunidad.map(f=>`
       <div class="mi-mensaje">
-        <div class="meta">${TIPOS_MENSAJE[f.tipo]||esc(f.tipo)}</div>
+        <div class="mi-mensaje-cab"><span class="meta">${TIPOS_MENSAJE[f.tipo]||esc(f.tipo)}</span><span class="estado-mensaje ${estadoMensaje(f)[0]}">${estadoMensaje(f)[1]}</span></div>
         <p>${esc(f.texto)}</p>
-        ${f.respuesta ? `<div class="respuesta"><strong>Respuesta:</strong> ${esc(f.respuesta)}</div>` : `<div class="meta">${f.estado==="resuelto" ? "Resuelto" : "Pendiente de respuesta"}</div>`}
+        ${f.respuesta ? `<div class="respuesta"><strong>Respuesta:</strong> ${esc(f.respuesta)}</div>` : ""}
       </div>`).join("")}</div>
   </div>`;
 }
