@@ -903,6 +903,17 @@ prueba("¿cómo estoy?: semáforo con nota y objetivos configurables", async ()=
     const l = evaluarSalud().lista.filter(i=>i.puntos!==null && i.id!=="deuda");
     return Math.round(l.reduce((s,i)=>s+i.puntos, 0)/l.length);
   }));
+  // Lo apuntado hoy cuenta al momento, sin esperar a que cierre el mes.
+  const antesHoy = await p.evaluate(()=>datosSalud());
+  await p.evaluate(async ()=>{
+    __db.movimientos.push({id:"hoyIng", tipo:"ingreso", categoria:"Nómina", importe:900, fecha:today(), cuenta_id:__db.cuentas[0].id},
+      {id:"hoyInv", tipo:"gasto", categoria:"Inversión", importe:300, fecha:today(), cuenta_id:__db.cuentas[0].id});
+    await recargar(["movimientos"]);
+  });
+  const trasHoy = await p.evaluate(()=>datosSalud());
+  assert.strictEqual(trasHoy.ingresos3, antesHoy.ingresos3+900);
+  assert.strictEqual(trasHoy.invertido3, antesHoy.invertido3+300);
+  assert.ok((await p.textContent("#saludDet_inversion")).includes("lo que va de este"));
   // Inicio enseña la nota.
   const notaFinal = await p.evaluate(()=>{ tab = "Inicio"; render(); return evaluarSalud().nota; });
   assert.ok((await p.evaluate(()=>document.getElementById("app").innerText)).includes(`Salud financiera: ${notaFinal}/100`));
