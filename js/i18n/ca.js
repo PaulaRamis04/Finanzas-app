@@ -348,6 +348,8 @@ TRADUCCIONES.ca = {
   "Escribe tu mensaje…": "Escriu el teu missatge…",
   "⏳ Pendiente": "⏳ Pendent",
   "🛠️ En curso": "🛠️ En curs",
+  "Reportar otro problema": "Informar d'un altre problema",
+  "Enviar otra idea": "Enviar una altra idea",
   "✅ Solucionado": "✅ Solucionat",
   "Tus mensajes": "Els teus missatges",
   "✨ Apoya la app y recibe ayuda directa": "✨ Dona suport a l'app i rep ajuda directa",

@@ -603,8 +603,12 @@ prueba("Comunidad: supporter, idea y fallo se guardan y dan las gracias", async 
   await p.fill("#comunidadTexto", "No carga");
   await p.click('[data-comunidad-enviar="fallo"]');
   await p.waitForSelector(".comunidad-ok");
+  await p.click('[data-comunidad-abrir="fallo"]');
+  await p.fill("#comunidadTexto", "Tampoco guarda");
+  await p.click('[data-comunidad-enviar="fallo"]');
+  await p.waitForFunction(()=>__db.comunidad.length===4 && document.querySelector(".comunidad-ok"));
   const filas = await p.evaluate(()=>__db.comunidad.map(f=>[f.tipo, f.importe, f.texto, !!f.info]));
-  assert.deepStrictEqual(filas, [["supporter",10,"",false],["idea",null,"Modo pareja",false],["fallo",null,"No carga",true]]);
+  assert.deepStrictEqual(filas, [["supporter",10,"",false],["idea",null,"Modo pareja",false],["fallo",null,"No carga",true],["fallo",null,"Tampoco guarda",true]], "se pueden enviar dos fallos seguidos");
 });
 prueba("Comunidad: un supporter puede pedir subir o bajar su aportación", async ()=>{
   const p = await abrir("?asesoria=1", {width:1280, height:900});

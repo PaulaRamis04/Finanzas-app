@@ -60,7 +60,7 @@ function tarjetaComunidad(clave, ico, titulo, texto, boton, cuerpo){
     <div class="comunidad-cab"><span class="comunidad-ico" aria-hidden="true">${ico}</span><h2>${titulo}</h2></div>
     <p class="meta">${texto}</p>
     ${clave==="supporter" && esPremium ? renderSupporterPremium()
-      : comunidadEnviado===clave ? `<div class="comunidad-ok">${GRACIAS_COMUNIDAD[clave]}</div>`
+      : comunidadEnviado===clave ? `<div class="comunidad-ok">${GRACIAS_COMUNIDAD[clave]}</div>${clave!=="supporter" ? `<button class="btn ghost" data-comunidad-abrir="${clave}">${clave==="fallo" ? "Reportar otro problema" : "Enviar otra idea"}</button>` : ""}`
       : abierto ? cuerpo : `<button class="btn" data-comunidad-abrir="${clave}">${boton}</button>`}
   </div>`;
 }

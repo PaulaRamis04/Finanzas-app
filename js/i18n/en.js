@@ -348,6 +348,8 @@ TRADUCCIONES.en = {
   "Escribe tu mensaje…": "Write your message…",
   "⏳ Pendiente": "⏳ Pending",
   "🛠️ En curso": "🛠️ In progress",
+  "Reportar otro problema": "Report another problem",
+  "Enviar otra idea": "Send another idea",
   "✅ Solucionado": "✅ Solved",
   "Tus mensajes": "Your messages",
   "✨ Apoya la app y recibe ayuda directa": "✨ Support the app and get direct help",
