@@ -603,8 +603,12 @@ prueba("Comunidad: supporter, idea y fallo se guardan y dan las gracias", async 
   await p.fill("#comunidadTexto", "No carga");
   await p.click('[data-comunidad-enviar="fallo"]');
   await p.waitForSelector(".comunidad-ok");
+  await p.click('[data-comunidad-abrir="fallo"]');
+  await p.fill("#comunidadTexto", "Tampoco guarda");
+  await p.click('[data-comunidad-enviar="fallo"]');
+  await p.waitForFunction(()=>__db.comunidad.length===4 && document.querySelector(".comunidad-ok"));
   const filas = await p.evaluate(()=>__db.comunidad.map(f=>[f.tipo, f.importe, f.texto, !!f.info]));
-  assert.deepStrictEqual(filas, [["supporter",10,"",false],["idea",null,"Modo pareja",false],["fallo",null,"No carga",true]]);
+  assert.deepStrictEqual(filas, [["supporter",10,"",false],["idea",null,"Modo pareja",false],["fallo",null,"No carga",true],["fallo",null,"Tampoco guarda",true]], "se pueden enviar dos fallos seguidos");
 });
 prueba("Comunidad: un supporter puede pedir subir o bajar su aportación", async ()=>{
   const p = await abrir("?asesoria=1", {width:1280, height:900});
@@ -629,13 +633,15 @@ prueba("Comunidad: un supporter puede pedir subir o bajar su aportación", async
 });
 prueba("Comunidad: se ven tus mensajes con su respuesta", async ()=>{
   const p = await abrir("", {width:1280, height:900});
-  await p.evaluate(()=>{ __db.comunidad.push({id:"k1", tipo:"idea", texto:"Modo pareja", estado:"resuelto", respuesta:"¡Apuntado!", respondido_en:new Date().toISOString()}, {id:"k2", tipo:"supporter", texto:"", importe:5}); });
+  await p.evaluate(()=>{ __db.comunidad.push({id:"k1", tipo:"idea", texto:"Modo pareja", estado:"resuelto", respuesta:"¡Apuntado!", respondido_en:new Date().toISOString()}, {id:"k2", tipo:"supporter", texto:"", importe:5}, {id:"k3", tipo:"fallo", texto:"No carga", estado:"nuevo"}, {id:"k4", tipo:"fallo", texto:"Se cierra", estado:"en_curso"}); });
   await p.evaluate(()=>recargar(["comunidad"]));
   await p.evaluate(()=>{ tab = "Comunidad"; render(); });
   const texto = await p.innerText("#app");
   assert.match(texto, /Tus mensajes/);
   assert.match(texto, /Modo pareja/);
   assert.match(texto, /¡Apuntado!/);
+  const estados = await p.$$eval(".mi-mensaje", ms=>Object.fromEntries(ms.map(m=>[m.querySelector("p").textContent, m.querySelector(".estado-mensaje").textContent])));
+  assert.deepStrictEqual(estados, {"Modo pareja":"✅ Solucionado", "No carga":"⏳ Pendiente", "Se cierra":"🛠️ En curso"}, "cada mensaje dice si está solucionado");
   assert.doesNotMatch(texto, /Tu mini asesoría/, "sin plan con asesoría no hay chat");
   assert.ok(await p.evaluate(()=>avisosActuales().some(a=>a.id.startsWith("resp-k1"))), "la respuesta llega como aviso");
 });
