@@ -49,6 +49,7 @@ function renderPresupuestos(){
       const gastado = gastoPorCat[p.categoria] || 0;
       const pct = limiteEf>0 ? Math.max(0, gastado/limiteEf*100) : 0;
       const pasado = gastado > limiteEf;
+      const agotado = !pasado && limiteEf>0 && gastado >= limiteEf;
       return `
       <div class="item" style="flex-direction:column;align-items:stretch;gap:10px">
         <div style="display:flex;align-items:center;gap:12px">
@@ -58,10 +59,11 @@ function renderPresupuestos(){
             <div class="meta">${eur(gastado)} de ${eur(limiteEf)}${mult===12?" al año":""}${p.rollover?" · con remanente":""}</div>
           </div>
         </div>
-        <div class="barra" style="height:8px"><div style="width:${Math.min(pct,100)}%;background:${pasado?'var(--salmon)':pct>=80?'#f2b880':'var(--mint)'}"></div></div>
+        <div class="barra" style="height:8px"><div style="width:${Math.min(pct,100)}%;background:${pasado||agotado?'var(--salmon)':pct>=80?'#f2b880':'var(--mint)'}"></div></div>
         ${rolloverImp!==0 && mult!==12? `<div class="meta">Incluye ${rolloverImp>=0?"+":""}${eur(rolloverImp)} de meses anteriores</div>` : ""}
         ${ajuste>0? `<div class="meta">Sin contar ${eur(ajuste)} que ya te han devuelto</div>` : ""}
         ${pasado? `<div class="meta" style="color:var(--neg)">Has superado el límite en ${eur(restarDinero(gastado, limiteEf))}</div>` : ""}
+        ${agotado? `<div class="meta" style="color:var(--neg)">Has agotado este presupuesto: ya no te queda nada</div>` : ""}
         <div class="chips">
           <button class="chip" data-editar-presupuesto="${p.id}">Editar</button>
           <button class="chip ${p.rollover?'ok':'lav'}" data-toggle-rollover="${p.id}">${p.rollover?"Quitar remanente":"Activar remanente"}</button>
