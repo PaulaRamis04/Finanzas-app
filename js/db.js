@@ -267,13 +267,7 @@ async function recargar(tablas = Object.keys(TABLAS), {procesar=false} = {}){
     const fallo = res.find((r,i)=>r.error && !TABLAS[tablas[i]].opcional);
     if(fallo){ ready = true; render(); showError("No se pudieron cargar los datos: "+fallo.error.message); return; }
     for(let i=0; i<tablas.length; i++){
-      let data = res[i].data || [];
-      if(tablas[i]==="categorias" && data.length===0){
-        const {error:eSeed} = await sb.from("categorias").insert(CATEGORIAS_DEFECTO);
-        if(eSeed) continue;
-        data = (await TABLAS.categorias.q()).data || [];
-      }
-      TABLAS[tablas[i]].set(data);
+      TABLAS[tablas[i]].set(res[i].data || []);
     }
     // Presupuestos/deudas pueden pedir más histórico del que se calculó antes de tenerlos.
     if(movParcial && calcularMovDesde()<movDesde){ await recargar(["movimientos"]); return; }
