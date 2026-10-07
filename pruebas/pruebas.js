@@ -97,6 +97,20 @@ prueba("Inicio solo avisa de presupuestos superados; los del 80 % van a Notifica
   assert.strictEqual(r.cercaEnNotif, r.cerca);
   assert.ok(r.cercaSuaves);
 });
+prueba("categorías: una cuenta nueva empieza vacía, con Imprescindible y Prescindible para crear las suyas", async ()=>{
+  const p = await abrir();
+  await p.evaluate(async ()=>{ __db.categorias = []; await recargar(["categorias"]); tab = "Categorías"; render(); });
+  assert.strictEqual(await p.evaluate(()=>__db.categorias.length), 0, "no se crea ninguna categoría por defecto");
+  const grupos = await p.$$eval("[data-toggle-cat]", els=>els.map(e=>e.dataset.toggleCat));
+  assert.deepStrictEqual(grupos, ["Imprescindible","Prescindible"]);
+  assert.deepStrictEqual(await p.$$eval("#catPadre option", os=>os.map(o=>o.value)), ["Imprescindible","Prescindible"]);
+  await p.selectOption("#catPadre", "Prescindible");
+  await p.fill('#fCategoria [name="nombre"]', "Cine");
+  await p.click('#fCategoria button[type="submit"]');
+  await p.waitForFunction(()=>categorias.some(c=>c.nombre==="Cine"));
+  assert.deepStrictEqual(await p.evaluate(()=>__db.categorias.map(c=>[c.tipo, c.padre, c.nombre])), [["gasto","Prescindible","Cine"]]);
+  await p.close();
+});
 prueba("renombrar una categoría actualiza movimientos, presupuestos y recurrentes", async ()=>{
   const p = await abrir();
   await p.evaluate(()=>{ tab = "Categorías"; editarCatId = "k1"; render(); });
