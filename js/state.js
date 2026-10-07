@@ -6,7 +6,7 @@ const SECCIONES = [
   {id:"Inicio", titulo:"Inicio", ico:"📊", tabs:["Inicio"], sub:["Salud","Notificaciones"]},
   {id:"Gastos", titulo:"Gastos y Presupuestos", ico:"🏷️", tabs:["Gastos","Resumen del mes","Presupuestos"]},
   {id:"Movimientos", titulo:"Movimientos", ico:"📋", tabs:["Movimientos"]},
-  {id:"Cuentas", titulo:"Cuentas", ico:"👛", tabs:["Cuentas","Inversiones"]},
+  {id:"Cuentas", titulo:"Cuentas", ico:"👛", tabs:["Cuentas","Inversiones","Inmuebles"]},
   {id:"Deudas", titulo:"Deudas y Bizums", ico:"🤝", tabs:["Deudas"]},
   {id:"Recurrentes", titulo:"Recurrentes y Cuotas", ico:"🗓️", tabs:["Recurrentes"]},
   {id:"Objetivos", titulo:"Metas y Huchas", ico:"🎯", tabs:["Objetivos"], sub:["Hitos"]},
@@ -26,7 +26,7 @@ let tab = "Inicio";
 
 let ready = false;
 
-let movimientos = [], deudas = [], cuentas = [], inversiones = [], aportaciones = [], categorias = [], retiros = [], presupuestos = [], objetivos = [];
+let movimientos = [], deudas = [], cuentas = [], inversiones = [], inmuebles = [], aportaciones = [], categorias = [], retiros = [], presupuestos = [], objetivos = [];
 // Carga parcial: "movimientos" solo trae desde movDesde; lo anterior llega agregado por mes en movResumen.
 let movDesde = null, movResumen = [], movParcial = false;
 function previoCuenta(cuentaId, hasta){
@@ -141,7 +141,18 @@ function patrimonioEnFecha(corte){
   });
   const meDeben = sumaImportes(deudas.filter(d=>d.direccion==="me_deben" && d.estado==="pendiente" && d.fecha<corte));
   const debo = sumaImportes(deudas.filter(d=>d.direccion==="debo" && d.estado==="pendiente" && d.fecha<corte));
-  return restarDinero(sumarDinero(totalCuentas, totalInv, meDeben), debo);
+  return restarDinero(sumarDinero(totalCuentas, totalInv, meDeben, netoInmueblesEnFecha(corte)), debo);
+}
+
+// Inmuebles: cuentan por lo que valen menos la hipoteca que queda.
+function netoInmueble(i){ return restarDinero(i.valor, i.hipoteca); }
+function netoInmuebles(){ return sumaImportes(inmuebles, netoInmueble); }
+// En una fecha pasada, con el valor y la hipoteca que tenían entonces (0 si aún no estaban apuntados).
+function netoInmueblesEnFecha(corte){
+  return sumaImportes(inmuebles, i=>{
+    const h = i.historial.filter(x=>x.fecha<corte).pop();
+    return h ? restarDinero(h.valor, h.hipoteca) : 0;
+  });
 }
 
 function inicioPeriodoSeleccionado(){
@@ -168,7 +179,7 @@ function patrimonioActual(){
 function patrimonioNetoActual(){
   const meDeben = sumaImportes(deudas.filter(d=>d.direccion==="me_deben" && d.estado==="pendiente"));
   const debo = sumaImportes(deudas.filter(d=>d.direccion==="debo" && d.estado==="pendiente"));
-  return restarDinero(sumarDinero(patrimonioActual(), meDeben), debo);
+  return restarDinero(sumarDinero(patrimonioActual(), meDeben, netoInmuebles()), debo);
 }
 let patrimonioRango = "6m"; // "max" | "1a" | "6m" | "1m" | "1d"
 function serieMensual(mesesAtras){

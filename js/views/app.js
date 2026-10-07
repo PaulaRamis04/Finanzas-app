@@ -23,6 +23,7 @@ function render(){
   else if(tab==="Deudas") app.innerHTML = renderDeudas();
   else if(tab==="Cuentas") app.innerHTML = renderCuentas();
   else if(tab==="Inversiones") app.innerHTML = renderInversiones();
+  else if(tab==="Inmuebles") app.innerHTML = renderInmuebles();
   else if(tab==="Objetivos") app.innerHTML = renderObjetivos();
   else if(tab==="Vivienda") app.innerHTML = renderVivienda();
   else if(tab==="Hitos") app.innerHTML = renderHitos();
@@ -65,6 +66,7 @@ function wireEvents(){
   wireEventosResumen();
   wireEventosGastos();
   wireEventosInversiones();
+  wireEventosInmuebles();
   wireEventosCategorias();
   wireEventosProyeccion();
   wireEventosSimulador();

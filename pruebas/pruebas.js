@@ -8,7 +8,7 @@ const assert = require("assert");
 
 const RAIZ = path.join(__dirname, "..");
 const HTML_PRUEBA = path.join(RAIZ, "index.pruebas.html");
-const PESTANAS = ["Inicio","Salud","Gastos","Resumen del mes","Presupuestos","Permitir","Movimientos","Cuentas","Deudas","Inversiones","Objetivos","Vivienda","Hitos","Proyección","Simulador","Recurrentes","Categorías","Preferencias","Personalización","Notificaciones","Comunidad"];
+const PESTANAS = ["Inicio","Salud","Gastos","Resumen del mes","Presupuestos","Permitir","Movimientos","Cuentas","Deudas","Inversiones","Inmuebles","Objetivos","Vivienda","Hitos","Proyección","Simulador","Recurrentes","Categorías","Preferencias","Personalización","Notificaciones","Comunidad"];
 
 const pruebas = [];
 const prueba = (nombre, fn)=>pruebas.push({nombre, fn});
@@ -201,7 +201,7 @@ prueba("en pantalla ancha solo hay menú lateral agrupado, sin barra inferior", 
   await p.click('.menu-item[data-tab="Cuentas"]');
   assert.strictEqual(await p.evaluate(()=>tab), "Cuentas");
   // Las secciones con varias pantallas llevan un selector en cápsula arriba, y el menú recuerda la última.
-  assert.deepStrictEqual(await p.$$eval(".selector-seccion button", b=>b.map(x=>x.textContent)), ["Cuentas","Inversiones"]);
+  assert.deepStrictEqual(await p.$$eval(".selector-seccion button", b=>b.map(x=>x.textContent)), ["Cuentas","Inversiones","Inmuebles"]);
   await p.click('.selector-seccion [data-ir-tab="Inversiones"]');
   assert.strictEqual(await p.evaluate(()=>tab), "Inversiones");
   assert.match(await p.getAttribute('.menu-item[data-seccion="Cuentas"]', "class"), /active/);
@@ -1110,6 +1110,66 @@ prueba("bienvenida: solo a cuentas nuevas, tres tarjetas y no vuelve a salir", a
   assert.ok(!(await p.$(".hoja-bienvenida")));
 });
 
+prueba("inmuebles: suman su valor menos la hipoteca, enseñan la renta y guardan el historial de valor", async ()=>{
+  const p = await abrir();
+  const antes = await p.evaluate(()=>patrimonioNetoActual());
+  await p.evaluate(()=>{ tab = "Inmuebles"; render(); });
+  assert.ok((await p.evaluate(()=>document.getElementById("app").innerText)).includes("Aún no tienes inmuebles"));
+  // Sale en la sección Cuentas, junto a Cuentas e Inversiones.
+  assert.deepStrictEqual(await p.$$eval(".selector-seccion [data-ir-tab]", bs=>bs.map(b=>b.dataset.irTab)), ["Cuentas","Inversiones","Inmuebles"]);
+  await p.fill("#nuevoInmNombre", "Piso centro");
+  await p.fill("#nuevoInmValor", "200000");
+  await p.fill("#nuevoInmHipoteca", "120000");
+  await p.fill("#nuevoInmRenta", "800");
+  await p.fill("#nuevoInmCompra", "160000");
+  await p.click('#fInmueble button[type="submit"]');
+  await p.waitForFunction(()=>__db.inmuebles.length===1 && inmuebles.length===1);
+  const fila = await p.evaluate(()=>__db.inmuebles[0]);
+  assert.strictEqual(fila.valor, 200000); assert.strictEqual(fila.hipoteca, 120000); assert.strictEqual(fila.renta_mensual, 800);
+  assert.strictEqual(fila.historial.length, 1);
+  assert.strictEqual(await p.evaluate(()=>patrimonioNetoActual()), antes + 80000);
+  // Ayer aún no estaba: el patrimonio de días pasados no cambia.
+  assert.strictEqual(await p.evaluate(()=>netoInmueblesEnFecha(today())), 0);
+  let txt = await p.evaluate(()=>document.getElementById("app").innerText);
+  const e = n=>p.evaluate(n=>eur(n), n);
+  for(const t of ["Valor de tus inmuebles", `Hipoteca pendiente: ${await e(120000)}`, `Tu parte: ${await e(80000)}`, "ya es tuyo el 40 %", `${await e(800)} al mes`, "rentabilidad bruta 4,8 %", "+25,0 %"])
+    assert.ok(txt.includes(t), t);
+  // Cambia el valor: se apunta en el historial (una sola entrada por día) y se ve la subida.
+  await p.click("[data-editar-inmueble]");
+  await p.fill("#edInmValor", "210000");
+  await p.fill("#edInmHipoteca", "119000");
+  await p.click('#fEditarInmueble button[type="submit"]');
+  await p.waitForFunction(()=>inmuebles[0]?.valor===210000);
+  assert.deepStrictEqual(await p.evaluate(()=>__db.inmuebles[0].historial.map(h=>[h.valor, h.hipoteca])), [[210000, 119000]]);
+  assert.strictEqual(await p.evaluate(()=>patrimonioNetoActual()), antes + 91000);
+  // Con una entrada antigua, el patrimonio de entonces usa el valor de entonces.
+  await p.evaluate(async ()=>{ __db.inmuebles[0].historial.unshift({fecha:"2026-01-15", valor:180000, hipoteca:125000}); await recargar(["inmuebles"]); });
+  assert.strictEqual(await p.evaluate(()=>netoInmueblesEnFecha("2026-02-01")), 55000);
+  txt = await p.evaluate(()=>document.getElementById("app").innerText);
+  assert.ok(txt.includes(`▲ ${await e(30000)}`), "subida desde el valor anterior");
+  // Borrar.
+  await p.click("[data-del-inmueble]");
+  await aceptarHoja(p);
+  await p.waitForFunction(()=>__db.inmuebles.length===0 && inmuebles.length===0);
+  assert.strictEqual(await p.evaluate(()=>patrimonioNetoActual()), antes);
+  await p.close();
+});
+prueba("inmuebles: sin la tabla se guardan en el dispositivo", async ()=>{
+  let p = await abrir("?sintabla=inmuebles");
+  await p.evaluate(()=>{ tab = "Inmuebles"; render(); });
+  await p.fill("#nuevoInmNombre", "Garaje");
+  await p.selectOption("#nuevoInmTipo", "garaje");
+  await p.fill("#nuevoInmValor", "15000");
+  await p.click('#fInmueble button[type="submit"]');
+  await p.waitForFunction(()=>inmuebles.length===1);
+  assert.strictEqual(await p.evaluate(()=>JSON.parse(localStorage.getItem("inmuebles"))[0].nombre), "Garaje");
+  assert.ok((await p.evaluate(()=>document.getElementById("app").innerText)).includes("Sin hipoteca"));
+  await p.reload();
+  await p.waitForFunction(()=>typeof ready!=="undefined" && ready);
+  assert.deepStrictEqual(await p.evaluate(()=>inmuebles.map(i=>[i.nombre, i.tipo, i.valor])), [["Garaje","garaje",15000]]);
+  await p.evaluate(()=>localStorage.removeItem("inmuebles"));
+  await p.close();
+});
 prueba("idiomas: sigue el del dispositivo, se cambia en Preferencias y traduce toda la app", async ()=>{
   const abrirEn = async (locale, qs = "")=>{
     const p = await navegador.newPage({viewport:MOVIL, locale});
@@ -1128,6 +1188,9 @@ prueba("idiomas: sigue el del dispositivo, se cambia en Preferencias y traduce t
   // En inglés los importes llevan coma en los miles y punto en los decimales.
   assert.strictEqual(await p.evaluate(()=>eur(90000)), "€90,000.00");
   // Todas las pestañas: lo único sin traducir son los datos de la cuenta (nombres, categorías…) y fechas cortas.
+  // Un inmueble con hipoteca, renta, precio de compra y un cambio de valor, para que salga todo su texto.
+  await p.evaluate(async ()=>{ __db.inmuebles.push({id:"i1", nombre:"Piso", tipo:"vivienda", valor:210000, hipoteca:119000, renta_mensual:800, precio_compra:160000,
+    historial:[{fecha:"2026-01-15", valor:200000, hipoteca:120000},{fecha:"2026-06-01", valor:210000, hipoteca:119000}]}); await recargar(["inmuebles"]); editarInmuebleId = "i1"; });
   const datos = await p.evaluate(()=>JSON.stringify(__db));
   for(const t of PESTANAS) await p.evaluate(t=>{ tab = t; render(); }, t);
   await p.evaluate(()=>{ confirmar("¿Archivar esta cuenta? Conservas su historial y dejará de salir al apuntar movimientos."); });

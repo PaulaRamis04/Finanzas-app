@@ -98,6 +98,8 @@ const COPIA_A_FILAS = {
   objetivos: o=>({id:o.id, nombre:o.nombre, meta:o.meta, tipo_vinculo:o.tipoVinculo, vinculo_id:o.vinculoId??null, orden:o.orden||0, auto_activo:!!o.autoActivo, auto_cuota:o.autoCuota??null, auto_dia_mes:o.autoDiaMes??null, auto_cuenta_origen:o.autoCuentaOrigen??null, auto_ultima_generada:o.autoUltimaGenerada??null,
     ...(o.tema?{tema:o.tema}:{}), ...(o.ahorrado?{ahorrado:o.ahorrado}:{})})
 };
+// Los inmuebles van aparte: sin schema_inmuebles.sql se guardan en el dispositivo (ver restaurarCopia).
+const inmuebleDeCopia = i=>filaInmueble({...i, valor:Number(i.valor)||0, hipoteca:Number(i.hipoteca)||0, renta:Number(i.renta)||0, precioCompra:i.precioCompra??null, historial:i.historial||[]});
 // Clave de la copia para cada tabla (la copia usa los nombres del estado de la app).
 const CLAVE_COPIA = {aportaciones_inversion:"aportaciones", retiros_inversion:"retiros"};
 
@@ -112,6 +114,7 @@ function leerCopia(texto){
   if(archivadas.size) filas.cuentas.forEach(c=>{ c.archivada = archivadas.has(c.id); });
   return {
     exportadoEn: d.exportado_en, filas,
+    inmuebles: (d.inmuebles||[]).map(inmuebleDeCopia),
     reembolsos: d.movimientos.filter(m=>m.reembolsoDe).map(m=>({id:m.id, reembolso_de:m.reembolsoDe})),
     deudaMov: (d.deudas||[]).filter(x=>x.movimientoId).map(x=>({id:x.id, movimiento_id:x.movimientoId}))
   };
@@ -170,6 +173,10 @@ async function restaurarCopia(copia, progreso = ()=>{}){
     await insertar("aportaciones_inversion", filas.aportaciones_inversion);
     await insertar("retiros_inversion", filas.retiros_inversion);
     await insertar("objetivos", filas.objetivos);
+    if(copia.inmuebles.length){
+      if(inmueblesEnBd) await insertar("inmuebles", copia.inmuebles);
+      else try{ localStorage.setItem("inmuebles", JSON.stringify(copia.inmuebles)); }catch(e){}
+    }
   }catch(e){
     progreso("Deshaciendo…");
     await deshacerRestauracion(insertados);
@@ -183,7 +190,7 @@ async function deshacerRestauracion(insertados){
   // Primero se sueltan los vínculos circulares (deuda ↔ movimiento, reembolso → movimiento).
   await porLotes(insertados.deudas || [], ids=>sb.from("deudas").update({movimiento_id:null}).in("id", ids));
   await porLotes(insertados.movimientos || [], ids=>sb.from("movimientos").update({reembolso_de:null}).in("id", ids));
-  for(const t of ["objetivos","retiros_inversion","aportaciones_inversion","movimientos","deudas","inversiones_hijas","inversiones","recurrentes","presupuestos","categorias","cuentas"]) await borrar(t);
+  for(const t of ["inmuebles","objetivos","retiros_inversion","aportaciones_inversion","movimientos","deudas","inversiones_hijas","inversiones","recurrentes","presupuestos","categorias","cuentas"]) await borrar(t);
 }
 
 const TABLAS = {
@@ -244,6 +251,9 @@ const TABLAS = {
   // Fechas de los hitos conseguidos. Sin schema_hitos.sql la tabla no existe y se guardan en este dispositivo.
   hitos: { q:async ()=>{ const r = await sb.from("hitos").select("clave, fecha"); return {data:{filas:r.data||[], ok:!r.error}, error:null}; }, sinRealtime:true,
     set:d=>fijarHitos(d) },
+  // Casa, garaje, local… Sin schema_inmuebles.sql la tabla no existe y se guardan en este dispositivo.
+  inmuebles: { q:async ()=>{ const r = await sb.from("inmuebles").select("*"); return {data:{filas:r.data||[], ok:!r.error}, error:null}; }, sinRealtime:true,
+    set:d=>fijarInmuebles(d) },
   // Objetivos del semáforo «¿Cómo estoy?». Sin schema_salud.sql la tabla no existe y se guardan en este dispositivo.
   salud_config: { q:async ()=>{ const r = await sb.from("salud_config").select("config"); return {data:{config:r.data?.[0]?.config||null, ok:!r.error}, error:null}; }, sinRealtime:true,
     set:d=>fijarSaludConfig(d) },
@@ -484,7 +494,7 @@ async function startApp(){
 // ── Perfiles: varias cuentas recordadas en este dispositivo ──
 // Cada perfil guarda su sesión de Supabase y sus preferencias locales. Para cambiar se escribe
 // su sesión donde la lee supabase-js y se recarga (sin cerrar la de las demás en el servidor).
-const PREFS_PERFIL = ["cuentaDefecto","objCompletados","catsContraidas","formsPorDefecto","brilloHuchas","personalizacion","fondoImagen","avisosVistos","avisosBorrados","accionesRapidas","hitos","saludConfig","moneda","sonidoMovimientos","arrastresMes"];
+const PREFS_PERFIL = ["cuentaDefecto","objCompletados","catsContraidas","formsPorDefecto","brilloHuchas","personalizacion","fondoImagen","avisosVistos","avisosBorrados","accionesRapidas","hitos","saludConfig","moneda","sonidoMovimientos","arrastresMes","inmuebles"];
 const claveSesionSb = ()=> sb.auth.storageKey || `sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`;
 function leerPerfiles(){ try{ const a = JSON.parse(localStorage.getItem("perfiles")||"[]"); return Array.isArray(a) ? a : []; }catch(e){ return []; } }
 function escribirPerfiles(l){ try{ localStorage.setItem("perfiles", JSON.stringify(l)); }catch(e){} }

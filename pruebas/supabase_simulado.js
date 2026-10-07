@@ -15,9 +15,11 @@
     categorias:[{id:"k1", tipo:"gasto", padre:"Imprescindible", nombre:"Comida"},{id:"k2", tipo:"gasto", padre:"Prescindible", nombre:"Ocio"},{id:"k3", tipo:"ingreso", padre:null, nombre:"Nómina"}],
     presupuestos:[{id:"p1", categoria:"Comida", limite:300, rollover:false},{id:"p2", categoria:"Ocio", limite:100, rollover:false}],
     recurrentes:[{id:"r1", tipo:"gasto", categoria:"Comida", importe:10, cuenta_id:"c1", dia_mes:1, activo:true, fecha_inicio:"2026-01-01", ultima_generada:"2026-09-01"}],
-    objetivos:[], hitos:[], salud_config:[], movimientos_pendientes:[], preferencias:[], cuentas_miembros:[], comunidad:[], saldo_arrastre:[],
+    objetivos:[], hitos:[], salud_config:[], inmuebles:[], movimientos_pendientes:[], preferencias:[], cuentas_miembros:[], comunidad:[], saldo_arrastre:[],
     suscripciones:[], asesoria_mensajes:[]
   };
+  // ?sintabla=x: como si no se hubiera ejecutado el SQL que crea esa tabla.
+  if(url.searchParams.get("sintabla")) delete db[url.searchParams.get("sintabla")];
   const usuarios = {"ana@x.com":"u2", "p@x.com":"u1"};
   const hoy = new Date(); const y = hoy.getFullYear(), mAct = hoy.getMonth()+1;
   const f = (yy,mm,dd)=>`${yy}-${String(mm).padStart(2,"0")}-${String(dd).padStart(2,"0")}`;
