@@ -118,7 +118,7 @@ function renderInicio(){
   });
   const acumulado = [];
   gastoTramo.slice(0, hastaTramo).forEach(v=>acumulado.push(sumarDinero(acumulado.length ? acumulado[acumulado.length-1] : 0, v)));
-  const presupuestoTotal = porMes ? presupuestos.reduce((s,p)=>sumarDinero(s, p.limite, rolloverAcumulado(p)), 0) : 0;
+  const presupuestoTotal = porMes ? presupuestos.reduce((s,p)=>sumarDinero(s, p.limite), 0) : 0;
   const pctPat = patIni ? delta/Math.abs(patIni)*100 : 0;
   const nombre = (session?.user?.user_metadata?.full_name || "").trim().split(/\s+/)[0];
   const avisos = hayAvisosNuevos();

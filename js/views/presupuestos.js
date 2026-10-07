@@ -38,13 +38,11 @@ function renderPresupuestos(){
       </div>
       <button class="btn" type="submit" ${catsSinPresupuesto.length?"":"disabled"}>Añadir</button>
     </form>
-    <p class="meta" style="margin:10px 0 0">Después de crearlo puedes activarle "remanente": lo que te sobre o te pases un mes se suma o resta al límite del siguiente.</p>
   </div>
   <div class="section-title">Presupuestos · ${lbl}</div>
   <div class="list">
     ${presupuestos.length? presupuestos.map(p=>{
-      const rolloverImp = rolloverAcumulado(p);
-      const limiteEf = mult===12 ? redondearDinero(p.limite*mult) : sumarDinero(p.limite, rolloverImp);
+      const limiteEf = redondearDinero(p.limite*mult);
       const ajuste = cubiertoCat[p.categoria] || 0;
       const gastado = gastoPorCat[p.categoria] || 0;
       const pct = limiteEf>0 ? Math.max(0, gastado/limiteEf*100) : 0;
@@ -55,16 +53,14 @@ function renderPresupuestos(){
           <div class="ico-cat">${emojiCategoria(p.categoria, "gasto")}</div>
           <div style="flex:1;min-width:0">
             <div style="display:flex;justify-content:space-between;gap:8px;font-weight:700;font-size:15px"><span>${esc(p.categoria)}</span><span class="${pasado?'neg':''}" style="font-variant-numeric:tabular-nums">${pct.toFixed(0)}%</span></div>
-            <div class="meta">${eur(gastado)} de ${eur(limiteEf)}${mult===12?" al año":""}${p.rollover?" · con remanente":""}</div>
+            <div class="meta">${eur(gastado)} de ${eur(limiteEf)}${mult===12?" al año":""}</div>
           </div>
         </div>
         <div class="barra" style="height:8px"><div style="width:${Math.min(pct,100)}%;background:${pasado?'var(--salmon)':pct>=80?'#f2b880':'var(--mint)'}"></div></div>
-        ${rolloverImp!==0 && mult!==12? `<div class="meta">Incluye ${rolloverImp>=0?"+":""}${eur(rolloverImp)} de meses anteriores</div>` : ""}
         ${ajuste>0? `<div class="meta">Sin contar ${eur(ajuste)} que ya te han devuelto</div>` : ""}
         ${pasado? `<div class="meta" style="color:var(--neg)">Has superado el límite en ${eur(restarDinero(gastado, limiteEf))}</div>` : ""}
         <div class="chips">
           <button class="chip" data-editar-presupuesto="${p.id}">Editar</button>
-          <button class="chip ${p.rollover?'ok':'lav'}" data-toggle-rollover="${p.id}">${p.rollover?"Quitar remanente":"Activar remanente"}</button>
           <button class="chip peligro" data-del-presupuesto="${p.id}">Borrar</button>
         </div>
       </div>
@@ -101,18 +97,6 @@ function wireEventosPresupuestos(){
       hideError(); await recargar(["presupuestos"]);
     });
   });
-  document.querySelectorAll("[data-toggle-rollover]").forEach(b=>b.onclick=()=>conCarga(b, "…", async ()=>{
-    const p = presupuestos.find(x=>x.id===b.dataset.toggleRollover);
-    if(!p) return;
-    const activar = !p.rollover;
-    const hoy = new Date();
-    const cambios = activar
-      ? {rollover:true, rollover_desde:`${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,"0")}-01`}
-      : {rollover:false};
-    const {error} = await sb.from("presupuestos").update(cambios).eq("id", p.id);
-    if(error){ showError("No se pudo actualizar: "+error.message); return; }
-    hideError(); await recargar(["presupuestos"]);
-  }));
   document.querySelectorAll("[data-editar-presupuesto]").forEach(b=>b.onclick=()=>{ editarPresupuestoId=b.dataset.editarPresupuesto; render(); });
   document.querySelectorAll("[data-cancelar-presupuesto]").forEach(b=>b.onclick=()=>{ editarPresupuestoId=null; render(); });
   document.querySelectorAll("[data-confirmar-presupuesto]").forEach(b=>b.onclick=()=>conCarga(b, "Guardando…", async ()=>{

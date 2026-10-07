@@ -37,7 +37,6 @@ function calcularMovDesde(){
   const hoy = new Date();
   const c = [`${periodoAnio}-01-01`, fechaMes(new Date(hoy.getFullYear(), hoy.getMonth()-1, 1))];
   if(movForzarDesde) c.push(movForzarDesde);
-  presupuestos.forEach(p=>{ if(p.rollover && p.rolloverDesde) c.push(p.rolloverDesde.slice(0,7)+"-01"); });
   deudas.forEach(d=>{ if(d.estado==="pendiente" && d.fecha) c.push(d.fecha.slice(0,7)+"-01"); });
   return c.sort()[0];
 }
@@ -88,7 +87,7 @@ async function renombrarCategoria(cat, nuevo){
 const COPIA_A_FILAS = {
   cuentas: c=>({id:c.id, nombre:c.nombre, saldo_inicial:c.saldoInicial, orden:c.orden||0}),
   categorias: c=>({id:c.id, tipo:c.tipo, padre:c.padre??null, nombre:c.nombre}),
-  presupuestos: p=>({id:p.id, categoria:p.categoria, limite:p.limite, rollover:!!p.rollover, rollover_desde:p.rolloverDesde??null}),
+  presupuestos: p=>({id:p.id, categoria:p.categoria, limite:p.limite}),
   recurrentes: r=>({id:r.id, tipo:r.tipo, categoria:r.categoria, importe:r.importe, nota:r.nota||"", cuenta_id:r.cuentaId??null, dia_mes:r.diaMes, activo:r.activo, fecha_inicio:r.fechaInicio, ultima_generada:r.ultimaGenerada??null}),
   inversiones: i=>({id:i.id, nombre:i.nombre, tipo:i.tipo??"", valor_actual:i.valorActual, valor_inicial:i.valorInicial, estado:i.estado||"activa", fecha_prevista:i.fechaPrevista??null, importe_previsto:i.importePrevisto??null, cuenta_prevista_id:i.cuentaPrevistaId??null, padre_id:i.padreId??null, es_grupo:!!i.esGrupo, orden:i.orden||0, rentas:i.rentas||0}),
   deudas: d=>({id:d.id, persona:d.persona, importe:d.importe, importe_inicial:d.importeInicial??d.importe, direccion:d.direccion, concepto:d.concepto??"", estado:d.estado, fecha:d.fecha, movimiento_id:null}),
@@ -234,7 +233,7 @@ const TABLAS = {
   categorias: { q:()=>todas(()=>sb.from("categorias").select("*")),
     set:d=>{ categorias = d.map(c=>({id:c.id, tipo:c.tipo, padre:c.padre, nombre:c.nombre})); } },
   presupuestos: { q:()=>todas(()=>sb.from("presupuestos").select("*")),
-    set:d=>{ presupuestos = d.map(p=>({id:p.id, categoria:p.categoria, limite:Number(p.limite), rollover:!!p.rollover, rolloverDesde:p.rollover_desde||null})); } },
+    set:d=>{ presupuestos = d.map(p=>({id:p.id, categoria:p.categoria, limite:Number(p.limite)})); } },
   recurrentes: { q:()=>todas(()=>sb.from("recurrentes").select("*")),
     set:d=>{ recurrentes = d.map(r=>({id:r.id, tipo:r.tipo, categoria:r.categoria, importe:Number(r.importe), nota:r.nota||"", cuentaId:r.cuenta_id, diaMes:r.dia_mes, activo:r.activo, fechaInicio:r.fecha_inicio, ultimaGenerada:r.ultima_generada})); } },
   objetivos: { q:()=>todas(()=>sb.from("objetivos").select("*")),
