@@ -272,9 +272,7 @@ function renderBalance(){
   const disponible = sumarDinero(restarDinero(restarDinero(ingresos, ahorro), gastado), arrastrePeriodo());
   const meDeben = deudas.filter(d=>d.direccion==="me_deben" && d.estado==="pendiente").reduce((s,d)=>sumarDinero(s, d.importe),0);
   const debo = deudas.filter(d=>d.direccion==="debo" && d.estado==="pendiente").reduce((s,d)=>sumarDinero(s, d.importe),0);
-  const totalCuentas = cuentas.reduce((s,c)=>sumarDinero(s, saldoCuenta(c)),0);
-  const totalInversiones = inversiones.filter(i=>i.estado==="activa").reduce((s,i)=>sumarDinero(s, i.valorActual),0);
-  const patrimonioNeto = restarDinero(sumarDinero(totalCuentas, totalInversiones, meDeben), debo);
+  const patrimonioNeto = patrimonioNetoActual();
   const lbl = periodoMes==="todos" ? `Año ${periodoAnio}` : `${MESES[Number(periodoMes)-1]} ${periodoAnio}`;
   document.getElementById("balanceBox").innerHTML = `
     <div><b class="${patrimonioNeto>=0?'':'neg'}">${eur(patrimonioNeto)}</b><span>Patrimonio</span></div>
