@@ -1,0 +1,29 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.labs_pocketz'
+    compileSdk 36
+
+    defaultConfig {
+        // Mismo paquete que la app publicada en Google Play
+        applicationId 'com.labs_pocketz'
+        minSdk 24
+        targetSdk 36
+        // Sube versionCode en cada .aab que se suba a Play (la versión TWA era la 2)
+        versionCode 3
+        versionName '1.0.0'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
