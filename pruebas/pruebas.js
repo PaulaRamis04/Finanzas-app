@@ -484,7 +484,9 @@ prueba("personalización: tema, color, fondo e imagen se aplican, se recuerdan y
   await p.click("#btnQuitarFondo");
   assert.strictEqual((await estilo()).img, false);
   await p.click("#navMas");
-  await Promise.all([p.waitForNavigation(), p.click("#menuLogout")]);
+  await p.click("#menuLogout");
+  await p.waitForSelector("#hoja.abierta #hojaOk");
+  await Promise.all([p.waitForNavigation(), p.click("#hojaOk")]);
   assert.strictEqual(await p.evaluate(()=>localStorage.getItem("personalizacion")), null);
 });
 prueba("cuentas compartidas: se ven, se ajustan, se comparten, no van en la copia y se puede salir", async ()=>{
@@ -734,7 +736,18 @@ prueba("cerrar sesión recarga y borra los datos locales", async ()=>{
   const p = await abrir();
   await p.evaluate(()=>localStorage.setItem("cuentaDefecto", "c1"));
   await p.click("#navMas");
-  await Promise.all([p.waitForNavigation(), p.click("#menuLogout")]);
+  // Primero pide confirmación; «Cancelar» deja la sesión abierta.
+  await p.click("#menuLogout");
+  await p.waitForSelector("#hoja.abierta #hojaOk");
+  assert.match(await p.textContent("#hojaTitulo"), /¿Cerrar sesión\?/);
+  await p.click("#hojaNo");
+  await p.waitForSelector("#hoja", {state:"detached"});
+  assert.ok(await p.isVisible("#appShell"));
+  assert.strictEqual(await p.evaluate(()=>localStorage.getItem("cuentaDefecto")), "c1");
+  await p.click("#navMas");
+  await p.click("#menuLogout");
+  await p.waitForSelector("#hoja.abierta #hojaOk");
+  await Promise.all([p.waitForNavigation(), p.click("#hojaOk")]);
   assert.strictEqual(await p.evaluate(()=>localStorage.getItem("cuentaDefecto")), null);
 });
 prueba("eliminar cuenta: pide escribir ELIMINAR, confirma, borra los datos y cierra la sesión", async ()=>{
@@ -774,7 +787,9 @@ prueba("perfiles: añadir otra cuenta, cambiar con la flecha y cerrar solo uno",
   assert.strictEqual(await p.evaluate(()=>session.user.id), "u1");
   assert.strictEqual(await p.evaluate(()=>localStorage.getItem("accionesRapidas")), '["Gastos"]', "Paula recupera sus preferencias");
   await p.click("#btnPerfiles");
-  await Promise.all([p.waitForNavigation(), p.click("#btnSalirPerfil")]);
+  await p.click("#btnSalirPerfil");
+  await p.waitForSelector("#hoja.abierta #hojaOk");
+  await Promise.all([p.waitForNavigation(), p.click("#hojaOk")]);
   await p.waitForSelector("#fLogin", {state:"visible"});
   assert.deepStrictEqual(await p.evaluate(()=>leerPerfiles().map(x=>x.id)), ["u2"], "solo se olvida el perfil que cierra sesión");
   await Promise.all([p.waitForNavigation(), p.click('[data-perfil="u2"]')]);

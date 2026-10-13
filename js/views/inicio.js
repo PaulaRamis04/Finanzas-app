@@ -306,7 +306,7 @@ function elegirPerfil(){
   cont.querySelector(".hoja-fondo").onclick = cerrar;
   cont.querySelector(".perfiles-lista").onclick = e=>{ const b = e.target.closest("[data-cambiar-perfil]"); if(b && b.dataset.cambiarPerfil!==yo) cambiarAPerfil(b.dataset.cambiarPerfil); };
   cont.querySelector("#btnAnadirPerfil").onclick = anadirPerfil;
-  cont.querySelector("#btnSalirPerfil").onclick = ()=> sb.auth.signOut();
+  cont.querySelector("#btnSalirPerfil").onclick = ()=>{ cerrar(); setTimeout(cerrarSesion, 280); };
 }
 
 function wireEventosInicio(){

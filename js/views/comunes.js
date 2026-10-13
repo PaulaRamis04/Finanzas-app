@@ -239,7 +239,7 @@ function renderTabs(){
     GRUPOS_MENU.map(g=>`<div class="menu-group-title">${g.nombre}</div>${g.secciones.map(item).join("")}${g.nombre==="Configuración" ? `<button class="menu-item" id="menuIdioma"><span class="mi">🌐</span>Idioma<span class="meta" style="margin-left:auto" translate="no">${IDIOMAS[idioma]}</span></button>` : ""}`).join("") +
     `<button class="menu-item menu-salir" id="menuLogout"><span class="mi">🚪</span>Cerrar sesión</button>`;
   document.querySelectorAll("#menuPanel [data-tab]").forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; closeMenu(); render(); window.scrollTo(0,0); });
-  document.getElementById("menuLogout").onclick = ()=> sb.auth.signOut();
+  document.getElementById("menuLogout").onclick = cerrarSesion;
   document.getElementById("menuIdioma").onclick = ()=>{ closeMenu(); hojaIdioma(); };
   document.querySelectorAll("[data-nav]").forEach(b=>{
     b.classList.toggle("active", seccionDe(b.dataset.nav)===secActual && tab!=="Notificaciones");
@@ -400,6 +400,12 @@ document.addEventListener("pointermove", e=>{
   if(g && (e.pointerType==="mouse" || e.buttons || g.classList.contains("activa"))) mostrarPuntoGrafico(g, e.clientX);
   else if(!g && e.pointerType==="mouse") ocultarGraficos();
 });
+
+// Cerrar sesión siempre pide confirmación antes, para no salir por un toque sin querer.
+async function cerrarSesion(){
+  closeMenu();
+  if(await confirmar("¿Cerrar sesión? Tendrás que volver a entrar con tu correo y contraseña.", {ok:"Sí, cerrar sesión", icono:"🚪"})) sb.auth.signOut();
+}
 
 // Confirmación en hoja inferior (sustituye a confirm()). Devuelve una promesa con true/false.
 // El texto se parte solo: la primera pregunta «¿…?» es el título y el resto la explicación.

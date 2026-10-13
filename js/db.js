@@ -536,7 +536,7 @@ async function init(){
     return;
   }
   wireAuth();
-  document.getElementById("btnLogout").onclick = ()=> sb.auth.signOut();
+  document.getElementById("btnLogout").onclick = cerrarSesion;
   // Al cerrar sesión o cambiar de usuario no puede quedar nada del anterior: ni datos
   // en memoria, ni el canal realtime, ni preferencias locales.
   const cambiarDeUsuario = (salio)=>{
