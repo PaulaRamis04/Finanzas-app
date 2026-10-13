@@ -195,7 +195,8 @@ const TEXTO_PREMIUM = {
 };
 // Estrella de premium: junto al nombre en Inicio y junto al nombre de las secciones premium.
 const ESTRELLA_PREMIUM = `<span class="estrella-premium" title="Premium" aria-label="Premium">⭐</span>`;
-const esTabPremium = t=> TABS_PREMIUM.includes(t) || t==="Personalización";
+// Personalización no lleva la estrella: el tema (claro, oscuro o automático) es para todos.
+const esTabPremium = t=> TABS_PREMIUM.includes(t);
 
 function avisoPremium(que){
   return `
