@@ -3,19 +3,8 @@ const PALETTE = ["#f07f76","#3fae92","#8b7fd6","#f2a65a","#5aa9e6","#e98bb5","#7
 // Valores de movimientos.categoria que genera la propia app; no son categorías de usuario.
 const CATEGORIAS_ESPECIALES = ["Ajuste","Inversión","Deuda","Transferencia"];
 
-const CATEGORIAS_DEFECTO = [
-  {tipo:"gasto", padre:"Imprescindible", nombre:"Gasolina"},
-  {tipo:"gasto", padre:"Imprescindible", nombre:"Academia"},
-  {tipo:"gasto", padre:"Prescindible", nombre:"Salidas"},
-  {tipo:"gasto", padre:"Prescindible", nombre:"Tomar algo"},
-  {tipo:"gasto", padre:"Prescindible", nombre:"Comer"},
-  {tipo:"gasto", padre:"Prescindible", nombre:"Compras"},
-  {tipo:"gasto", padre:"Prescindible", nombre:"Suscripciones"},
-  {tipo:"ingreso", padre:null, nombre:"Nómina"},
-  {tipo:"ingreso", padre:null, nombre:"Extra"},
-  {tipo:"ingreso", padre:null, nombre:"Bizum"},
-  {tipo:"ingreso", padre:null, nombre:"Otro"}
-];
+// Grupos fijos de gasto: cada persona crea dentro sus propias categorías (no se crea ninguna por defecto).
+const GRUPOS_GASTO = ["Imprescindible","Prescindible"];
 
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 

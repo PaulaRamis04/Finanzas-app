@@ -22,7 +22,8 @@ function renderCategorias(){
   const porPadre = {};
   categorias.filter(c=>c.tipo==="gasto").forEach(c=>{ const p=c.padre||"Otros"; (porPadre[p]=porPadre[p]||[]).push(c); });
   const ingresoList = categorias.filter(c=>c.tipo==="ingreso");
-  const padres = Object.keys(porPadre);
+  // Imprescindible y Prescindible salen siempre, aunque estén vacíos; los grupos antiguos de cada cuenta se conservan.
+  const padres = [...GRUPOS_GASTO, ...Object.keys(porPadre).filter(p=>!GRUPOS_GASTO.includes(p))];
   const claves = [...padres, ...(ingresoList.length ? ["__ingresos__"] : [])];
   const todasContraidas = claves.length>0 && claves.every(k=>catsContraidas[k]);
   return `
@@ -31,7 +32,7 @@ function renderCategorias(){
     <form id="fCategoria">
       <div class="row2">
         <div><label>Tipo</label><select name="tipo" id="catTipo"><option value="gasto">Gasto</option><option value="ingreso">Ingreso</option></select></div>
-        <div id="catPadreWrap"><label>Grupo</label><input name="padre" id="catPadre" list="padresList" placeholder="ej. Imprescindible"><datalist id="padresList">${padres.map(p=>`<option value="${esc(p)}">`).join("")}</datalist></div>
+        <div id="catPadreWrap"><label>Grupo</label><select name="padre" id="catPadre">${padres.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join("")}</select></div>
       </div>
       <div><label>Nombre</label><input name="nombre" placeholder="ej. Gasolina" required></div>
       <button class="btn" type="submit">Añadir</button>
@@ -39,18 +40,19 @@ function renderCategorias(){
   </div>
   <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
     <span>Gastos</span>
-    ${padres.length + (ingresoList.length?1:0) > 1? `<button class="btn ghost" data-toggle-todas-cats="${todasContraidas?'expandir':'contraer'}" style="color:var(--accent)">${todasContraidas?"Expandir todas":"Contraer todas"}</button>` : ""}
+    ${categorias.length? `<button class="btn ghost" data-toggle-todas-cats="${todasContraidas?'expandir':'contraer'}" style="color:var(--accent)">${todasContraidas?"Expandir todas":"Contraer todas"}</button>` : ""}
   </div>
   <div class="list">
-    ${padres.length? padres.map(p=>{
+    ${padres.map(p=>{
+      const lista = porPadre[p] || [];
       const cerrado = !!catsContraidas[p];
       return `
       <div data-toggle-cat="${esc(p)}" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:8px 4px;margin-top:4px;font-weight:700;font-size:14px">
         <span>${cerrado?"▸":"▾"} ${esc(p)}</span>
-        <span class="meta" style="font-weight:400">${porPadre[p].length} categoría${porPadre[p].length===1?"":"s"}</span>
+        <span class="meta" style="font-weight:400">${lista.length} categoría${lista.length===1?"":"s"}</span>
       </div>
-      ${cerrado? "" : porPadre[p].map(catItem).join("")}`;
-    }).join("") : vacio("nube","Sin categorías de gasto","Crea la primera para ordenar tus compras.")}
+      ${cerrado? "" : lista.length? lista.map(catItem).join("") : `<div class="meta" style="padding:4px 4px 8px">Aún no hay categorías. Créalas arriba.</div>`}`;
+    }).join("")}
   </div>
   <div class="section-title">Ingresos</div>
   <div class="list">
@@ -124,6 +126,7 @@ function wireEventosCategorias(){
   });
   document.querySelectorAll("[data-toggle-todas-cats]").forEach(b=>b.onclick=()=>{
     if(b.dataset.toggleTodasCats==="contraer"){
+      GRUPOS_GASTO.forEach(p=>{ catsContraidas[p] = true; });
       categorias.filter(c=>c.tipo==="gasto").forEach(c=>{ catsContraidas[c.padre||"Otros"] = true; });
       if(categorias.some(c=>c.tipo==="ingreso")) catsContraidas["__ingresos__"] = true;
     } else catsContraidas = {};
