@@ -9,7 +9,7 @@ const NOVEDADES = [
   // El texto admite líneas que empiezan por «- » (lista) y **negrita**.
   { id:"testers-octubre", fecha:"2026-10-13", tab:"", titulo:"Novedades de PocketZ", texto:`Hola hola mi gente <3 👋
 
-He decidido hacer una actualización un pelín grande 🎉, tanto sugerencias y fallos que habéis encontrado vosotros 🐞 como ideas que tenia en mente 💡. Los cambios son los siguientes: ✨
+He decidido hacer una actualización un pelín grande 🎉, tanto sugerencias y fallos que habéis encontrado vosotros como ideas que tenia en mente. Los cambios son los siguientes: ✨
 - 💬 **Soporte:** ahora ves en qué estado está cada mensaje que nos envías y puedes mandar varios seguidos. 📨
 - 🚦 **¿Cómo estoy?:** el semáforo se actualiza al momento, sin tener que salir y volver a entrar. ⚡
 - ⚙️ **Preferencias:** tus ajustes se guardan en tu cuenta y ya no se cambian solos. 🔒

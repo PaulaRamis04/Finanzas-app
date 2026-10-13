@@ -1274,7 +1274,7 @@ TRADUCCIONES.ca = {
   // Novedad «testers-octubre» (texto de Paula)
   "Novedades de PocketZ": "Novetats de PocketZ",
   "Hola hola mi gente <3 👋": "Hola hola, la meva gent <3 👋",
-  "He decidido hacer una actualización un pelín grande 🎉, tanto sugerencias y fallos que habéis encontrado vosotros 🐞 como ideas que tenia en mente 💡. Los cambios son los siguientes: ✨": "He decidit fer una actualització una mica gran 🎉, tant amb suggeriments i errors que heu trobat vosaltres 🐞 com amb idees que tenia al cap 💡. Els canvis són aquests: ✨",
+  "He decidido hacer una actualización un pelín grande 🎉, tanto sugerencias y fallos que habéis encontrado vosotros como ideas que tenia en mente. Los cambios son los siguientes: ✨": "He decidit fer una actualització una mica gran 🎉, tant amb suggeriments i errors que heu trobat vosaltres com amb idees que tenia al cap. Els canvis són aquests: ✨",
   "Soporte:": "Suport:",
   "ahora ves en qué estado está cada mensaje que nos envías y puedes mandar varios seguidos. 📨": "ara veus en quin estat és cada missatge que ens envies i en pots enviar diversos seguits. 📨",
   "¿Cómo estoy?:": "Com estic?:",
