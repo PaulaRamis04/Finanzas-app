@@ -86,7 +86,7 @@ function wireEventosPreferencias(){
       movimientos: movs.map(m=>m.reembolsoDe && !ids.has(m.reembolsoDe) ? {...m, reembolsoDe:null} : m),
       deudas: deudas.map(d=>d.movimientoId && !ids.has(d.movimientoId) ? {...d, movimientoId:null} : d),
       aportaciones: aportaciones.map(soloPropio), retiros: retiros.map(soloPropio),
-      inversiones, categorias, presupuestos, objetivos,
+      inversiones, categorias, presupuestos, objetivos, inmuebles,
       recurrentes: recurrentes.map(r=>ajenas.has(r.cuentaId) ? {...r, cuentaId:null} : r)
     };
     const blob = new Blob([JSON.stringify(datos, null, 2)], {type:"application/json"});

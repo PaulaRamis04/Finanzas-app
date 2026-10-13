@@ -4,7 +4,7 @@ function renderInicio(){
   const totalInversiones = inversiones.filter(i=>i.estado==="activa").reduce((s,i)=>sumarDinero(s, i.valorActual),0);
   const meDeben = deudas.filter(d=>d.direccion==="me_deben" && d.estado==="pendiente").reduce((s,d)=>sumarDinero(s, d.importe),0);
   const debo = deudas.filter(d=>d.direccion==="debo" && d.estado==="pendiente").reduce((s,d)=>sumarDinero(s, d.importe),0);
-  const patNeto = restarDinero(sumarDinero(patrimonioActual(), meDeben), debo);
+  const patNeto = patrimonioNetoActual();
   const patFin = esPeriodoActualReal() ? patNeto : patrimonioEnFecha(finPeriodoCorte());
   const patIni = patrimonioEnFecha(inicioPeriodoSeleccionado());
   const delta = restarDinero(patFin, patIni);

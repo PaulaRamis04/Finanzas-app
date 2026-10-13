@@ -22,7 +22,7 @@ function mesSiguiente(ym){ let [y,m] = ym.split("-").map(Number); m++; if(m>12){
 // progreso(c) → [actual, meta] para la barra de los que aún no tienes.
 // Los textos con importes son getters: se escriben al pintarlos, con la moneda elegida en Preferencias.
 const hitoPatrimonio = (icono, cantidad, titulo)=>({id:"pat_"+cantidad, grupo:"patrimonio", icono, get titulo(){ return titulo(importeRedondo(cantidad)); },
-  get hecho(){ return `Alcanzaste ${importeRedondo(cantidad)} de patrimonio`; }, get pista(){ return `Llega a ${importeRedondo(cantidad)} de patrimonio (cuentas e inversiones, menos deudas).`; },
+  get hecho(){ return `Alcanzaste ${importeRedondo(cantidad)} de patrimonio`; }, get pista(){ return `Llega a ${importeRedondo(cantidad)} de patrimonio (cuentas, inversiones e inmuebles, menos deudas e hipotecas).`; },
   eval:c=>c.patrimonio(cantidad), progreso:c=>[c.patActual, cantidad]});
 const hitoCobertura = (meses, titulo)=>({id:"cob_"+meses, grupo:"seguridad", icono:"🛡️", titulo,
   hecho:`Tus cuentas ya cubrían ${meses} ${meses===1?"mes":"meses"} de gastos`, pista:`Ten en tus cuentas lo que gastas en ${meses} ${meses===1?"mes":"meses"}.`,
