@@ -22,7 +22,7 @@ function renderPreferencias(){
   </div>
   <div class="card">
     <h2>Formularios para añadir</h2>
-    <p class="meta" style="margin:0 0 10px">Los huecos para añadir un movimiento, una deuda, una cuenta, una inversión, etc. pueden salir desplegados o contraídos al entrar. Se abren y cierran tocando su título. Esta preferencia se guarda en este dispositivo.</p>
+    <p class="meta" style="margin:0 0 10px">Los huecos para añadir un movimiento, una deuda, una cuenta, una inversión, etc. pueden salir desplegados o contraídos al entrar. Se abren y cierran tocando su título. Esta preferencia se guarda en tu cuenta.</p>
     <select id="prefForms">
       <option value="abiertos"${formsPorDefecto==="abiertos"?" selected":""}>Desplegados por defecto</option>
       <option value="cerrados"${formsPorDefecto==="cerrados"?" selected":""}>Contraídos por defecto</option>
@@ -30,7 +30,7 @@ function renderPreferencias(){
   </div>
   <div class="card">
     <h2>Brillo en las barras de las huchas</h2>
-    <p class="meta" style="margin:0 0 10px">Las barras de progreso de tus huchas pueden llevar un destello suave donde termina lo ahorrado, o verse lisas. Esta preferencia se guarda en este dispositivo.</p>
+    <p class="meta" style="margin:0 0 10px">Las barras de progreso de tus huchas pueden llevar un destello suave donde termina lo ahorrado, o verse lisas. Esta preferencia se guarda en tu cuenta.</p>
     <select id="prefBrillo">
       <option value="si"${brilloHuchas?" selected":""}>Con brillo</option>
       <option value="no"${!brilloHuchas?" selected":""}>Sin brillo</option>
@@ -38,7 +38,7 @@ function renderPreferencias(){
   </div>
   <div class="card">
     <h2>Sonido al registrar un movimiento</h2>
-    <p class="meta" style="margin:0 0 10px">Al guardar un gasto o un ingreso puede sonar un tintineo suave de moneda. Esta preferencia se guarda en este dispositivo.</p>
+    <p class="meta" style="margin:0 0 10px">Al guardar un gasto o un ingreso puede sonar un tintineo suave de moneda. Esta preferencia se guarda en tu cuenta.</p>
     <select id="prefSonido">
       <option value="no"${!sonidoMovimientos?" selected":""}>Sin sonido</option>
       <option value="si"${sonidoMovimientos?" selected":""}>Con sonido</option>
@@ -137,6 +137,7 @@ function wireEventosPreferencias(){
     formsPorDefecto = prefForms.value === "cerrados" ? "cerrados" : "abiertos";
     formsEstado = {};
     try{ localStorage.setItem("formsPorDefecto", formsPorDefecto); }catch(e){}
+    guardarAjustes();
   };
   const prefMoneda = document.getElementById("prefMoneda");
   if(prefMoneda) prefMoneda.onchange = async ()=>{
@@ -149,11 +150,13 @@ function wireEventosPreferencias(){
     brilloHuchas = prefBrillo.value !== "no";
     document.documentElement.classList.toggle("sin-brillo", !brilloHuchas);
     try{ localStorage.setItem("brilloHuchas", brilloHuchas ? "si" : "no"); }catch(e){}
+    guardarAjustes();
   };
   const prefSonido = document.getElementById("prefSonido");
   if(prefSonido) prefSonido.onchange = ()=>{
     sonidoMovimientos = prefSonido.value === "si";
     try{ localStorage.setItem("sonidoMovimientos", sonidoMovimientos ? "si" : "no"); }catch(e){}
+    guardarAjustes();
     sonarMoneda();
   };
   const prefCuenta = document.getElementById("prefCuenta");

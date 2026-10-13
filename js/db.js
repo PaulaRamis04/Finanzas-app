@@ -19,6 +19,44 @@ async function guardarCuentaDefecto(id){
   return true;
 }
 
+// Ajustes de la app que siguen a la cuenta y no solo al dispositivo (columna preferencias.ajustes,
+// schema_ajustes.sql). Antes solo estaban en localStorage: cambiaban al entrar desde otro sitio
+// (el navegador y la app de Android no comparten almacenamiento) y se perdían al cerrar sesión.
+// Sin la columna se quedan en este dispositivo, como antes.
+const CLAVES_AJUSTES = ["formsPorDefecto","brilloHuchas","sonidoMovimientos","catsContraidas","personalizacion"];
+let guardandoAjustes = 0, versionAjustes = 0; // versionAjustes: cambia con cada guardado
+function ajustesLocales(){
+  const a = {};
+  CLAVES_AJUSTES.forEach(k=>{ try{ const v = localStorage.getItem(k); if(v!==null) a[k] = v; }catch(e){} });
+  return a;
+}
+// Se llama después de guardar un ajuste en localStorage. «ajustesSinSubir» queda puesto hasta que
+// el servidor lo confirma, para que al recargar no se pise un cambio que aún no ha subido.
+async function guardarAjustes(){
+  if(!session) return;
+  try{ localStorage.setItem("ajustesSinSubir", "1"); }catch(e){}
+  guardandoAjustes++; versionAjustes++;
+  let error;
+  try{ ({error} = await sb.from("preferencias").upsert({user_id: session.user.id, ajustes: ajustesLocales()})); }
+  catch(e){ error = e; }
+  guardandoAjustes--;
+  if(!error) try{ localStorage.removeItem("ajustesSinSubir"); }catch(e){}
+}
+// Lo que llega de la cuenta no se aplica si se ha guardado algo mientras se pedía (vendría viejo).
+function recibirAjustes(fila, version){
+  if(guardandoAjustes || version!==versionAjustes) return;
+  let sinSubir = false; try{ sinSubir = localStorage.getItem("ajustesSinSubir")==="1"; }catch(e){}
+  const a = fila ? fila.ajustes : null;
+  // Un cambio de este dispositivo que no llegó a subir (o una cuenta sin ajustes guardados aún) se sube.
+  if(sinSubir || (fila && "ajustes" in fila && !a) || (!fila && Object.keys(ajustesLocales()).length)){ guardarAjustes(); return; }
+  if(!a || typeof a!=="object") return;
+  CLAVES_AJUSTES.forEach(k=>{ try{ if(typeof a[k]==="string") localStorage.setItem(k, a[k]); else localStorage.removeItem(k); }catch(e){} });
+  const formsAntes = formsPorDefecto;
+  leerAjustesApp();
+  if(formsPorDefecto!==formsAntes) formsEstado = {};
+  aplicarPersonalizacion();
+}
+
 async function guardarMoneda(m){
   fijarMoneda(m);
   const {error} = await sb.from("preferencias").upsert({user_id: session.user.id, moneda});
@@ -37,7 +75,6 @@ function calcularMovDesde(){
   const hoy = new Date();
   const c = [`${periodoAnio}-01-01`, fechaMes(new Date(hoy.getFullYear(), hoy.getMonth()-1, 1))];
   if(movForzarDesde) c.push(movForzarDesde);
-  presupuestos.forEach(p=>{ if(p.rollover && p.rolloverDesde) c.push(p.rolloverDesde.slice(0,7)+"-01"); });
   deudas.forEach(d=>{ if(d.estado==="pendiente" && d.fecha) c.push(d.fecha.slice(0,7)+"-01"); });
   return c.sort()[0];
 }
@@ -88,7 +125,7 @@ async function renombrarCategoria(cat, nuevo){
 const COPIA_A_FILAS = {
   cuentas: c=>({id:c.id, nombre:c.nombre, saldo_inicial:c.saldoInicial, orden:c.orden||0}),
   categorias: c=>({id:c.id, tipo:c.tipo, padre:c.padre??null, nombre:c.nombre}),
-  presupuestos: p=>({id:p.id, categoria:p.categoria, limite:p.limite, rollover:!!p.rollover, rollover_desde:p.rolloverDesde??null}),
+  presupuestos: p=>({id:p.id, categoria:p.categoria, limite:p.limite}),
   recurrentes: r=>({id:r.id, tipo:r.tipo, categoria:r.categoria, importe:r.importe, nota:r.nota||"", cuenta_id:r.cuentaId??null, dia_mes:r.diaMes, activo:r.activo, fecha_inicio:r.fechaInicio, ultima_generada:r.ultimaGenerada??null}),
   inversiones: i=>({id:i.id, nombre:i.nombre, tipo:i.tipo??"", valor_actual:i.valorActual, valor_inicial:i.valorInicial, estado:i.estado||"activa", fecha_prevista:i.fechaPrevista??null, importe_previsto:i.importePrevisto??null, cuenta_prevista_id:i.cuentaPrevistaId??null, padre_id:i.padreId??null, es_grupo:!!i.esGrupo, orden:i.orden||0, rentas:i.rentas||0}),
   deudas: d=>({id:d.id, persona:d.persona, importe:d.importe, importe_inicial:d.importeInicial??d.importe, direccion:d.direccion, concepto:d.concepto??"", estado:d.estado, fecha:d.fecha, movimiento_id:null}),
@@ -241,7 +278,7 @@ const TABLAS = {
   categorias: { q:()=>todas(()=>sb.from("categorias").select("*")),
     set:d=>{ categorias = d.map(c=>({id:c.id, tipo:c.tipo, padre:c.padre, nombre:c.nombre})); } },
   presupuestos: { q:()=>todas(()=>sb.from("presupuestos").select("*")),
-    set:d=>{ presupuestos = d.map(p=>({id:p.id, categoria:p.categoria, limite:Number(p.limite), rollover:!!p.rollover, rolloverDesde:p.rollover_desde||null})); } },
+    set:d=>{ presupuestos = d.map(p=>({id:p.id, categoria:p.categoria, limite:Number(p.limite)})); } },
   recurrentes: { q:()=>todas(()=>sb.from("recurrentes").select("*")),
     set:d=>{ recurrentes = d.map(r=>({id:r.id, tipo:r.tipo, categoria:r.categoria, importe:Number(r.importe), nota:r.nota||"", cuentaId:r.cuenta_id, diaMes:r.dia_mes, activo:r.activo, fechaInicio:r.fecha_inicio, ultimaGenerada:r.ultima_generada})); } },
   objetivos: { q:()=>todas(()=>sb.from("objetivos").select("*")),
@@ -260,8 +297,8 @@ const TABLAS = {
   // Saldo del mes pasado sumado (o no) al disponible. Sin schema_saldo_arrastre.sql se guarda en este dispositivo.
   saldo_arrastre: { q:async ()=>{ const r = await sb.from("saldo_arrastre").select("mes, decision, importe"); return {data:{filas:r.data||[], ok:!r.error}, error:null}; }, sinRealtime:true,
     set:d=>fijarArrastres(d) },
-  preferencias: { q:()=>sb.from("preferencias").select("*"), opcional:true, sinRealtime:true,
-    set:d=>{ if(!d[0]) return;
+  preferencias: { q:async ()=>{ const v = versionAjustes, r = await sb.from("preferencias").select("*"); if(r.data) r.data.versionAjustes = v; return r; }, opcional:true, sinRealtime:true,
+    set:d=>{ recibirAjustes(d[0], d.versionAjustes); if(!d[0]) return;
       cuentaDefecto = d[0].cuenta_defecto || "";
       if(MONEDAS[d[0].moneda]) fijarMoneda(d[0].moneda);
       try{ if(cuentaDefecto) localStorage.setItem("cuentaDefecto", cuentaDefecto); else localStorage.removeItem("cuentaDefecto"); }catch(e){} } }
@@ -277,13 +314,7 @@ async function recargar(tablas = Object.keys(TABLAS), {procesar=false} = {}){
     const fallo = res.find((r,i)=>r.error && !TABLAS[tablas[i]].opcional);
     if(fallo){ ready = true; render(); showError("No se pudieron cargar los datos: "+fallo.error.message); return; }
     for(let i=0; i<tablas.length; i++){
-      let data = res[i].data || [];
-      if(tablas[i]==="categorias" && data.length===0){
-        const {error:eSeed} = await sb.from("categorias").insert(CATEGORIAS_DEFECTO);
-        if(eSeed) continue;
-        data = (await TABLAS.categorias.q()).data || [];
-      }
-      TABLAS[tablas[i]].set(data);
+      TABLAS[tablas[i]].set(res[i].data || []);
     }
     // Presupuestos/deudas pueden pedir más histórico del que se calculó antes de tenerlos.
     if(movParcial && calcularMovDesde()<movDesde){ await recargar(["movimientos"]); return; }
@@ -494,7 +525,7 @@ async function startApp(){
 // ── Perfiles: varias cuentas recordadas en este dispositivo ──
 // Cada perfil guarda su sesión de Supabase y sus preferencias locales. Para cambiar se escribe
 // su sesión donde la lee supabase-js y se recarga (sin cerrar la de las demás en el servidor).
-const PREFS_PERFIL = ["cuentaDefecto","objCompletados","catsContraidas","formsPorDefecto","brilloHuchas","personalizacion","fondoImagen","avisosVistos","avisosBorrados","accionesRapidas","hitos","saludConfig","moneda","sonidoMovimientos","arrastresMes","inmuebles"];
+const PREFS_PERFIL = ["cuentaDefecto","objCompletados","catsContraidas","formsPorDefecto","brilloHuchas","personalizacion","fondoImagen","avisosVistos","avisosBorrados","accionesRapidas","hitos","saludConfig","moneda","sonidoMovimientos","arrastresMes","ajustesSinSubir","inmuebles"];
 const claveSesionSb = ()=> sb.auth.storageKey || `sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`;
 function leerPerfiles(){ try{ const a = JSON.parse(localStorage.getItem("perfiles")||"[]"); return Array.isArray(a) ? a : []; }catch(e){ return []; } }
 function escribirPerfiles(l){ try{ localStorage.setItem("perfiles", JSON.stringify(l)); }catch(e){} }
@@ -546,7 +577,7 @@ async function init(){
     return;
   }
   wireAuth();
-  document.getElementById("btnLogout").onclick = ()=> sb.auth.signOut();
+  document.getElementById("btnLogout").onclick = cerrarSesion;
   // Al cerrar sesión o cambiar de usuario no puede quedar nada del anterior: ni datos
   // en memoria, ni el canal realtime, ni preferencias locales.
   const cambiarDeUsuario = (salio)=>{

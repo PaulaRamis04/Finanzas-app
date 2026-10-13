@@ -1,6 +1,7 @@
 // Orquestador: render() pinta la pestaña actual y wireEvents() engancha los eventos de todas. Va el último porque arranca la app con init().
 
 let tabPintada = null;
+let volviendoAtras = false;
 
 function render(){
   const y0 = window.scrollY, ae = document.activeElement;
@@ -53,8 +54,23 @@ function render(){
     if(focoId){ const el = document.getElementById(focoId); if(el){ try{ el.focus({preventScroll:true}); if(sel) el.setSelectionRange(sel[0], sel[1]); }catch(e){} } }
     window.scrollTo(0, y0);
   }
-  if(ready) tabPintada = tab;
+  if(ready){
+    // Cada cambio de pestaña deja una entrada en el historial: así el botón Atrás del móvil
+    // vuelve a la pestaña anterior en vez de cerrar la app.
+    if(tabPintada===null) history.replaceState({tab}, "");
+    else if(tab!==tabPintada && !volviendoAtras) history.pushState({tab}, "");
+    volviendoAtras = false;
+    tabPintada = tab;
+  }
 }
+
+window.addEventListener("popstate", e=>{
+  if(document.getElementById("appShell").style.display==="none") return;
+  closeMenu();
+  volviendoAtras = true;
+  tab = e.state?.tab || "Inicio";
+  render(); window.scrollTo(0,0);
+});
 
 // Cada pestaña engancha sus propios eventos; se llaman todos en cada render,
 // igual que antes, porque algunos elementos (p. ej. la lista de movimientos) salen en varias pestañas.
