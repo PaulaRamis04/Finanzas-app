@@ -42,7 +42,7 @@ function renderResumen(){
         <div class="mini ajustable" style="margin:10px 0 12px">
           <div><b>${eur(info.total)}</b><span>Total</span></div>
           <div><b>${lista.length}</b><span>Movimientos</span></div>
-          <div><b>${info.pct.toFixed(1).replace(".",",")} %</b><span>Del total</span></div>
+          <div><b>${info.pct.toFixed(1).replace(".",sepDecimal())} %</b><span>Del total</span></div>
         </div>
         <div class="list">
           ${[...lista].sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(m=>filaMov(m)).join("")}

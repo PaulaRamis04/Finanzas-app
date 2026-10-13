@@ -41,7 +41,7 @@ function presupuestoMesActual(categoria){
 function textoMesesPermitir(n){
   if(n<1){ const dias = Math.max(1, Math.round(n*30)); return `${dias} día${dias===1?"":"s"}`; }
   const r = Math.round(n*10)/10;
-  return `${String(r).replace(".",",")} ${r===1?"mes":"meses"}`;
+  return `${String(r).replace(".",sepDecimal())} ${r===1?"mes":"meses"}`;
 }
 
 // Todos los números del «después», sin HTML (así también se pueden probar).
@@ -104,7 +104,7 @@ function resultadoPermitir(){
   const filas = [];
 
   filas.push(filaPermitir("💰", "Patrimonio", eur(r.patrimonio.antes), eur(r.patrimonio.despues),
-    r.patrimonio.antes>0 ? `${String(Math.round(importe/r.patrimonio.antes*1000)/10).replace(".",",")} % de todo lo que tienes` : "",
+    r.patrimonio.antes>0 ? `${String(Math.round(importe/r.patrimonio.antes*1000)/10).replace(".",sepDecimal())} % de todo lo que tienes` : "",
     r.patrimonio.despues<0 ? "var(--neg)" : ""));
 
   if(r.fondo){

@@ -142,7 +142,7 @@ function renderInicio(){
     <div class="saldo-lbl">Saldo total</div>
     <div class="saldo">
       <span class="cifra ${patNeto>=0?'':'neg'}">${eur(patNeto)}</span>
-      <span class="var ${delta>=0?'pos':'neg'}">${delta>=0?"↗ +":"↘ -"}${Math.abs(pctPat).toFixed(1).replace(".",",")} % · ${delta>=0?"+":"-"}${eur(Math.abs(delta))} en ${lbl}</span>
+      <span class="var ${delta>=0?'pos':'neg'}">${delta>=0?"↗ +":"↘ -"}${Math.abs(pctPat).toFixed(1).replace(".",sepDecimal())} % · ${delta>=0?"+":"-"}${eur(Math.abs(delta))} en ${lbl}</span>
     </div>
     <div class="hero-grid">
       <div class="t-menta"><span>Disponible</span><b>${eur(disponible)}</b></div>

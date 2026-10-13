@@ -20,7 +20,7 @@ function objetivosSalud(){
 const mesClave = (y, m)=>`${y}-${String(m).padStart(2,"0")}`;
 function mesesAntes(n){ const d = new Date(); return Array.from({length:n}, (_,i)=>{ const x = new Date(d.getFullYear(), d.getMonth()-n+i, 1); return mesClave(x.getFullYear(), x.getMonth()+1); }); }
 const pctTxt = n=>`${Math.round(n)} %`;
-const mesesTxt = n=>`${String(Math.round(n*10)/10).replace(".",",")} ${Math.round(n*10)/10===1?"mes":"meses"}`;
+const mesesTxt = n=>`${String(Math.round(n*10)/10).replace(".",sepDecimal())} ${Math.round(n*10)/10===1?"mes":"meses"}`;
 
 // Ingresos, gastos (sin «Inversión») e inversión de cada mes cerrado reciente, más lo gastado este mes hasta hoy.
 function datosSalud(){

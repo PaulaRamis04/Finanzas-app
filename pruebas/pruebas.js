@@ -285,6 +285,10 @@ prueba("la moneda se elige en Preferencias, cambia todos los importes y se guard
   let txt = await p.evaluate(()=>document.getElementById("app").innerText);
   assert.ok(!/€/.test(txt), "no queda ningún € en Inicio");
   assert.match(txt, /\$\d/);
+  // M-03: el porcentaje de la tarjeta de saldo usa el mismo separador decimal que los importes.
+  const variacion = await p.textContent(".hero .saldo .var");
+  assert.match(variacion, /\d\.\d %/, variacion);
+  assert.ok(!/\d,\d %/.test(variacion), variacion);
   await p.evaluate(()=>{ tab = "Hitos"; render(); });
   assert.match(await p.evaluate(()=>document.getElementById("app").innerText), /Primeros \$500/);
   await p.evaluate(()=>{ tab = "Movimientos"; render(); });
@@ -296,6 +300,20 @@ prueba("la moneda se elige en Preferencias, cambia todos los importes y se guard
   await p.selectOption("#prefMoneda", "EUR");
   await p.waitForFunction(()=>__db.preferencias[0]?.moneda==="EUR");
   assert.match(await p.textContent("#prefMonedaEjemplo"), /€1\.234,56/);
+});
+prueba("Atrás vuelve a la pestaña anterior en vez de cerrar la app", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>{ tab = "Preferencias"; render(); });
+  await p.evaluate(()=>{ tab = "Categorías"; render(); });
+  await p.evaluate(()=>{ render(); }); // repintar la misma pestaña no añade otra entrada
+  await p.evaluate(()=>history.back());
+  await p.waitForFunction(()=>tab==="Preferencias");
+  await p.evaluate(()=>history.back());
+  await p.waitForFunction(()=>tab==="Inicio");
+  assert.match(await p.evaluate(()=>document.getElementById("app").innerText), /Saldo total/);
+  // Ir hacia delante también funciona y no deja entradas de más.
+  await p.evaluate(()=>history.forward());
+  await p.waitForFunction(()=>tab==="Preferencias");
 });
 prueba("Objetivos: el resumen de arriba suma lo ahorrado, no la meta", async ()=>{
   const p = await abrir();
