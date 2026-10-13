@@ -423,6 +423,16 @@ prueba("la campana abre la pantalla de notificaciones y solo al tocar un aviso v
   await p.click('[data-ir-aviso="Presupuestos"]');
   assert.strictEqual(await p.evaluate(()=>tab), "Presupuestos");
 });
+prueba("novedades: las líneas con «- » salen como lista y **así** en negrita", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>{ document.getElementById("hoja")?.remove(); tab = "Notificaciones"; render(); });
+  const nov = await p.$$eval(".texto-novedad", ds=>ds.map(d=>({li:d.querySelectorAll(".nov-li").length, b:[...d.querySelectorAll("b")].map(b=>b.textContent), txt:d.textContent})));
+  const octubre = nov.find(n=>n.txt.includes("Hola hola mi gente <3"));
+  assert.ok(octubre, "sale la novedad de octubre con el texto de Paula");
+  assert.strictEqual(octubre.li, 9);
+  assert.strictEqual(octubre.b[0], "Soporte:");
+  assert.ok(!octubre.txt.includes("**"));
+});
 prueba("las novedades con texto salen en notificaciones y las vacías no", async ()=>{
   const p = await abrir();
   await p.evaluate(()=>{ localStorage.setItem("avisosVistos", JSON.stringify(avisosActuales().map(a=>a.id)));
