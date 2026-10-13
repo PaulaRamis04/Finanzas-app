@@ -85,7 +85,8 @@ prueba("Inicio solo avisa de presupuestos superados; los del 80 % van a Notifica
   assert.match(txt, /vs [a-z]+/);
   const r = await p.evaluate(()=>{
     const alertas = presupuestosEnAlerta();
-    const pasados = alertas.filter(a=>a.gastado>a.limite).length, cerca = alertas.length - pasados;
+    const pasados = alertas.filter(a=>a.gastado>a.limite).length, agotados = alertas.filter(a=>a.gastado===a.limite).length;
+    const cerca = alertas.length - pasados - agotados;
     const inicio = document.getElementById("app").innerText;
     const avisos = avisosActuales().filter(a=>a.tab==="Presupuestos");
     return {pasados, cerca, enInicio: /Presupuestos superados/.test(inicio),
@@ -96,6 +97,43 @@ prueba("Inicio solo avisa de presupuestos superados; los del 80 % van a Notifica
   assert.strictEqual(r.enInicio, r.pasados > 0);
   assert.strictEqual(r.cercaEnNotif, r.cerca);
   assert.ok(r.cercaSuaves);
+});
+prueba("un presupuesto gastado al 100 % dice que está agotado, no que se acerca al límite", async ()=>{
+  const p = await abrir();
+  const r = await p.evaluate(()=>{
+    const original = presupuestosEnAlerta;
+    presupuestosEnAlerta = ()=>[{categoria:"Ocio", limite:100, gastado:100, pct:100}, {categoria:"Ropa", limite:100, gastado:85, pct:85}];
+    const avisos = avisosActuales().filter(a=>a.tab==="Presupuestos");
+    presupuestosEnAlerta = original;
+    return avisos.map(a=>a.titulo+" | "+a.texto);
+  });
+  assert.match(r[0], /Has agotado el presupuesto de Ocio/);
+  assert.match(r[0], /Ya no te queda nada/);
+  assert.doesNotMatch(r[0], /se acerca|Aún te quedan/);
+  assert.match(r[1], /Ropa se acerca al límite/);
+  // En la pestaña Presupuestos: barra en rojo y el aviso de agotado.
+  const txt = await p.evaluate(()=>{
+    const pres = presupuestos[0];
+    const gasto = movimientosEfectivos().filter(m=>m.tipo==="gasto" && m.categoria===pres.categoria).reduce((s,m)=>sumarDinero(s, m.importe), 0);
+    pres.limite = gasto;
+    tab = "Presupuestos"; render();
+    return document.getElementById("app").innerText;
+  });
+  assert.match(txt, /Has agotado este presupuesto/);
+});
+prueba("categorías: una cuenta nueva empieza vacía, con Imprescindible y Prescindible para crear las suyas", async ()=>{
+  const p = await abrir();
+  await p.evaluate(async ()=>{ __db.categorias = []; await recargar(["categorias"]); tab = "Categorías"; render(); });
+  assert.strictEqual(await p.evaluate(()=>__db.categorias.length), 0, "no se crea ninguna categoría por defecto");
+  const grupos = await p.$$eval("[data-toggle-cat]", els=>els.map(e=>e.dataset.toggleCat));
+  assert.deepStrictEqual(grupos, ["Imprescindible","Prescindible"]);
+  assert.deepStrictEqual(await p.$$eval("#catPadre option", os=>os.map(o=>o.value)), ["Imprescindible","Prescindible"]);
+  await p.selectOption("#catPadre", "Prescindible");
+  await p.fill('#fCategoria [name="nombre"]', "Cine");
+  await p.click('#fCategoria button[type="submit"]');
+  await p.waitForFunction(()=>categorias.some(c=>c.nombre==="Cine"));
+  assert.deepStrictEqual(await p.evaluate(()=>__db.categorias.map(c=>[c.tipo, c.padre, c.nombre])), [["gasto","Prescindible","Cine"]]);
+  await p.close();
 });
 prueba("renombrar una categoría actualiza movimientos, presupuestos y recurrentes", async ()=>{
   const p = await abrir();
@@ -162,7 +200,7 @@ prueba("Inicio muestra saldo, barras del mes, acciones y recientes", async ()=>{
   assert.match(txt, /Hola, Paula/);
   assert.match(txt, /Saldo total/);
   assert.match(txt, /Gastado\s*€[\d.,]+ de €400,00/);
-  assert.deepStrictEqual(await p.$$eval(".hero-grid span", s=>s.map(x=>x.textContent)), ["Disponible","Inversiones","Me deben","Debo"]);
+  assert.deepStrictEqual(await p.$$eval(".hero-grid span", s=>s.map(x=>x.firstChild.textContent.trim())), ["Disponible","Inversiones","Me deben","Debo"]);
   assert.strictEqual(await p.$$eval(".barra-mes", b=>b.length), 3);
   assert.match(await p.$$eval(".barra-cab", b=>b[1].innerText), /Ahorro\s*€200,00/, "el ahorro es lo apartado, no lo que sobra");
   assert.match(txt, /Gasto de \w+/);
@@ -285,6 +323,10 @@ prueba("la moneda se elige en Preferencias, cambia todos los importes y se guard
   let txt = await p.evaluate(()=>document.getElementById("app").innerText);
   assert.ok(!/€/.test(txt), "no queda ningún € en Inicio");
   assert.match(txt, /\$\d/);
+  // M-03: el porcentaje de la tarjeta de saldo usa el mismo separador decimal que los importes.
+  const variacion = await p.textContent(".hero .saldo .var");
+  assert.match(variacion, /\d\.\d %/, variacion);
+  assert.ok(!/\d,\d %/.test(variacion), variacion);
   await p.evaluate(()=>{ tab = "Hitos"; render(); });
   assert.match(await p.evaluate(()=>document.getElementById("app").innerText), /Primeros \$500/);
   await p.evaluate(()=>{ tab = "Movimientos"; render(); });
@@ -296,6 +338,44 @@ prueba("la moneda se elige en Preferencias, cambia todos los importes y se guard
   await p.selectOption("#prefMoneda", "EUR");
   await p.waitForFunction(()=>__db.preferencias[0]?.moneda==="EUR");
   assert.match(await p.textContent("#prefMonedaEjemplo"), /€1\.234,56/);
+});
+prueba("Preferencias: los ajustes se guardan en la cuenta y no se pisan", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>{ tab = "Preferencias"; render(); });
+  await p.selectOption("#prefForms", "cerrados");
+  await p.waitForFunction(()=>__db.preferencias[0]?.ajustes?.formsPorDefecto==="cerrados");
+  await p.selectOption("#prefBrillo", "no");
+  await p.waitForFunction(()=>__db.preferencias[0]?.ajustes?.brilloHuchas==="no");
+  assert.strictEqual(await p.evaluate(()=>localStorage.getItem("ajustesSinSubir")), null);
+  // Otro dispositivo (o tras cerrar sesión) sin nada en localStorage: los recupera de la cuenta.
+  await p.evaluate(async ()=>{ ["formsPorDefecto","brilloHuchas"].forEach(k=>localStorage.removeItem(k)); leerAjustesApp(); await recargar(["preferencias"]); });
+  assert.deepStrictEqual(await p.evaluate(()=>[formsPorDefecto, brilloHuchas, document.documentElement.classList.contains("sin-brillo")]), ["cerrados", false, true]);
+  await p.evaluate(()=>{ tab = "Movimientos"; render(); });
+  assert.ok(!(await p.evaluate(()=>document.querySelector("#fMov").closest(".pleg-cuerpo").classList.contains("abierto"))), "el formulario sale contraído");
+  // Un cambio que no llegó a subir no lo pisa lo que hay en la cuenta: se sube al recargar.
+  await p.evaluate(async ()=>{ __fallarEn = "preferencias"; tab = "Preferencias"; render(); });
+  await p.selectOption("#prefForms", "abiertos");
+  await p.waitForFunction(()=>localStorage.getItem("ajustesSinSubir")==="1");
+  await p.evaluate(async ()=>{ __fallarEn = null; await recargar(["preferencias"]); });
+  await p.waitForFunction(()=>__db.preferencias[0]?.ajustes?.formsPorDefecto==="abiertos");
+  assert.strictEqual(await p.evaluate(()=>formsPorDefecto), "abiertos");
+  // Lo que se cambie desde otro dispositivo llega a este.
+  await p.evaluate(async ()=>{ __db.preferencias[0].ajustes = {...__db.preferencias[0].ajustes, sonidoMovimientos:"si"}; await recargar(["preferencias"]); });
+  assert.strictEqual(await p.evaluate(()=>sonidoMovimientos), true);
+});
+prueba("Atrás vuelve a la pestaña anterior en vez de cerrar la app", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>{ tab = "Preferencias"; render(); });
+  await p.evaluate(()=>{ tab = "Categorías"; render(); });
+  await p.evaluate(()=>{ render(); }); // repintar la misma pestaña no añade otra entrada
+  await p.evaluate(()=>history.back());
+  await p.waitForFunction(()=>tab==="Preferencias");
+  await p.evaluate(()=>history.back());
+  await p.waitForFunction(()=>tab==="Inicio");
+  assert.match(await p.evaluate(()=>document.getElementById("app").innerText), /Saldo total/);
+  // Ir hacia delante también funciona y no deja entradas de más.
+  await p.evaluate(()=>history.forward());
+  await p.waitForFunction(()=>tab==="Preferencias");
 });
 prueba("Objetivos: el resumen de arriba suma lo ahorrado, no la meta", async ()=>{
   const p = await abrir();
@@ -405,6 +485,16 @@ prueba("la campana abre la pantalla de notificaciones y solo al tocar un aviso v
   await p.click('[data-ir-aviso="Presupuestos"]');
   assert.strictEqual(await p.evaluate(()=>tab), "Presupuestos");
 });
+prueba("novedades: las líneas con «- » salen como lista y **así** en negrita", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>{ document.getElementById("hoja")?.remove(); tab = "Notificaciones"; render(); });
+  const nov = await p.$$eval(".texto-novedad", ds=>ds.map(d=>({li:d.querySelectorAll(".nov-li").length, b:[...d.querySelectorAll("b")].map(b=>b.textContent), txt:d.textContent})));
+  const octubre = nov.find(n=>n.txt.includes("Hola hola mi gente <3 👋"));
+  assert.ok(octubre, "sale la novedad de octubre con el texto de Paula");
+  assert.strictEqual(octubre.li, 9);
+  assert.strictEqual(octubre.b[0], "Soporte:");
+  assert.ok(!octubre.txt.includes("**"));
+});
 prueba("las novedades con texto salen en notificaciones y las vacías no", async ()=>{
   const p = await abrir();
   await p.evaluate(()=>{ localStorage.setItem("avisosVistos", JSON.stringify(avisosActuales().map(a=>a.id)));
@@ -466,7 +556,9 @@ prueba("personalización: tema, color, fondo e imagen se aplican, se recuerdan y
   await p.click("#btnQuitarFondo");
   assert.strictEqual((await estilo()).img, false);
   await p.click("#navMas");
-  await Promise.all([p.waitForNavigation(), p.click("#menuLogout")]);
+  await p.click("#menuLogout");
+  await p.waitForSelector("#hoja.abierta #hojaOk");
+  await Promise.all([p.waitForNavigation(), p.click("#hojaOk")]);
   assert.strictEqual(await p.evaluate(()=>localStorage.getItem("personalizacion")), null);
 });
 prueba("cuentas compartidas: se ven, se ajustan, se comparten, no van en la copia y se puede salir", async ()=>{
@@ -517,8 +609,8 @@ prueba("sin premium: Simuladores bloqueados (Inversiones no), Personalización s
   assert.ok(await p.locator("[data-tema]").count() > 0);
   assert.strictEqual(await p.locator("[data-acento], #btnSubirFondo").count(), 0);
   assert.strictEqual(await p.locator(".marca-premium").count(), 0);
-  // Las pantallas premium llevan su estrella en el selector de su sección; el saludo no, porque no es premium.
-  assert.strictEqual(await p.locator(".selector-seccion .estrella-premium").count(), 1);
+  // Personalización ya no lleva la estrella (el tema es para todos); el saludo tampoco, porque no es premium.
+  assert.strictEqual(await p.locator(".selector-seccion .estrella-premium").count(), 0);
   await p.evaluate(()=>{ tab = "Inicio"; render(); });
   assert.strictEqual(await p.locator(".hola .estrella-premium").count(), 0);
   await p.evaluate(()=>{ tab = "Cuentas"; render(); });
@@ -603,8 +695,12 @@ prueba("Comunidad: supporter, idea y fallo se guardan y dan las gracias", async 
   await p.fill("#comunidadTexto", "No carga");
   await p.click('[data-comunidad-enviar="fallo"]');
   await p.waitForSelector(".comunidad-ok");
+  await p.click('[data-comunidad-abrir="fallo"]');
+  await p.fill("#comunidadTexto", "Tampoco guarda");
+  await p.click('[data-comunidad-enviar="fallo"]');
+  await p.waitForFunction(()=>__db.comunidad.length===4 && document.querySelector(".comunidad-ok"));
   const filas = await p.evaluate(()=>__db.comunidad.map(f=>[f.tipo, f.importe, f.texto, !!f.info]));
-  assert.deepStrictEqual(filas, [["supporter",10,"",false],["idea",null,"Modo pareja",false],["fallo",null,"No carga",true]]);
+  assert.deepStrictEqual(filas, [["supporter",10,"",false],["idea",null,"Modo pareja",false],["fallo",null,"No carga",true],["fallo",null,"Tampoco guarda",true]], "se pueden enviar dos fallos seguidos");
 });
 prueba("Comunidad: un supporter puede pedir subir o bajar su aportación", async ()=>{
   const p = await abrir("?asesoria=1", {width:1280, height:900});
@@ -629,13 +725,15 @@ prueba("Comunidad: un supporter puede pedir subir o bajar su aportación", async
 });
 prueba("Comunidad: se ven tus mensajes con su respuesta", async ()=>{
   const p = await abrir("", {width:1280, height:900});
-  await p.evaluate(()=>{ __db.comunidad.push({id:"k1", tipo:"idea", texto:"Modo pareja", estado:"resuelto", respuesta:"¡Apuntado!", respondido_en:new Date().toISOString()}, {id:"k2", tipo:"supporter", texto:"", importe:5}); });
+  await p.evaluate(()=>{ __db.comunidad.push({id:"k1", tipo:"idea", texto:"Modo pareja", estado:"resuelto", respuesta:"¡Apuntado!", respondido_en:new Date().toISOString()}, {id:"k2", tipo:"supporter", texto:"", importe:5}, {id:"k3", tipo:"fallo", texto:"No carga", estado:"nuevo"}, {id:"k4", tipo:"fallo", texto:"Se cierra", estado:"en_curso"}); });
   await p.evaluate(()=>recargar(["comunidad"]));
   await p.evaluate(()=>{ tab = "Comunidad"; render(); });
   const texto = await p.innerText("#app");
   assert.match(texto, /Tus mensajes/);
   assert.match(texto, /Modo pareja/);
   assert.match(texto, /¡Apuntado!/);
+  const estados = await p.$$eval(".mi-mensaje", ms=>Object.fromEntries(ms.map(m=>[m.querySelector("p").textContent, m.querySelector(".estado-mensaje").textContent])));
+  assert.deepStrictEqual(estados, {"Modo pareja":"✅ Solucionado", "No carga":"⏳ Pendiente", "Se cierra":"🛠️ En curso"}, "cada mensaje dice si está solucionado");
   assert.doesNotMatch(texto, /Tu mini asesoría/, "sin plan con asesoría no hay chat");
   assert.ok(await p.evaluate(()=>avisosActuales().some(a=>a.id.startsWith("resp-k1"))), "la respuesta llega como aviso");
 });
@@ -716,7 +814,18 @@ prueba("cerrar sesión recarga y borra los datos locales", async ()=>{
   const p = await abrir();
   await p.evaluate(()=>localStorage.setItem("cuentaDefecto", "c1"));
   await p.click("#navMas");
-  await Promise.all([p.waitForNavigation(), p.click("#menuLogout")]);
+  // Primero pide confirmación; «Cancelar» deja la sesión abierta.
+  await p.click("#menuLogout");
+  await p.waitForSelector("#hoja.abierta #hojaOk");
+  assert.match(await p.textContent("#hojaTitulo"), /¿Cerrar sesión\?/);
+  await p.click("#hojaNo");
+  await p.waitForSelector("#hoja", {state:"detached"});
+  assert.ok(await p.isVisible("#appShell"));
+  assert.strictEqual(await p.evaluate(()=>localStorage.getItem("cuentaDefecto")), "c1");
+  await p.click("#navMas");
+  await p.click("#menuLogout");
+  await p.waitForSelector("#hoja.abierta #hojaOk");
+  await Promise.all([p.waitForNavigation(), p.click("#hojaOk")]);
   assert.strictEqual(await p.evaluate(()=>localStorage.getItem("cuentaDefecto")), null);
 });
 prueba("eliminar cuenta: pide escribir ELIMINAR, confirma, borra los datos y cierra la sesión", async ()=>{
@@ -756,7 +865,9 @@ prueba("perfiles: añadir otra cuenta, cambiar con la flecha y cerrar solo uno",
   assert.strictEqual(await p.evaluate(()=>session.user.id), "u1");
   assert.strictEqual(await p.evaluate(()=>localStorage.getItem("accionesRapidas")), '["Gastos"]', "Paula recupera sus preferencias");
   await p.click("#btnPerfiles");
-  await Promise.all([p.waitForNavigation(), p.click("#btnSalirPerfil")]);
+  await p.click("#btnSalirPerfil");
+  await p.waitForSelector("#hoja.abierta #hojaOk");
+  await Promise.all([p.waitForNavigation(), p.click("#hojaOk")]);
   await p.waitForSelector("#fLogin", {state:"visible"});
   assert.deepStrictEqual(await p.evaluate(()=>leerPerfiles().map(x=>x.id)), ["u2"], "solo se olvida el perfil que cierra sesión");
   await Promise.all([p.waitForNavigation(), p.click('[data-perfil="u2"]')]);
@@ -903,6 +1014,17 @@ prueba("¿cómo estoy?: semáforo con nota y objetivos configurables", async ()=
     const l = evaluarSalud().lista.filter(i=>i.puntos!==null && i.id!=="deuda");
     return Math.round(l.reduce((s,i)=>s+i.puntos, 0)/l.length);
   }));
+  // Lo apuntado hoy cuenta al momento, sin esperar a que cierre el mes.
+  const antesHoy = await p.evaluate(()=>datosSalud());
+  await p.evaluate(async ()=>{
+    __db.movimientos.push({id:"hoyIng", tipo:"ingreso", categoria:"Nómina", importe:900, fecha:today(), cuenta_id:__db.cuentas[0].id},
+      {id:"hoyInv", tipo:"gasto", categoria:"Inversión", importe:300, fecha:today(), cuenta_id:__db.cuentas[0].id});
+    await recargar(["movimientos"]);
+  });
+  const trasHoy = await p.evaluate(()=>datosSalud());
+  assert.strictEqual(trasHoy.ingresos3, antesHoy.ingresos3+900);
+  assert.strictEqual(trasHoy.invertido3, antesHoy.invertido3+300);
+  assert.ok((await p.textContent("#saludDet_inversion")).includes("lo que va de este"));
   // Inicio enseña la nota.
   const notaFinal = await p.evaluate(()=>{ tab = "Inicio"; render(); return evaluarSalud().nota; });
   assert.ok((await p.evaluate(()=>document.getElementById("app").innerText)).includes(`Salud financiera: ${notaFinal}/100`));
@@ -1094,7 +1216,10 @@ prueba("bienvenida: solo a cuentas nuevas, tres tarjetas y no vuelve a salir", a
   await p.waitForSelector(".hoja-bienvenida");
   assert.ok((await p.textContent("#hojaTitulo")).includes("¡Bienvenida a tu espacio de calma!"));
   assert.strictEqual((await p.textContent("#bvSiguiente")).trim(), "Siguiente ➔");
+  assert.strictEqual(await p.textContent("#bvContador"), "1 de 3");
+  assert.ok(await p.isVisible("#bvOmitir"));
   await p.click("#bvSiguiente");
+  assert.strictEqual(await p.textContent("#bvContador"), "2 de 3");
   assert.ok((await p.textContent("#hojaTitulo")).includes("Lo que puedes hacer aquí"));
   // La segunda tarjeta es larga: se desplaza dentro de la hoja y la hoja cabe en la pantalla.
   const medidas = await p.evaluate(()=>{ const c = document.getElementById("bvCuerpo"), h = document.querySelector(".hoja-bienvenida").getBoundingClientRect();
@@ -1102,12 +1227,39 @@ prueba("bienvenida: solo a cuentas nuevas, tres tarjetas y no vuelve a salir", a
   assert.ok(medidas.desplaza && medidas.cabe, JSON.stringify(medidas));
   await p.click("#bvSiguiente");
   assert.ok((await p.textContent("#hojaTitulo")).includes("Habla conmigo cuando quieras"));
+  assert.strictEqual(await p.textContent("#bvContador"), "3 de 3");
+  assert.ok(!(await p.isVisible("#bvOmitir")), "en la última tarjeta no hace falta «Omitir»");
   await p.click("#bvSiguiente");
   await p.waitForFunction(()=>!document.querySelector(".hoja-bienvenida"));
   await p.waitForFunction(()=>__auth.some(a=>a[0]==="updateUser" && a[1].data && a[1].data.bienvenida==="vista"));
   // Aunque la cuenta siga marcada (sin refrescar la sesión), en este dispositivo ya no vuelve a salir.
   await p.evaluate(async ()=>{ bienvenidaRevisada = ""; await revisarBienvenida(); });
   assert.ok(!(await p.$(".hoja-bienvenida")));
+  // «Omitir» cierra desde la primera tarjeta y también la da por vista.
+  await p.evaluate(()=>{ localStorage.removeItem("bienvenidaVista:"+session.user.id); bienvenidaRevisada = ""; revisarBienvenida(); });
+  await p.waitForSelector(".hoja-bienvenida");
+  await p.click("#bvOmitir");
+  await p.waitForFunction(()=>!document.querySelector(".hoja-bienvenida"));
+  assert.ok(await p.evaluate(()=>localStorage.getItem("bienvenidaVista:"+session.user.id)));
+});
+prueba("Inicio: el ? de Disponible explica de dónde sale la cifra", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>document.getElementById("hoja")?.remove());
+  assert.ok(!(await p.isVisible("#notaDisponible")));
+  await p.click("#btnInfoDisponible");
+  assert.match(await p.textContent("#notaDisponible"), /no cuenta el dinero que ya tenías/i);
+  assert.strictEqual(await p.getAttribute("#btnInfoDisponible", "aria-expanded"), "true");
+  await p.click("#btnInfoDisponible");
+  assert.ok(!(await p.isVisible("#notaDisponible")));
+});
+prueba("Personalización: el tema es para todos y la pestaña no lleva estrella de premium", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>{ esPremium = false; tab = "Personalización"; render(); });
+  assert.ok(!(await p.$("#tabActual .estrella-premium")));
+  await p.click('[data-tema="dark"]');
+  assert.strictEqual(await p.evaluate(()=>leerPersonalizacion().tema), "dark");
+  await p.click('[data-tema="auto"]');
+  assert.strictEqual(await p.evaluate(()=>leerPersonalizacion().tema), "auto");
 });
 
 prueba("idiomas: sigue el del dispositivo, se cambia en Preferencias y traduce toda la app", async ()=>{

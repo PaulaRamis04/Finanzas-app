@@ -151,7 +151,7 @@ function bloqueResultadoSimulador(base){
       <span class="meta" style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:var(--muted)"></span>Sin cambios</span>
       <span class="meta" style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:var(--accent)"></span>Con cambios</span>
     </div>` : `<p class="meta" style="margin:10px 0 0">Así seguiría tu patrimonio si todo sigue igual. Añade un cambio para compararlo.</p>`}
-    <p class="meta" style="margin:10px 0 0">Es una estimación: lo que no inviertes se queda en tus cuentas sin intereses y lo invertido crece un ${base.tasa.toString().replace(".",",")} % al año.</p>
+    <p class="meta" style="margin:10px 0 0">Es una estimación: lo que no inviertes se queda en tus cuentas sin intereses y lo invertido crece un ${base.tasa.toString().replace(".",sepDecimal())} % al año.</p>
   </div>
   ${bloqueHuchasSimulador(base)}`;
 }

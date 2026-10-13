@@ -288,7 +288,7 @@ function detalleHito(id){
     const p = h.progreso ? h.progreso(contextoHitos()) : null;
     const pct = p ? Math.max(0, Math.min(p[0]/p[1]*100, 100)) : 0;
     const cifra = !p ? "" : h.unidad==="%" ? `${Math.round(p[0])} % de ${p[1]} %`
-      : h.unidad ? `${h.unidad==="meses" ? p[0].toFixed(p[0]%1 ? 1 : 0).replace(".",",") : Math.floor(p[0])} de ${p[1]} ${h.unidad}` : `${eur(p[0])} de ${eur(p[1])}`;
+      : h.unidad ? `${h.unidad==="meses" ? p[0].toFixed(p[0]%1 ? 1 : 0).replace(".",sepDecimal()) : Math.floor(p[0])} de ${p[1]} ${h.unidad}` : `${eur(p[0])} de ${eur(p[1])}`;
     cuerpo = `<p>${esc(h.pista)}</p>${p ? `
       <div class="barra" style="margin-top:14px"><div style="width:${pct}%;background:var(--accent)"></div></div>
       <p class="meta" style="margin-top:6px">${cifra} · ${Math.floor(pct)} %</p>` : ""}`;

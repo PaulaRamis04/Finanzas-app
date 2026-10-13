@@ -13,10 +13,14 @@ function avisosActuales(){
   const avisos = [];
   presupuestosEnAlerta().forEach(a=>{
     const pasado = a.gastado>a.limite;
+    // Gastado justo el 100 %: ya no queda nada, así que no es «cerca del límite».
+    const agotado = !pasado && a.gastado>=a.limite;
+    const estado = pasado ? "pasado" : agotado ? "agotado" : "80";
     // Si aún no te has pasado es solo un aviso tranquilo: icono suave en vez de una señal de alarma.
-    avisos.push({id:`pres-${a.categoria}-${periodoAnio}-${periodoMes}-${pasado?"pasado":"80"}`, tab:"Presupuestos", ico:pasado?"🚨":ICONO_AVISO_SUAVE, fondo:pasado?"var(--accent-soft)":"var(--mint-soft)",
-      titulo: pasado ? `Te has pasado en ${a.categoria}` : `${a.categoria} se acerca al límite`,
+    avisos.push({id:`pres-${a.categoria}-${periodoAnio}-${periodoMes}-${estado}`, tab:"Presupuestos", ico:pasado?"🚨":ICONO_AVISO_SUAVE, fondo:pasado||agotado?"var(--accent-soft)":"var(--mint-soft)",
+      titulo: pasado ? `Te has pasado en ${a.categoria}` : agotado ? `Has agotado el presupuesto de ${a.categoria}` : `${a.categoria} se acerca al límite`,
       texto: pasado ? `${eur(a.gastado)} de ${eur(a.limite)} (${isFinite(a.pct)?a.pct.toFixed(0):"—"} %)`
+        : agotado ? `Llevas ${eur(a.gastado)} de ${eur(a.limite)} (100 %). Ya no te queda nada.`
         : `Llevas ${eur(a.gastado)} de ${eur(a.limite)} (${a.pct.toFixed(0)} %). Aún te quedan ${eur(restarDinero(a.limite, a.gastado))}.`});
   });
   recurrentes.filter(r=>r.activo).forEach(r=>{
@@ -36,6 +40,13 @@ function avisosActuales(){
 }
 
 function avisosVistos(){ try{ return JSON.parse(localStorage.getItem("avisosVistos")||"[]"); }catch(e){ return []; } }
+
+// Texto de una novedad: cada línea es un párrafo, las que empiezan por «- » van como lista y **así** en negrita.
+function textoNovedad(texto){
+  const negrita = s=>esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+  return texto.split("\n").map(l=>l.trim()).filter(Boolean)
+    .map(l=>l.startsWith("- ") ? `<div class="nov-li">${negrita(l.slice(2))}</div>` : `<div class="nov-p">${negrita(l)}</div>`).join("");
+}
 
 // Novedades de la app (js/novedades.js): solo las que ya tienen texto, las más recientes primero.
 function novedadesVisibles(){
@@ -95,7 +106,7 @@ function renderNotificaciones(){
     <div class="aviso-caja">
     <button class="fila aviso novedad ${nvistas.has(n.id)?"":"nuevo"}" ${n.tab?`data-ir-aviso="${esc(n.tab)}"`:""}>
       <div class="ico" style="background:var(--accent-soft)">✨</div>
-      <div class="txt">${n.titulo?`<b>${esc(n.titulo)}</b>`:""}<div class="meta">${esc(n.texto)}</div><div class="meta fecha-novedad">${esc(etiquetaDia(n.fecha))}</div></div>
+      <div class="txt">${n.titulo?`<b>${esc(n.titulo)}</b>`:""}<div class="meta texto-novedad">${textoNovedad(n.texto)}</div><div class="meta fecha-novedad">${esc(etiquetaDia(n.fecha))}</div></div>
       ${n.tab?`<svg class="flecha" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`:""}
     </button>
     <button class="aviso-borrar" data-borrar-aviso="nov-${esc(n.id)}" aria-label="Borrar notificación" title="Borrar notificación"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>

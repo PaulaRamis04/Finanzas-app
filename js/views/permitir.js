@@ -22,18 +22,12 @@ function mediasMensuales(){
   return {meses:n, ingresos, gastos, ahorro:restarDinero(ingresos, gastos)};
 }
 
-// Lo que queda del presupuesto de una categoría en el mes en curso (con remanente si lo tiene).
+// Lo que queda del presupuesto de una categoría en el mes en curso .
 function presupuestoMesActual(categoria){
   const p = presupuestos.find(x=>x.categoria===categoria);
   if(!p) return null;
   const hoy = new Date(), y = hoy.getFullYear(), m = hoy.getMonth()+1;
-  let limite = p.limite;
-  if(p.rollover && p.rolloverDesde){
-    mesesEntre(p.rolloverDesde, `${y}-${String(m).padStart(2,"0")}-01`).forEach(ym=>{
-      const [yy,mm] = ym.split("-").map(Number);
-      limite = sumarDinero(limite, restarDinero(p.limite, gastoCategoriaEnMes(p.categoria, yy, mm)));
-    });
-  }
+  const limite = p.limite;
   const gastado = gastoCategoriaEnMes(categoria, y, m);
   return {limite, gastado, queda:restarDinero(limite, gastado)};
 }
@@ -41,7 +35,7 @@ function presupuestoMesActual(categoria){
 function textoMesesPermitir(n){
   if(n<1){ const dias = Math.max(1, Math.round(n*30)); return `${dias} día${dias===1?"":"s"}`; }
   const r = Math.round(n*10)/10;
-  return `${String(r).replace(".",",")} ${r===1?"mes":"meses"}`;
+  return `${String(r).replace(".",sepDecimal())} ${r===1?"mes":"meses"}`;
 }
 
 // Todos los números del «después», sin HTML (así también se pueden probar).
@@ -104,7 +98,7 @@ function resultadoPermitir(){
   const filas = [];
 
   filas.push(filaPermitir("💰", "Patrimonio", eur(r.patrimonio.antes), eur(r.patrimonio.despues),
-    r.patrimonio.antes>0 ? `${String(Math.round(importe/r.patrimonio.antes*1000)/10).replace(".",",")} % de todo lo que tienes` : "",
+    r.patrimonio.antes>0 ? `${String(Math.round(importe/r.patrimonio.antes*1000)/10).replace(".",sepDecimal())} % de todo lo que tienes` : "",
     r.patrimonio.despues<0 ? "var(--neg)" : ""));
 
   if(r.fondo){

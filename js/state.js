@@ -38,17 +38,18 @@ let editarPresupuestoId = null, editarPresDeudaId = null, meDebenMovId = null;
 let editarAutoObjId = null;
 
 let formsPorDefecto = "abiertos", formsEstado = {};
-try{ formsPorDefecto = localStorage.getItem("formsPorDefecto")==="cerrados" ? "cerrados" : "abiertos"; }catch(e){}
-// Brillo en la punta de las barras de las huchas: se quita poniendo la clase «sin-brillo» en <html>.
-let brilloHuchas = true;
-try{ brilloHuchas = localStorage.getItem("brilloHuchas")!=="no"; }catch(e){}
-document.documentElement.classList.toggle("sin-brillo", !brilloHuchas);
-// Sonido al registrar un movimiento: apagado salvo que se active en Preferencias.
-let sonidoMovimientos = false;
-try{ sonidoMovimientos = localStorage.getItem("sonidoMovimientos")==="si"; }catch(e){}
-
-let catsContraidas = {};
-try{ catsContraidas = JSON.parse(localStorage.getItem("catsContraidas") || "{}") || {}; }catch(e){ catsContraidas = {}; }
+let brilloHuchas = true, sonidoMovimientos = false, catsContraidas = {};
+// Lee de localStorage los ajustes de la app (al abrir y cuando llegan los de la cuenta).
+function leerAjustesApp(){
+  try{ formsPorDefecto = localStorage.getItem("formsPorDefecto")==="cerrados" ? "cerrados" : "abiertos"; }catch(e){}
+  // Brillo en la punta de las barras de las huchas: se quita poniendo la clase «sin-brillo» en <html>.
+  try{ brilloHuchas = localStorage.getItem("brilloHuchas")!=="no"; }catch(e){}
+  document.documentElement.classList.toggle("sin-brillo", !brilloHuchas);
+  // Sonido al registrar un movimiento: apagado salvo que se active en Preferencias.
+  try{ sonidoMovimientos = localStorage.getItem("sonidoMovimientos")==="si"; }catch(e){}
+  try{ catsContraidas = JSON.parse(localStorage.getItem("catsContraidas") || "{}") || {}; }catch(e){ catsContraidas = {}; }
+}
+leerAjustesApp();
 
 let deudaLado = "me_deben", saldadasAbiertas = {};
 
@@ -313,7 +314,7 @@ function totalesEfectivos(lista){
   };
 }
 
-// Presupuestos del mes seleccionado que han llegado al umbral (% del límite con remanente).
+// Presupuestos del mes seleccionado que han llegado al umbral (% del límite).
 function presupuestosEnAlerta(umbral = 80){
   if(periodoMes==="todos") return [];
   const gastoPorCat = {};
@@ -321,7 +322,7 @@ function presupuestosEnAlerta(umbral = 80){
     if(m.tipo==="gasto" && m.categoria!=="Inversión") gastoPorCat[m.categoria] = sumarDinero(gastoPorCat[m.categoria]||0, m.importe);
   });
   return presupuestos.map(p=>{
-    const limite = sumarDinero(p.limite, rolloverAcumulado(p));
+    const limite = p.limite;
     const gastado = gastoPorCat[p.categoria] || 0;
     return {categoria:p.categoria, limite, gastado, pct: limite>0 ? gastado/limite*100 : (gastado>0 ? Infinity : 0)};
   }).filter(x=>x.pct>=umbral).sort((a,b)=>b.pct-a.pct);
@@ -348,18 +349,6 @@ function gastoCategoriaEnMes(categoria, y, m){
     total = sumarDinero(total, Math.max(0, restarDinero(mv.importe, cubierto)));
   });
   return total;
-}
-
-function rolloverAcumulado(p){
-  if(!p.rollover || !p.rolloverDesde || periodoMes==="todos") return 0;
-  const hastaMes = `${periodoAnio}-${String(periodoMes).padStart(2,"0")}-01`;
-  const meses = mesesEntre(p.rolloverDesde, hastaMes);
-  let acumulado = 0;
-  meses.forEach(ym=>{
-    const [y,m] = ym.split("-").map(Number);
-    acumulado = sumarDinero(acumulado, restarDinero(p.limite, gastoCategoriaEnMes(p.categoria, y, m)));
-  });
-  return acumulado;
 }
 
 function movimientoProtegido(id){

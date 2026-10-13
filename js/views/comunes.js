@@ -180,7 +180,7 @@ const PILDORAS_TAB = {"Resumen del mes":"Resumen del mes","Permitir":"¿Me lo pu
 // Última pestaña vista de cada sección: el menú vuelve a ella.
 const ultimaDeSeccion = {};
 // Versión de la app que se muestra en el menú (cámbiala aquí al publicar una nueva)
-const VERSION_APP = "1.0.0";
+const VERSION_APP = "1.0.1";
 
 const LOGO_HUCHA = `<svg viewBox="0 0 64 64" aria-hidden="true"><ellipse cx="32" cy="36" rx="22" ry="17" fill="#f7b3ac"/><circle cx="54" cy="36" r="6" fill="#f39c93"/><circle cx="52.5" cy="35" r="1.2" fill="#b8615a"/><circle cx="55.5" cy="35" r="1.2" fill="#b8615a"/><path d="M20 22l-2-9 9 5z" fill="#f39c93"/><circle cx="44" cy="30" r="2" fill="#4a3b3b"/><rect x="26" y="19" width="12" height="3" rx="1.5" fill="#b8615a"/><rect x="18" y="48" width="6" height="8" rx="3" fill="#f39c93"/><rect x="38" y="48" width="6" height="8" rx="3" fill="#f39c93"/></svg>`;
 
@@ -195,7 +195,8 @@ const TEXTO_PREMIUM = {
 };
 // Estrella de premium: junto al nombre en Inicio y junto al nombre de las secciones premium.
 const ESTRELLA_PREMIUM = `<span class="estrella-premium" title="Premium" aria-label="Premium">⭐</span>`;
-const esTabPremium = t=> TABS_PREMIUM.includes(t) || t==="Personalización";
+// Personalización no lleva la estrella: el tema (claro, oscuro o automático) es para todos.
+const esTabPremium = t=> TABS_PREMIUM.includes(t);
 
 function avisoPremium(que){
   return `
@@ -239,7 +240,7 @@ function renderTabs(){
     GRUPOS_MENU.map(g=>`<div class="menu-group-title">${g.nombre}</div>${g.secciones.map(item).join("")}${g.nombre==="Configuración" ? `<button class="menu-item" id="menuIdioma"><span class="mi">🌐</span>Idioma<span class="meta" style="margin-left:auto" translate="no">${IDIOMAS[idioma]}</span></button>` : ""}`).join("") +
     `<button class="menu-item menu-salir" id="menuLogout"><span class="mi">🚪</span>Cerrar sesión</button>`;
   document.querySelectorAll("#menuPanel [data-tab]").forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; closeMenu(); render(); window.scrollTo(0,0); });
-  document.getElementById("menuLogout").onclick = ()=> sb.auth.signOut();
+  document.getElementById("menuLogout").onclick = cerrarSesion;
   document.getElementById("menuIdioma").onclick = ()=>{ closeMenu(); hojaIdioma(); };
   document.querySelectorAll("[data-nav]").forEach(b=>{
     b.classList.toggle("active", seccionDe(b.dataset.nav)===secActual && tab!=="Notificaciones");
@@ -400,6 +401,12 @@ document.addEventListener("pointermove", e=>{
   if(g && (e.pointerType==="mouse" || e.buttons || g.classList.contains("activa"))) mostrarPuntoGrafico(g, e.clientX);
   else if(!g && e.pointerType==="mouse") ocultarGraficos();
 });
+
+// Cerrar sesión siempre pide confirmación antes, para no salir por un toque sin querer.
+async function cerrarSesion(){
+  closeMenu();
+  if(await confirmar("¿Cerrar sesión? Tendrás que volver a entrar con tu correo y contraseña.", {ok:"Sí, cerrar sesión", icono:"🚪"})) sb.auth.signOut();
+}
 
 // Confirmación en hoja inferior (sustituye a confirm()). Devuelve una promesa con true/false.
 // El texto se parte solo: la primera pregunta «¿…?» es el título y el resto la explicación.

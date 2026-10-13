@@ -4,7 +4,7 @@
 // ?premium=0 usuario sin premium; ?compartida=1 añade la cuenta «Piso» que otro usuario (u2) comparte con este;
 // ?asesoria=1 da al usuario el plan con mini asesoría y una respuesta sin leer.
 // Acceso: la contraseña buena es "secreta123". window.__auth guarda las llamadas de acceso.
-// Desde la página: window.__db (los datos), window.__fallarEn = "tabla" (hace fallar los insert en esa tabla).
+// Desde la página: window.__db (los datos), window.__fallarEn = "tabla" (hace fallar los insert y upsert en esa tabla).
 (function(){
   const MAX = 1000;
   const url = new URL(location.href);
@@ -13,7 +13,7 @@
     cuentas:[{id:"c1", nombre:"Banco", saldo_inicial:1000, orden:1, archivada:false},{id:"c2", nombre:"Vieja", saldo_inicial:50, orden:2, archivada:false},{id:"c3", nombre:"Vacia", saldo_inicial:0, orden:3, archivada:false}],
     movimientos:[], deudas:[], inversiones:[], aportaciones_inversion:[], retiros_inversion:[],
     categorias:[{id:"k1", tipo:"gasto", padre:"Imprescindible", nombre:"Comida"},{id:"k2", tipo:"gasto", padre:"Prescindible", nombre:"Ocio"},{id:"k3", tipo:"ingreso", padre:null, nombre:"Nómina"}],
-    presupuestos:[{id:"p1", categoria:"Comida", limite:300, rollover:false},{id:"p2", categoria:"Ocio", limite:100, rollover:false}],
+    presupuestos:[{id:"p1", categoria:"Comida", limite:300},{id:"p2", categoria:"Ocio", limite:100}],
     recurrentes:[{id:"r1", tipo:"gasto", categoria:"Comida", importe:10, cuenta_id:"c1", dia_mes:1, activo:true, fecha_inicio:"2026-01-01", ultima_generada:"2026-09-01"}],
     objetivos:[], hitos:[], salud_config:[], movimientos_pendientes:[], preferencias:[], cuentas_miembros:[], comunidad:[], saldo_arrastre:[],
     suscripciones:[], asesoria_mensajes:[]
@@ -89,7 +89,7 @@
         match.forEach(r=>Object.assign(r, this.data)); return {data:null, error:null};
       }
       if(this.op==="delete"){ db[this.t] = tabla.filter(r=>!match.includes(r)); return {error:null}; }
-      if(this.op==="upsert"){ db[this.t] = [{...(db[this.t][0]||{}), ...this.data}]; return {error:null}; }
+      if(this.op==="upsert"){ if(window.__fallarEn===this.t) return {error:{message:"fallo simulado"}}; db[this.t] = [{...(db[this.t][0]||{}), ...this.data}]; return {error:null}; }
     }
   }
   const listeners = [];
