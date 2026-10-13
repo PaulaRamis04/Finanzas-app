@@ -22,7 +22,8 @@ function mesesAntes(n){ const d = new Date(); return Array.from({length:n}, (_,i
 const pctTxt = n=>`${Math.round(n)} %`;
 const mesesTxt = n=>`${String(Math.round(n*10)/10).replace(".",",")} ${Math.round(n*10)/10===1?"mes":"meses"}`;
 
-// Ingresos, gastos (sin «Inversión») e inversión de cada mes cerrado reciente, más lo gastado este mes hasta hoy.
+// Ingresos, gastos (sin «Inversión») e inversión de cada mes cerrado reciente y de este mes hasta hoy,
+// para que el semáforo cambie en cuanto se apunta algo y no solo al cerrar el mes.
 function datosSalud(){
   const hoy = today(), actual = hoy.slice(0,7), dia = Number(hoy.slice(8,10));
   const seis = mesesAntes(6);
@@ -30,42 +31,48 @@ function datosSalud(){
   const primerDato = [...movimientos.map(m=>m.fecha), ...movResumen.map(r=>r.mes)].filter(Boolean).sort()[0]?.slice(0,7) || actual;
   const validos = seis.filter(k=>k>=cargadoDesde && k>=primerDato);
   const porMes = Object.fromEntries(validos.map(k=>[k, {ingresos:0, gastos:0, invertido:0, hastaDia:0}]));
-  let gastoActual = 0;
+  const esteMes = {ingresos:0, gastos:0, invertido:0};
   movimientosEfectivos(()=>true).forEach(m=>{
-    const k = m.fecha.slice(0,7), r = porMes[k];
-    if(k===actual){ if(m.tipo==="gasto" && m.categoria!=="Inversión" && m.fecha<=hoy) gastoActual = sumarDinero(gastoActual, m.importe); return; }
+    const k = m.fecha.slice(0,7);
+    if(k===actual && m.fecha>hoy) return; // lo programado para más adelante aún no cuenta
+    const r = k===actual ? esteMes : porMes[k];
     if(!r) return;
     if(m.tipo==="ingreso") r.ingresos = sumarDinero(r.ingresos, m.importe);
     else if(m.categoria==="Inversión") r.invertido = sumarDinero(r.invertido, m.importe);
     else {
       r.gastos = sumarDinero(r.gastos, m.importe);
-      if(Number(m.fecha.slice(8,10))<=dia) r.hastaDia = sumarDinero(r.hastaDia, m.importe);
+      if(r!==esteMes && Number(m.fecha.slice(8,10))<=dia) r.hastaDia = sumarDinero(r.hastaDia, m.importe);
     }
   });
   // Aportaciones que no crearon movimiento (p. ej. importadas) también cuentan como inversión.
-  aportaciones.filter(a=>!a.movimientoId && a.fecha && porMes[a.fecha.slice(0,7)]).forEach(a=>{
-    const r = porMes[a.fecha.slice(0,7)]; r.invertido = sumarDinero(r.invertido, a.importe);
+  aportaciones.filter(a=>!a.movimientoId && a.fecha && a.fecha<=hoy).forEach(a=>{
+    const k = a.fecha.slice(0,7), r = k===actual ? esteMes : porMes[k];
+    if(r) r.invertido = sumarDinero(r.invertido, a.importe);
   });
   const tres = validos.slice(-3);
   const suma = (ks, campo)=>sumaImportes(ks, k=>porMes[k][campo]);
-  const ingresos3 = suma(tres, "ingresos");
+  // Ahorro e inversión: los 3 últimos meses cerrados más lo que va de este.
+  const conActual = campo=>sumarDinero(suma(tres, campo), esteMes[campo]);
+  const ingresosCerrados = suma(tres, "ingresos");
   return {
     nMeses3: tres.length, nMeses6: validos.length,
-    ingresos3, gastos3: suma(tres, "gastos"), invertido3: suma(tres, "invertido"),
-    ingresoMedio: tres.length ? ingresos3/tres.length : 0,
+    ingresos3: conActual("ingresos"), gastos3: conActual("gastos"), invertido3: conActual("invertido"),
+    ingresoMedio: tres.length ? ingresosCerrados/tres.length : 0,
     gastoMedio: validos.length ? suma(validos, "gastos")/validos.length : 0,
     gastoHastaDiaMedio: validos.length ? suma(validos, "hastaDia")/validos.length : 0,
-    gastoActual, dia
+    gastoActual: esteMes.gastos, dia
   };
 }
+
+const periodoSaludTxt = d=>d.nMeses3===0 ? "Este mes, hasta hoy" : d.nMeses3===1 ? "El mes pasado y lo que va de este" : `Los últimos ${d.nMeses3} meses y lo que va de este`;
 
 // Cada indicador devuelve {p (0..1+, null = sin datos), estado, detalle}. Verde con p≥1, ámbar con p≥0,5, rojo por debajo.
 const INDICADORES_SALUD = [
   {id:"ahorro", icono:"💰", nombre:"Ahorro", tab:"Resumen del mes", calc:(d, o)=>{
-    if(d.ingresos3<=0) return {p:null, detalle:"Necesito al menos un mes cerrado con ingresos para calcularlo."};
+    if(d.ingresos3<=0) return {p:null, detalle:"Necesito algún ingreso apuntado para calcularlo."};
     const tasa = (d.ingresos3-d.gastos3)/d.ingresos3*100;
     return {p: o.ahorro>0 ? tasa/o.ahorro : (tasa>=0 ? 1 : 0), estados:["saludable","mejorable","bajo"],
-      detalle:`Ahorras el ${pctTxt(tasa)} de lo que ingresas (tu objetivo: ${pctTxt(o.ahorro)}). ${d.nMeses3===1?"Último mes":`Últimos ${d.nMeses3} meses`}.`};
+      detalle:`Ahorras el ${pctTxt(tasa)} de lo que ingresas (tu objetivo: ${pctTxt(o.ahorro)}). ${periodoSaludTxt(d)}.`};
   }},
   {id:"deuda", icono:"🤝", nombre:"Deuda", tab:"Deudas", calc:(d, o)=>{
     const debo = sumaImportes(deudas.filter(x=>x.direccion==="debo" && x.estado==="pendiente"));
@@ -88,10 +95,10 @@ const INDICADORES_SALUD = [
       detalle:`Tus cuentas cubren ${mesesTxt(meses)} de gastos (tu objetivo: ${mesesTxt(o.fondoMeses)}). Crea una hucha ☂️ para seguirlo aparte.`};
   }},
   {id:"inversion", icono:"📈", nombre:"Inversión", tab:"Inversiones", calc:(d, o)=>{
-    if(d.ingresos3<=0) return {p:null, detalle:"Necesito al menos un mes cerrado con ingresos para calcularlo."};
+    if(d.ingresos3<=0) return {p:null, detalle:"Necesito algún ingreso apuntado para calcularlo."};
     const tasa = d.invertido3/d.ingresos3*100;
     return {p: o.inversion>0 ? tasa/o.inversion : 1, estados:["dentro del objetivo","por debajo del objetivo","muy por debajo del objetivo"],
-      detalle:`Inviertes el ${pctTxt(tasa)} de lo que ingresas (tu objetivo: ${pctTxt(o.inversion)}). ${d.nMeses3===1?"Último mes":`Últimos ${d.nMeses3} meses`}.`};
+      detalle:`Inviertes el ${pctTxt(tasa)} de lo que ingresas (tu objetivo: ${pctTxt(o.inversion)}). ${periodoSaludTxt(d)}.`};
   }},
   {id:"gastos", icono:"💸", nombre:"Gastos", tab:"Gastos", calc:(d, o)=>{
     if(d.gastoHastaDiaMedio<=0) return {p:null, detalle:"Necesito al menos un mes cerrado con gastos para compararlo."};
@@ -134,13 +141,18 @@ function anilloNota(nota){
   </svg>`;
 }
 
-function renderSalud(){
-  // Hacen falta los 6 últimos meses cerrados; si la carga parcial no llega, se piden (recargar vuelve a pintar).
+// Hacen falta los 6 últimos meses cerrados; si la carga parcial no llega, se piden (recargar vuelve a pintar).
+// También desde Inicio, para que su tarjeta no enseñe una nota distinta a la de la pestaña.
+function pedirHistorialSalud(){
   const desde = mesesAntes(6)[0]+"-01";
   if(movParcial && movDesde>desde && !cargandoHistSalud){
     cargandoHistSalud = true;
     setTimeout(()=>{ asegurarMovimientosDesde(desde); cargandoHistSalud = false; }, 0);
   }
+}
+
+function renderSalud(){
+  pedirHistorialSalud();
   const {lista, nota} = evaluarSalud();
   const o = objetivosSalud();
   const campo = (id, etiqueta, valor, unidad, paso = 1)=>`

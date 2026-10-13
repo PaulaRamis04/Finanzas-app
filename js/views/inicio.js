@@ -92,6 +92,7 @@ function renderInicio(){
     <button class="btn ghost" data-ir-tab="Permitir">Probar</button>
   </div>`;
 
+  pedirHistorialSalud();
   const {nota:notaSalud} = evaluarSalud();
   const bloqueSalud = `
   <div class="card cierre-banner">
