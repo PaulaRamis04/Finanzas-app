@@ -116,7 +116,7 @@ function wireEventosCategorias(){
     if(error){ showError("No se pudo renombrar: "+error.message); return; }
     hideError(); editarCatId = null; await recargar(["categorias","movimientos","presupuestos","recurrentes"]);
   }));
-  const guardarContraidas = ()=>{ try{ localStorage.setItem("catsContraidas", JSON.stringify(catsContraidas)); }catch(e){} };
+  const guardarContraidas = ()=>{ try{ localStorage.setItem("catsContraidas", JSON.stringify(catsContraidas)); }catch(e){} guardarAjustes(); };
   document.querySelectorAll("[data-toggle-cat]").forEach(b=>b.onclick=()=>{
     const k = b.dataset.toggleCat;
     if(catsContraidas[k]) delete catsContraidas[k]; else catsContraidas[k] = true;

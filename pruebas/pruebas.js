@@ -297,6 +297,30 @@ prueba("la moneda se elige en Preferencias, cambia todos los importes y se guard
   await p.waitForFunction(()=>__db.preferencias[0]?.moneda==="EUR");
   assert.match(await p.textContent("#prefMonedaEjemplo"), /€1\.234,56/);
 });
+prueba("Preferencias: los ajustes se guardan en la cuenta y no se pisan", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>{ tab = "Preferencias"; render(); });
+  await p.selectOption("#prefForms", "cerrados");
+  await p.waitForFunction(()=>__db.preferencias[0]?.ajustes?.formsPorDefecto==="cerrados");
+  await p.selectOption("#prefBrillo", "no");
+  await p.waitForFunction(()=>__db.preferencias[0]?.ajustes?.brilloHuchas==="no");
+  assert.strictEqual(await p.evaluate(()=>localStorage.getItem("ajustesSinSubir")), null);
+  // Otro dispositivo (o tras cerrar sesión) sin nada en localStorage: los recupera de la cuenta.
+  await p.evaluate(async ()=>{ ["formsPorDefecto","brilloHuchas"].forEach(k=>localStorage.removeItem(k)); leerAjustesApp(); await recargar(["preferencias"]); });
+  assert.deepStrictEqual(await p.evaluate(()=>[formsPorDefecto, brilloHuchas, document.documentElement.classList.contains("sin-brillo")]), ["cerrados", false, true]);
+  await p.evaluate(()=>{ tab = "Movimientos"; render(); });
+  assert.ok(!(await p.evaluate(()=>document.querySelector("#fMov").closest(".pleg-cuerpo").classList.contains("abierto"))), "el formulario sale contraído");
+  // Un cambio que no llegó a subir no lo pisa lo que hay en la cuenta: se sube al recargar.
+  await p.evaluate(async ()=>{ __fallarEn = "preferencias"; tab = "Preferencias"; render(); });
+  await p.selectOption("#prefForms", "abiertos");
+  await p.waitForFunction(()=>localStorage.getItem("ajustesSinSubir")==="1");
+  await p.evaluate(async ()=>{ __fallarEn = null; await recargar(["preferencias"]); });
+  await p.waitForFunction(()=>__db.preferencias[0]?.ajustes?.formsPorDefecto==="abiertos");
+  assert.strictEqual(await p.evaluate(()=>formsPorDefecto), "abiertos");
+  // Lo que se cambie desde otro dispositivo llega a este.
+  await p.evaluate(async ()=>{ __db.preferencias[0].ajustes = {...__db.preferencias[0].ajustes, sonidoMovimientos:"si"}; await recargar(["preferencias"]); });
+  assert.strictEqual(await p.evaluate(()=>sonidoMovimientos), true);
+});
 prueba("Objetivos: el resumen de arriba suma lo ahorrado, no la meta", async ()=>{
   const p = await abrir();
   const txt = await p.evaluate(()=>{

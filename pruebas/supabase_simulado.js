@@ -4,7 +4,7 @@
 // ?premium=0 usuario sin premium; ?compartida=1 añade la cuenta «Piso» que otro usuario (u2) comparte con este;
 // ?asesoria=1 da al usuario el plan con mini asesoría y una respuesta sin leer.
 // Acceso: la contraseña buena es "secreta123". window.__auth guarda las llamadas de acceso.
-// Desde la página: window.__db (los datos), window.__fallarEn = "tabla" (hace fallar los insert en esa tabla).
+// Desde la página: window.__db (los datos), window.__fallarEn = "tabla" (hace fallar los insert y upsert en esa tabla).
 (function(){
   const MAX = 1000;
   const url = new URL(location.href);
@@ -89,7 +89,7 @@
         match.forEach(r=>Object.assign(r, this.data)); return {data:null, error:null};
       }
       if(this.op==="delete"){ db[this.t] = tabla.filter(r=>!match.includes(r)); return {error:null}; }
-      if(this.op==="upsert"){ db[this.t] = [{...(db[this.t][0]||{}), ...this.data}]; return {error:null}; }
+      if(this.op==="upsert"){ if(window.__fallarEn===this.t) return {error:{message:"fallo simulado"}}; db[this.t] = [{...(db[this.t][0]||{}), ...this.data}]; return {error:null}; }
     }
   }
   const listeners = [];

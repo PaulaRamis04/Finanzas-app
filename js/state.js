@@ -38,17 +38,18 @@ let editarPresupuestoId = null, editarPresDeudaId = null, meDebenMovId = null;
 let editarAutoObjId = null;
 
 let formsPorDefecto = "abiertos", formsEstado = {};
-try{ formsPorDefecto = localStorage.getItem("formsPorDefecto")==="cerrados" ? "cerrados" : "abiertos"; }catch(e){}
-// Brillo en la punta de las barras de las huchas: se quita poniendo la clase «sin-brillo» en <html>.
-let brilloHuchas = true;
-try{ brilloHuchas = localStorage.getItem("brilloHuchas")!=="no"; }catch(e){}
-document.documentElement.classList.toggle("sin-brillo", !brilloHuchas);
-// Sonido al registrar un movimiento: apagado salvo que se active en Preferencias.
-let sonidoMovimientos = false;
-try{ sonidoMovimientos = localStorage.getItem("sonidoMovimientos")==="si"; }catch(e){}
-
-let catsContraidas = {};
-try{ catsContraidas = JSON.parse(localStorage.getItem("catsContraidas") || "{}") || {}; }catch(e){ catsContraidas = {}; }
+let brilloHuchas = true, sonidoMovimientos = false, catsContraidas = {};
+// Lee de localStorage los ajustes de la app (al abrir y cuando llegan los de la cuenta).
+function leerAjustesApp(){
+  try{ formsPorDefecto = localStorage.getItem("formsPorDefecto")==="cerrados" ? "cerrados" : "abiertos"; }catch(e){}
+  // Brillo en la punta de las barras de las huchas: se quita poniendo la clase «sin-brillo» en <html>.
+  try{ brilloHuchas = localStorage.getItem("brilloHuchas")!=="no"; }catch(e){}
+  document.documentElement.classList.toggle("sin-brillo", !brilloHuchas);
+  // Sonido al registrar un movimiento: apagado salvo que se active en Preferencias.
+  try{ sonidoMovimientos = localStorage.getItem("sonidoMovimientos")==="si"; }catch(e){}
+  try{ catsContraidas = JSON.parse(localStorage.getItem("catsContraidas") || "{}") || {}; }catch(e){ catsContraidas = {}; }
+}
+leerAjustesApp();
 
 let deudaLado = "me_deben", saldadasAbiertas = {};
 

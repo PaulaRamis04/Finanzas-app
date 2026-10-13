@@ -19,6 +19,44 @@ async function guardarCuentaDefecto(id){
   return true;
 }
 
+// Ajustes de la app que siguen a la cuenta y no solo al dispositivo (columna preferencias.ajustes,
+// schema_ajustes.sql). Antes solo estaban en localStorage: cambiaban al entrar desde otro sitio
+// (el navegador y la app de Android no comparten almacenamiento) y se perdían al cerrar sesión.
+// Sin la columna se quedan en este dispositivo, como antes.
+const CLAVES_AJUSTES = ["formsPorDefecto","brilloHuchas","sonidoMovimientos","catsContraidas","personalizacion"];
+let guardandoAjustes = 0, versionAjustes = 0; // versionAjustes: cambia con cada guardado
+function ajustesLocales(){
+  const a = {};
+  CLAVES_AJUSTES.forEach(k=>{ try{ const v = localStorage.getItem(k); if(v!==null) a[k] = v; }catch(e){} });
+  return a;
+}
+// Se llama después de guardar un ajuste en localStorage. «ajustesSinSubir» queda puesto hasta que
+// el servidor lo confirma, para que al recargar no se pise un cambio que aún no ha subido.
+async function guardarAjustes(){
+  if(!session) return;
+  try{ localStorage.setItem("ajustesSinSubir", "1"); }catch(e){}
+  guardandoAjustes++; versionAjustes++;
+  let error;
+  try{ ({error} = await sb.from("preferencias").upsert({user_id: session.user.id, ajustes: ajustesLocales()})); }
+  catch(e){ error = e; }
+  guardandoAjustes--;
+  if(!error) try{ localStorage.removeItem("ajustesSinSubir"); }catch(e){}
+}
+// Lo que llega de la cuenta no se aplica si se ha guardado algo mientras se pedía (vendría viejo).
+function recibirAjustes(fila, version){
+  if(guardandoAjustes || version!==versionAjustes) return;
+  let sinSubir = false; try{ sinSubir = localStorage.getItem("ajustesSinSubir")==="1"; }catch(e){}
+  const a = fila ? fila.ajustes : null;
+  // Un cambio de este dispositivo que no llegó a subir (o una cuenta sin ajustes guardados aún) se sube.
+  if(sinSubir || (fila && "ajustes" in fila && !a) || (!fila && Object.keys(ajustesLocales()).length)){ guardarAjustes(); return; }
+  if(!a || typeof a!=="object") return;
+  CLAVES_AJUSTES.forEach(k=>{ try{ if(typeof a[k]==="string") localStorage.setItem(k, a[k]); else localStorage.removeItem(k); }catch(e){} });
+  const formsAntes = formsPorDefecto;
+  leerAjustesApp();
+  if(formsPorDefecto!==formsAntes) formsEstado = {};
+  aplicarPersonalizacion();
+}
+
 async function guardarMoneda(m){
   fijarMoneda(m);
   const {error} = await sb.from("preferencias").upsert({user_id: session.user.id, moneda});
@@ -250,8 +288,8 @@ const TABLAS = {
   // Saldo del mes pasado sumado (o no) al disponible. Sin schema_saldo_arrastre.sql se guarda en este dispositivo.
   saldo_arrastre: { q:async ()=>{ const r = await sb.from("saldo_arrastre").select("mes, decision, importe"); return {data:{filas:r.data||[], ok:!r.error}, error:null}; }, sinRealtime:true,
     set:d=>fijarArrastres(d) },
-  preferencias: { q:()=>sb.from("preferencias").select("*"), opcional:true, sinRealtime:true,
-    set:d=>{ if(!d[0]) return;
+  preferencias: { q:async ()=>{ const v = versionAjustes, r = await sb.from("preferencias").select("*"); if(r.data) r.data.versionAjustes = v; return r; }, opcional:true, sinRealtime:true,
+    set:d=>{ recibirAjustes(d[0], d.versionAjustes); if(!d[0]) return;
       cuentaDefecto = d[0].cuenta_defecto || "";
       if(MONEDAS[d[0].moneda]) fijarMoneda(d[0].moneda);
       try{ if(cuentaDefecto) localStorage.setItem("cuentaDefecto", cuentaDefecto); else localStorage.removeItem("cuentaDefecto"); }catch(e){} } }
@@ -484,7 +522,7 @@ async function startApp(){
 // ── Perfiles: varias cuentas recordadas en este dispositivo ──
 // Cada perfil guarda su sesión de Supabase y sus preferencias locales. Para cambiar se escribe
 // su sesión donde la lee supabase-js y se recarga (sin cerrar la de las demás en el servidor).
-const PREFS_PERFIL = ["cuentaDefecto","objCompletados","catsContraidas","formsPorDefecto","brilloHuchas","personalizacion","fondoImagen","avisosVistos","avisosBorrados","accionesRapidas","hitos","saludConfig","moneda","sonidoMovimientos","arrastresMes"];
+const PREFS_PERFIL = ["cuentaDefecto","objCompletados","catsContraidas","formsPorDefecto","brilloHuchas","personalizacion","fondoImagen","avisosVistos","avisosBorrados","accionesRapidas","hitos","saludConfig","moneda","sonidoMovimientos","arrastresMes","ajustesSinSubir"];
 const claveSesionSb = ()=> sb.auth.storageKey || `sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`;
 function leerPerfiles(){ try{ const a = JSON.parse(localStorage.getItem("perfiles")||"[]"); return Array.isArray(a) ? a : []; }catch(e){ return []; } }
 function escribirPerfiles(l){ try{ localStorage.setItem("perfiles", JSON.stringify(l)); }catch(e){} }

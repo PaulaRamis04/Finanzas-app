@@ -1,5 +1,6 @@
 // Pestaña «Personalización»: tema, color principal, fondo e imagen propia. Se guarda en este dispositivo
-// (localStorage) y se aplica con aplicarPersonalizacion(), definida en index.html para que no haya parpadeo.
+// (localStorage) y, salvo la imagen, en tu cuenta (guardarAjustes). Se aplica con aplicarPersonalizacion(),
+// definida en index.html para que no haya parpadeo.
 
 const TEMAS = [["auto","Automático","linear-gradient(90deg,#fdf7f2 50%,#1c1718 50%)"],["light","Claro","#fdf7f2"],["dark","Oscuro","#1c1718"]];
 const ACENTOS = [["","Coral","#f07f76"],["#3fae92","Menta","#3fae92"],["#8b7fd6","Lavanda","#8b7fd6"],["#f2a65a","Melocotón","#f2a65a"],["#5aa9e6","Cielo","#5aa9e6"],["#e27aa8","Rosa","#e27aa8"],["#5b6b8c","Pizarra","#5b6b8c"]];
@@ -16,6 +17,7 @@ function guardarPersonalizacion(cambios){
   }
   hideError();
   aplicarPersonalizacion(p);
+  guardarAjustes();
   return true;
 }
 
@@ -126,6 +128,6 @@ function wireEventosPersonalizacion(){
   if(reset) reset.onclick = async ()=>{
     if(!(await confirmar("¿Volver al aspecto original? Se quitan el tema, los colores y la imagen elegidos."))) return;
     try{ localStorage.removeItem("personalizacion"); localStorage.removeItem("fondoImagen"); }catch(e){}
-    aplicarPersonalizacion(); render();
+    aplicarPersonalizacion(); render(); guardarAjustes();
   };
 }
