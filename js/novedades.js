@@ -7,6 +7,27 @@
 const NOVEDADES = [
   // { id:"ejemplo", fecha:"2026-10-01", tab:"Inicio", titulo:"", texto:"" },
   // El texto admite líneas que empiezan por «- » (lista) y **negrita**.
+  { id:"inmuebles", fecha:"2026-10-13", tab:"Inmuebles", titulo:"🏠 Nueva función: Inmuebles", texto:`Ahora puedes añadir a tu patrimonio tu casa, un garaje, un local, un trastero o un terreno. Lo encontrarás en **Cuentas → Inmuebles**.
+
+**Cómo añadir uno**
+Ponle un nombre, elige el tipo y apunta:
+- **Valor actual:** lo que vale hoy.
+- **Hipoteca pendiente:** lo que te queda por pagar (0 si no tiene).
+- **Renta al mes:** si lo tienes alquilado.
+- **Precio de compra** (opcional): para ver cuánto ha subido.
+
+**Qué te enseña**
+- **Tu parte:** el valor menos la hipoteca, y qué porcentaje es ya tuyo.
+- **Rentas:** lo que te da al mes y al año, con su rentabilidad.
+- **Revalorización:** cuánto ha subido o bajado desde que lo compraste.
+
+**Si sube o baja de precio**
+Pulsa **Actualizar valor** y cambia el valor, la hipoteca o la renta. Se guarda un historial con cada cambio.
+
+**Tu patrimonio**
+Cada inmueble suma a tu patrimonio lo que es tuyo (valor menos hipoteca). Los meses pasados no cambian: usan el valor que tenía entonces.
+
+💡 Si ya tenías la hipoteca apuntada en Deudas, pon la hipoteca del inmueble a 0 para no restarla dos veces. La renta es informativa: lo que cobres apúntalo como ingreso en tu cuenta.` },
   { id:"testers-octubre", fecha:"2026-10-13", tab:"", titulo:"Novedades de PocketZ", texto:`Hola hola mi gente <3 👋
 
 He decidido hacer una actualización un pelín grande 🎉, tanto sugerencias y fallos que habéis encontrado vosotros como ideas que tenia en mente. Los cambios son los siguientes: ✨
