@@ -55,6 +55,15 @@ public class MainActivity extends Activity {
         "A.compartirTexto([d.title,d.text,d.url].filter(Boolean).join('\\n'));return Promise.resolve();};}" +
         "})();";
 
+    // Atrás dentro de la web: cierra el menú, vuelve a la sección o a Inicio; solo sale de la app desde Inicio
+    private static final String ATRAS_JS =
+        "(function(){try{" +
+        "var m=document.getElementById('menuPanel');" +
+        "if(m&&m.classList.contains('open')&&typeof closeMenu==='function'){closeMenu();return 'ok';}" +
+        "var v=document.querySelector('.volver-seccion');if(v){v.click();return 'ok';}" +
+        "if(typeof tab!=='undefined'&&tab!=='Inicio'&&typeof render==='function'){tab='Inicio';render();window.scrollTo(0,0);return 'ok';}" +
+        "}catch(e){}return 'salir';})()";
+
     private WebView web;
     private ValueCallback<Uri[]> esperaArchivo;
     private byte[] pendienteDatos;
@@ -132,8 +141,13 @@ public class MainActivity extends Activity {
     }
 
     private void atras() {
-        if (web.canGoBack()) web.goBack();
-        else finish();
+        if (web.canGoBack()) {
+            web.goBack();
+            return;
+        }
+        web.evaluateJavascript(ATRAS_JS, resultado -> {
+            if (!"\"ok\"".equals(resultado)) finish();
+        });
     }
 
     @Override
