@@ -200,7 +200,7 @@ prueba("Inicio muestra saldo, barras del mes, acciones y recientes", async ()=>{
   assert.match(txt, /Hola, Paula/);
   assert.match(txt, /Saldo total/);
   assert.match(txt, /Gastado\s*€[\d.,]+ de €400,00/);
-  assert.deepStrictEqual(await p.$$eval(".hero-grid span", s=>s.map(x=>x.textContent)), ["Disponible","Inversiones","Me deben","Debo"]);
+  assert.deepStrictEqual(await p.$$eval(".hero-grid span", s=>s.map(x=>x.firstChild.textContent.trim())), ["Disponible","Inversiones","Me deben","Debo"]);
   assert.strictEqual(await p.$$eval(".barra-mes", b=>b.length), 3);
   assert.match(await p.$$eval(".barra-cab", b=>b[1].innerText), /Ahorro\s*€200,00/, "el ahorro es lo apartado, no lo que sobra");
   assert.match(txt, /Gasto de \w+/);
@@ -323,6 +323,10 @@ prueba("la moneda se elige en Preferencias, cambia todos los importes y se guard
   let txt = await p.evaluate(()=>document.getElementById("app").innerText);
   assert.ok(!/€/.test(txt), "no queda ningún € en Inicio");
   assert.match(txt, /\$\d/);
+  // M-03: el porcentaje de la tarjeta de saldo usa el mismo separador decimal que los importes.
+  const variacion = await p.textContent(".hero .saldo .var");
+  assert.match(variacion, /\d\.\d %/, variacion);
+  assert.ok(!/\d,\d %/.test(variacion), variacion);
   await p.evaluate(()=>{ tab = "Hitos"; render(); });
   assert.match(await p.evaluate(()=>document.getElementById("app").innerText), /Primeros \$500/);
   await p.evaluate(()=>{ tab = "Movimientos"; render(); });
@@ -358,6 +362,20 @@ prueba("Preferencias: los ajustes se guardan en la cuenta y no se pisan", async 
   // Lo que se cambie desde otro dispositivo llega a este.
   await p.evaluate(async ()=>{ __db.preferencias[0].ajustes = {...__db.preferencias[0].ajustes, sonidoMovimientos:"si"}; await recargar(["preferencias"]); });
   assert.strictEqual(await p.evaluate(()=>sonidoMovimientos), true);
+});
+prueba("Atrás vuelve a la pestaña anterior en vez de cerrar la app", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>{ tab = "Preferencias"; render(); });
+  await p.evaluate(()=>{ tab = "Categorías"; render(); });
+  await p.evaluate(()=>{ render(); }); // repintar la misma pestaña no añade otra entrada
+  await p.evaluate(()=>history.back());
+  await p.waitForFunction(()=>tab==="Preferencias");
+  await p.evaluate(()=>history.back());
+  await p.waitForFunction(()=>tab==="Inicio");
+  assert.match(await p.evaluate(()=>document.getElementById("app").innerText), /Saldo total/);
+  // Ir hacia delante también funciona y no deja entradas de más.
+  await p.evaluate(()=>history.forward());
+  await p.waitForFunction(()=>tab==="Preferencias");
 });
 prueba("Objetivos: el resumen de arriba suma lo ahorrado, no la meta", async ()=>{
   const p = await abrir();
@@ -467,6 +485,16 @@ prueba("la campana abre la pantalla de notificaciones y solo al tocar un aviso v
   await p.click('[data-ir-aviso="Presupuestos"]');
   assert.strictEqual(await p.evaluate(()=>tab), "Presupuestos");
 });
+prueba("novedades: las líneas con «- » salen como lista y **así** en negrita", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>{ document.getElementById("hoja")?.remove(); tab = "Notificaciones"; render(); });
+  const nov = await p.$$eval(".texto-novedad", ds=>ds.map(d=>({li:d.querySelectorAll(".nov-li").length, b:[...d.querySelectorAll("b")].map(b=>b.textContent), txt:d.textContent})));
+  const octubre = nov.find(n=>n.txt.includes("Hola hola mi gente <3 👋"));
+  assert.ok(octubre, "sale la novedad de octubre con el texto de Paula");
+  assert.strictEqual(octubre.li, 9);
+  assert.strictEqual(octubre.b[0], "Soporte:");
+  assert.ok(!octubre.txt.includes("**"));
+});
 prueba("las novedades con texto salen en notificaciones y las vacías no", async ()=>{
   const p = await abrir();
   await p.evaluate(()=>{ localStorage.setItem("avisosVistos", JSON.stringify(avisosActuales().map(a=>a.id)));
@@ -528,7 +556,9 @@ prueba("personalización: tema, color, fondo e imagen se aplican, se recuerdan y
   await p.click("#btnQuitarFondo");
   assert.strictEqual((await estilo()).img, false);
   await p.click("#navMas");
-  await Promise.all([p.waitForNavigation(), p.click("#menuLogout")]);
+  await p.click("#menuLogout");
+  await p.waitForSelector("#hoja.abierta #hojaOk");
+  await Promise.all([p.waitForNavigation(), p.click("#hojaOk")]);
   assert.strictEqual(await p.evaluate(()=>localStorage.getItem("personalizacion")), null);
 });
 prueba("cuentas compartidas: se ven, se ajustan, se comparten, no van en la copia y se puede salir", async ()=>{
@@ -579,8 +609,8 @@ prueba("sin premium: Simuladores bloqueados (Inversiones no), Personalización s
   assert.ok(await p.locator("[data-tema]").count() > 0);
   assert.strictEqual(await p.locator("[data-acento], #btnSubirFondo").count(), 0);
   assert.strictEqual(await p.locator(".marca-premium").count(), 0);
-  // Las pantallas premium llevan su estrella en el selector de su sección; el saludo no, porque no es premium.
-  assert.strictEqual(await p.locator(".selector-seccion .estrella-premium").count(), 1);
+  // Personalización ya no lleva la estrella (el tema es para todos); el saludo tampoco, porque no es premium.
+  assert.strictEqual(await p.locator(".selector-seccion .estrella-premium").count(), 0);
   await p.evaluate(()=>{ tab = "Inicio"; render(); });
   assert.strictEqual(await p.locator(".hola .estrella-premium").count(), 0);
   await p.evaluate(()=>{ tab = "Cuentas"; render(); });
@@ -784,7 +814,18 @@ prueba("cerrar sesión recarga y borra los datos locales", async ()=>{
   const p = await abrir();
   await p.evaluate(()=>localStorage.setItem("cuentaDefecto", "c1"));
   await p.click("#navMas");
-  await Promise.all([p.waitForNavigation(), p.click("#menuLogout")]);
+  // Primero pide confirmación; «Cancelar» deja la sesión abierta.
+  await p.click("#menuLogout");
+  await p.waitForSelector("#hoja.abierta #hojaOk");
+  assert.match(await p.textContent("#hojaTitulo"), /¿Cerrar sesión\?/);
+  await p.click("#hojaNo");
+  await p.waitForSelector("#hoja", {state:"detached"});
+  assert.ok(await p.isVisible("#appShell"));
+  assert.strictEqual(await p.evaluate(()=>localStorage.getItem("cuentaDefecto")), "c1");
+  await p.click("#navMas");
+  await p.click("#menuLogout");
+  await p.waitForSelector("#hoja.abierta #hojaOk");
+  await Promise.all([p.waitForNavigation(), p.click("#hojaOk")]);
   assert.strictEqual(await p.evaluate(()=>localStorage.getItem("cuentaDefecto")), null);
 });
 prueba("eliminar cuenta: pide escribir ELIMINAR, confirma, borra los datos y cierra la sesión", async ()=>{
@@ -824,7 +865,9 @@ prueba("perfiles: añadir otra cuenta, cambiar con la flecha y cerrar solo uno",
   assert.strictEqual(await p.evaluate(()=>session.user.id), "u1");
   assert.strictEqual(await p.evaluate(()=>localStorage.getItem("accionesRapidas")), '["Gastos"]', "Paula recupera sus preferencias");
   await p.click("#btnPerfiles");
-  await Promise.all([p.waitForNavigation(), p.click("#btnSalirPerfil")]);
+  await p.click("#btnSalirPerfil");
+  await p.waitForSelector("#hoja.abierta #hojaOk");
+  await Promise.all([p.waitForNavigation(), p.click("#hojaOk")]);
   await p.waitForSelector("#fLogin", {state:"visible"});
   assert.deepStrictEqual(await p.evaluate(()=>leerPerfiles().map(x=>x.id)), ["u2"], "solo se olvida el perfil que cierra sesión");
   await Promise.all([p.waitForNavigation(), p.click('[data-perfil="u2"]')]);
@@ -1173,7 +1216,10 @@ prueba("bienvenida: solo a cuentas nuevas, tres tarjetas y no vuelve a salir", a
   await p.waitForSelector(".hoja-bienvenida");
   assert.ok((await p.textContent("#hojaTitulo")).includes("¡Bienvenida a tu espacio de calma!"));
   assert.strictEqual((await p.textContent("#bvSiguiente")).trim(), "Siguiente ➔");
+  assert.strictEqual(await p.textContent("#bvContador"), "1 de 3");
+  assert.ok(await p.isVisible("#bvOmitir"));
   await p.click("#bvSiguiente");
+  assert.strictEqual(await p.textContent("#bvContador"), "2 de 3");
   assert.ok((await p.textContent("#hojaTitulo")).includes("Lo que puedes hacer aquí"));
   // La segunda tarjeta es larga: se desplaza dentro de la hoja y la hoja cabe en la pantalla.
   const medidas = await p.evaluate(()=>{ const c = document.getElementById("bvCuerpo"), h = document.querySelector(".hoja-bienvenida").getBoundingClientRect();
@@ -1181,12 +1227,39 @@ prueba("bienvenida: solo a cuentas nuevas, tres tarjetas y no vuelve a salir", a
   assert.ok(medidas.desplaza && medidas.cabe, JSON.stringify(medidas));
   await p.click("#bvSiguiente");
   assert.ok((await p.textContent("#hojaTitulo")).includes("Habla conmigo cuando quieras"));
+  assert.strictEqual(await p.textContent("#bvContador"), "3 de 3");
+  assert.ok(!(await p.isVisible("#bvOmitir")), "en la última tarjeta no hace falta «Omitir»");
   await p.click("#bvSiguiente");
   await p.waitForFunction(()=>!document.querySelector(".hoja-bienvenida"));
   await p.waitForFunction(()=>__auth.some(a=>a[0]==="updateUser" && a[1].data && a[1].data.bienvenida==="vista"));
   // Aunque la cuenta siga marcada (sin refrescar la sesión), en este dispositivo ya no vuelve a salir.
   await p.evaluate(async ()=>{ bienvenidaRevisada = ""; await revisarBienvenida(); });
   assert.ok(!(await p.$(".hoja-bienvenida")));
+  // «Omitir» cierra desde la primera tarjeta y también la da por vista.
+  await p.evaluate(()=>{ localStorage.removeItem("bienvenidaVista:"+session.user.id); bienvenidaRevisada = ""; revisarBienvenida(); });
+  await p.waitForSelector(".hoja-bienvenida");
+  await p.click("#bvOmitir");
+  await p.waitForFunction(()=>!document.querySelector(".hoja-bienvenida"));
+  assert.ok(await p.evaluate(()=>localStorage.getItem("bienvenidaVista:"+session.user.id)));
+});
+prueba("Inicio: el ? de Disponible explica de dónde sale la cifra", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>document.getElementById("hoja")?.remove());
+  assert.ok(!(await p.isVisible("#notaDisponible")));
+  await p.click("#btnInfoDisponible");
+  assert.match(await p.textContent("#notaDisponible"), /no cuenta el dinero que ya tenías/i);
+  assert.strictEqual(await p.getAttribute("#btnInfoDisponible", "aria-expanded"), "true");
+  await p.click("#btnInfoDisponible");
+  assert.ok(!(await p.isVisible("#notaDisponible")));
+});
+prueba("Personalización: el tema es para todos y la pestaña no lleva estrella de premium", async ()=>{
+  const p = await abrir();
+  await p.evaluate(()=>{ esPremium = false; tab = "Personalización"; render(); });
+  assert.ok(!(await p.$("#tabActual .estrella-premium")));
+  await p.click('[data-tema="dark"]');
+  assert.strictEqual(await p.evaluate(()=>leerPersonalizacion().tema), "dark");
+  await p.click('[data-tema="auto"]');
+  assert.strictEqual(await p.evaluate(()=>leerPersonalizacion().tema), "auto");
 });
 
 prueba("idiomas: sigue el del dispositivo, se cambia en Preferencias y traduce toda la app", async ()=>{

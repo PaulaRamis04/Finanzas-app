@@ -143,14 +143,15 @@ function renderInicio(){
     <div class="saldo-lbl">Saldo total</div>
     <div class="saldo">
       <span class="cifra ${patNeto>=0?'':'neg'}">${eur(patNeto)}</span>
-      <span class="var ${delta>=0?'pos':'neg'}">${delta>=0?"↗ +":"↘ -"}${Math.abs(pctPat).toFixed(1).replace(".",",")} % · ${delta>=0?"+":"-"}${eur(Math.abs(delta))} en ${lbl}</span>
+      <span class="var ${delta>=0?'pos':'neg'}">${delta>=0?"↗ +":"↘ -"}${Math.abs(pctPat).toFixed(1).replace(".",sepDecimal())} % · ${delta>=0?"+":"-"}${eur(Math.abs(delta))} en ${lbl}</span>
     </div>
     <div class="hero-grid">
-      <div class="t-menta"><span>Disponible</span><b>${eur(disponible)}</b></div>
+      <div class="t-menta"><span>Disponible <button class="info-mini" id="btnInfoDisponible" aria-expanded="false" aria-controls="notaDisponible" aria-label="¿Qué es Disponible?">?</button></span><b>${eur(disponible)}</b></div>
       <div class="t-melocoton"><span>Inversiones</span><b>${eur(totalInversiones)}</b></div>
       <div class="t-menta"><span>Me deben</span><b class="pos">${eur(meDeben)}</b></div>
       <div class="t-melocoton"><span>Debo</span><b class="neg">${eur(debo)}</b></div>
     </div>
+    <p class="hero-nota" id="notaDisponible" hidden>Disponible sale de los ingresos y gastos de este periodo, menos lo que apartas para invertir. No cuenta el dinero que ya tenías en tus cuentas, por eso puede ser negativo aunque el saldo total sea positivo.</p>
   </div>
   <div class="card barras-mes">
     <h2>${porMes ? MESES[Number(periodoMes)-1] : "Año "+periodoAnio} de un vistazo</h2>
@@ -307,10 +308,16 @@ function elegirPerfil(){
   cont.querySelector(".hoja-fondo").onclick = cerrar;
   cont.querySelector(".perfiles-lista").onclick = e=>{ const b = e.target.closest("[data-cambiar-perfil]"); if(b && b.dataset.cambiarPerfil!==yo) cambiarAPerfil(b.dataset.cambiarPerfil); };
   cont.querySelector("#btnAnadirPerfil").onclick = anadirPerfil;
-  cont.querySelector("#btnSalirPerfil").onclick = ()=> sb.auth.signOut();
+  cont.querySelector("#btnSalirPerfil").onclick = ()=>{ cerrar(); setTimeout(cerrarSesion, 280); };
 }
 
 function wireEventosInicio(){
+  const infoDisp = document.getElementById("btnInfoDisponible");
+  if(infoDisp) infoDisp.onclick = ()=>{
+    const nota = document.getElementById("notaDisponible");
+    nota.hidden = !nota.hidden;
+    infoDisp.setAttribute("aria-expanded", String(!nota.hidden));
+  };
   const perf = document.getElementById("btnPerfiles");
   if(perf) perf.onclick = elegirPerfil;
   document.querySelectorAll("[data-accion]").forEach(b=>b.onclick=()=>{

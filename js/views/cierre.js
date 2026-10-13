@@ -86,7 +86,7 @@ function dibujarCierre(canvas, d, ocultar){
   const INK = "#4a3b3b", MUTED = "#9a8a86", POS = "#2f9e7a", NEG = "#e0556a", LINE = "#f3e7df";
   const ACC = colorAcentoCierre(ctx);
   const dinero = n=> ocultar ? "••••" : eur0(n);
-  const pct = n=> `${String(n).replace(".",",")} %`;
+  const pct = n=> `${String(n).replace(".",sepDecimal())} %`;
   ctx.textBaseline = "alphabetic";
 
   // Fondo pastel con manchas de color

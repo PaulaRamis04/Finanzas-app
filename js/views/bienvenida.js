@@ -92,17 +92,21 @@ function hojaBienvenida(){
       <div class="hoja-asa"></div>
       <div class="bv-cuerpo" id="bvCuerpo"></div>
       <div class="bv-puntos" aria-hidden="true">${TARJETAS_BIENVENIDA.map(()=>"<span></span>").join("")}</div>
-      <div class="hoja-btns"><button class="hoja-si" id="bvSiguiente"></button></div>
+      <div class="bv-contador" id="bvContador" aria-live="polite"></div>
+      <div class="hoja-btns"><button class="hoja-no" id="bvOmitir">Omitir</button><button class="hoja-si" id="bvSiguiente"></button></div>
     </div>`;
   document.body.appendChild(cont);
   const previo = document.activeElement;
-  const cuerpo = cont.querySelector("#bvCuerpo"), boton = cont.querySelector("#bvSiguiente");
+  const cuerpo = cont.querySelector("#bvCuerpo"), boton = cont.querySelector("#bvSiguiente"), omitir = cont.querySelector("#bvOmitir");
   let paso = 0;
   const pintar = ()=>{
     const t = TARJETAS_BIENVENIDA[paso];
     cuerpo.innerHTML = `<div class="hoja-ico">${t.ico}</div><h2 id="hojaTitulo">${t.titulo}</h2><div class="bv-texto">${t.html}</div>`;
     cuerpo.scrollTop = 0;
     boton.textContent = t.boton;
+    // «Omitir» en todas menos la última; el contador dice cuánto queda.
+    omitir.hidden = paso===TARJETAS_BIENVENIDA.length-1;
+    cont.querySelector("#bvContador").textContent = `${paso+1} de ${TARJETAS_BIENVENIDA.length}`;
     cont.querySelectorAll(".bv-puntos span").forEach((s,i)=>s.classList.toggle("activo", i===paso));
   };
   pintar();
@@ -117,6 +121,7 @@ function hojaBienvenida(){
     };
     const tecla = e=>{ if(e.key==="Escape") cerrar(); };
     document.addEventListener("keydown", tecla);
+    omitir.onclick = cerrar;
     boton.onclick = ()=>{
       if(paso<TARJETAS_BIENVENIDA.length-1){ paso++; pintar(); boton.focus({preventScroll:true}); }
       else cerrar();

@@ -49,6 +49,8 @@ function cifra(n, dec = monedaInfo().dec, m = monedaInfo()){
   const e = m.miles ? ent.replace(/\B(?=(\d{3})+(?!\d))/g, m.miles) : ent;
   return fr ? e + m.decimal + fr : e;
 }
+// Separador decimal de la moneda e idioma actuales, para porcentajes y cifras sueltas junto a importes.
+function sepDecimal(){ return separadores(monedaInfo()).decimal; }
 function eur(n){ const m = monedaInfo(); return ocultarSaldos ? "•••• " + simboloMoneda() : (n<0?"-":"") + m.simbolo + cifra(n); }
 // Importe redondo para textos («Primeros 1.000 €»): en euros se mantiene el estilo de siempre, con el símbolo detrás.
 function importeRedondo(n){ return moneda==="EUR" ? `${cifra(n, 0)} €` : monedaInfo().simbolo + cifra(n, 0); }
