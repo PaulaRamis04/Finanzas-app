@@ -115,7 +115,7 @@ prueba("un presupuesto gastado al 100 % dice que está agotado, no que se acerca
   const txt = await p.evaluate(()=>{
     const pres = presupuestos[0];
     const gasto = movimientosEfectivos().filter(m=>m.tipo==="gasto" && m.categoria===pres.categoria).reduce((s,m)=>sumarDinero(s, m.importe), 0);
-    pres.limite = restarDinero(gasto, rolloverAcumulado(pres));
+    pres.limite = gasto;
     tab = "Presupuestos"; render();
     return document.getElementById("app").innerText;
   });

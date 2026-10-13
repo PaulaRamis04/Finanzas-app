@@ -13,7 +13,7 @@
     cuentas:[{id:"c1", nombre:"Banco", saldo_inicial:1000, orden:1, archivada:false},{id:"c2", nombre:"Vieja", saldo_inicial:50, orden:2, archivada:false},{id:"c3", nombre:"Vacia", saldo_inicial:0, orden:3, archivada:false}],
     movimientos:[], deudas:[], inversiones:[], aportaciones_inversion:[], retiros_inversion:[],
     categorias:[{id:"k1", tipo:"gasto", padre:"Imprescindible", nombre:"Comida"},{id:"k2", tipo:"gasto", padre:"Prescindible", nombre:"Ocio"},{id:"k3", tipo:"ingreso", padre:null, nombre:"Nómina"}],
-    presupuestos:[{id:"p1", categoria:"Comida", limite:300, rollover:false},{id:"p2", categoria:"Ocio", limite:100, rollover:false}],
+    presupuestos:[{id:"p1", categoria:"Comida", limite:300},{id:"p2", categoria:"Ocio", limite:100}],
     recurrentes:[{id:"r1", tipo:"gasto", categoria:"Comida", importe:10, cuenta_id:"c1", dia_mes:1, activo:true, fecha_inicio:"2026-01-01", ultima_generada:"2026-09-01"}],
     objetivos:[], hitos:[], salud_config:[], movimientos_pendientes:[], preferencias:[], cuentas_miembros:[], comunidad:[], saldo_arrastre:[],
     suscripciones:[], asesoria_mensajes:[]
