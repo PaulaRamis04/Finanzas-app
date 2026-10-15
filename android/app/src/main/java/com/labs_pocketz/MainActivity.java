@@ -102,7 +102,8 @@ public class MainActivity extends Activity {
         ajustes.setDatabaseEnabled(true);
         ajustes.setAllowFileAccess(false);
         ajustes.setMediaPlaybackRequiresUserGesture(false);
-        ajustes.setUserAgentString(ajustes.getUserAgentString() + " PocketZAndroid");
+        // La web lee la versión de la app para avisar si hay que actualizarla (js/aviso-app.js)
+        ajustes.setUserAgentString(ajustes.getUserAgentString() + " PocketZAndroid/" + versionApp());
         web.setOverScrollMode(View.OVER_SCROLL_NEVER);
 
         web.addJavascriptInterface(new Puente(), "PocketZAndroid");
@@ -119,6 +120,15 @@ public class MainActivity extends Activity {
             web.restoreState(estado);
         } else {
             web.loadUrl(urlDe(getIntent()));
+        }
+    }
+
+    private long versionApp() {
+        try {
+            android.content.pm.PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
+            return Build.VERSION.SDK_INT >= 28 ? info.getLongVersionCode() : info.versionCode;
+        } catch (Exception e) {
+            return 0;
         }
     }
 
