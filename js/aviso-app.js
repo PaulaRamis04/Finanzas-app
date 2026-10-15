@@ -3,8 +3,8 @@
 // La app WebView dice su versión en el user agent («PocketZAndroid/5»); la v3 y v4 no ponían número
 // y la antigua TWA abría la web en Chrome con referrer android-app://com.labs_pocketz.
 
-// Súbela solo cuando esa versión ya esté publicada en Google Play.
-const VERSION_ANDROID_MINIMA = 5;
+// Súbela solo cuando esa versión ya esté publicada en Google Play (la 5 cuando salga, que dice su número).
+const VERSION_ANDROID_MINIMA = 4;
 const PAQUETE_ANDROID = "com.labs_pocketz";
 
 function versionAndroid(){
