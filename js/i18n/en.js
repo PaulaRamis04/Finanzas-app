@@ -1353,5 +1353,7 @@ TRADUCCIONES.en = {
   "y cambia el valor, la hipoteca o la renta. Se guarda un historial con cada cambio.": "and change the value, the mortgage or the rent. A history is kept with every change.",
   "Tu patrimonio": "Your net worth",
   "Cada inmueble suma a tu patrimonio lo que es tuyo (valor menos hipoteca). Los meses pasados no cambian: usan el valor que tenía entonces.": "Each property adds what's yours (value minus mortgage) to your net worth. Past months don't change: they use the value it had back then.",
-  "💡 Si ya tenías la hipoteca apuntada en Deudas, pon la hipoteca del inmueble a 0 para no restarla dos veces. La renta es informativa: lo que cobres apúntalo como ingreso en tu cuenta.": "💡 If you already had the mortgage in Debts, set the property's mortgage to 0 so it isn't subtracted twice. The rent is for reference only: record what you collect as income in your account."
+  "💡 Si ya tenías la hipoteca apuntada en Deudas, pon la hipoteca del inmueble a 0 para no restarla dos veces. La renta es informativa: lo que cobres apúntalo como ingreso en tu cuenta.": "💡 If you already had the mortgage in Debts, set the property's mortgage to 0 so it isn't subtracted twice. The rent is for reference only: record what you collect as income in your account.",
+  "¿Actualizar PocketZ? Hay una versión nueva de la app en Google Play. Actualízala para que todo funcione bien.": "Update PocketZ? There's a new version of the app on Google Play. Update it so everything works properly.",
+  "Actualizar ahora": "Update now"
 };

@@ -1353,5 +1353,7 @@ TRADUCCIONES.ca = {
   "y cambia el valor, la hipoteca o la renta. Se guarda un historial con cada cambio.": "i canvia el valor, la hipoteca o la renda. Es desa un historial amb cada canvi.",
   "Tu patrimonio": "El teu patrimoni",
   "Cada inmueble suma a tu patrimonio lo que es tuyo (valor menos hipoteca). Los meses pasados no cambian: usan el valor que tenía entonces.": "Cada immoble suma al teu patrimoni el que és teu (valor menys hipoteca). Els mesos passats no canvien: fan servir el valor que tenia aleshores.",
-  "💡 Si ya tenías la hipoteca apuntada en Deudas, pon la hipoteca del inmueble a 0 para no restarla dos veces. La renta es informativa: lo que cobres apúntalo como ingreso en tu cuenta.": "💡 Si ja tenies la hipoteca apuntada a Deutes, posa la hipoteca de l'immoble a 0 per no restar-la dues vegades. La renda és informativa: el que cobris apunta-ho com a ingrés al teu compte."
+  "💡 Si ya tenías la hipoteca apuntada en Deudas, pon la hipoteca del inmueble a 0 para no restarla dos veces. La renta es informativa: lo que cobres apúntalo como ingreso en tu cuenta.": "💡 Si ja tenies la hipoteca apuntada a Deutes, posa la hipoteca de l'immoble a 0 per no restar-la dues vegades. La renda és informativa: el que cobris apunta-ho com a ingrés al teu compte.",
+  "¿Actualizar PocketZ? Hay una versión nueva de la app en Google Play. Actualízala para que todo funcione bien.": "Actualitzar PocketZ? Hi ha una versió nova de l'app a Google Play. Actualitza-la perquè tot funcioni bé.",
+  "Actualizar ahora": "Actualitzar ara"
 };
