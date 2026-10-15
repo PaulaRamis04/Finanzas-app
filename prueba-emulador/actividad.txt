@@ -1,0 +1,1 @@
+    topResumedActivity=ActivityRecord{8eec4b6 u0 com.labs_pocketz/.MainActivity t7}
