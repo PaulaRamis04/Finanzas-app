@@ -1378,6 +1378,34 @@ prueba("idiomas: sigue el del dispositivo, se cambia en Preferencias y traduce t
   await p.close();
 });
 
+// Aviso de actualizar la app de Android (js/aviso-app.js)
+async function abrirComo(userAgent){
+  const p = await navegador.newPage({viewport:MOVIL, locale:"es-ES", userAgent});
+  p.on("pageerror", e=>errores.push(e.message));
+  await p.goto("file://" + HTML_PRUEBA);
+  await p.waitForFunction(()=>typeof ready!=="undefined" && ready);
+  await p.waitForTimeout(2200);
+  return p;
+}
+const tituloHoja = p=>p.evaluate(()=>document.querySelector("#hoja #hojaTitulo")?.textContent || "");
+prueba("la app de Android antigua avisa de que hay que actualizarla", async ()=>{
+  const p = await abrirComo("Mozilla/5.0 (Linux; Android 15) Chrome/130 Mobile Safari/537.36 PocketZAndroid");
+  assert.strictEqual(await tituloHoja(p), "¿Actualizar PocketZ?");
+  assert.strictEqual(await p.textContent("#hojaNo"), "Ahora no");
+  assert.strictEqual(await p.evaluate(()=>enlaceActualizarApp()), "market://details?id=com.labs_pocketz");
+  await p.click("#hojaNo");
+  await p.reload(); await p.waitForTimeout(2200);
+  assert.strictEqual(await tituloHoja(p), "", "solo se avisa una vez por sesión");
+  await p.close();
+});
+prueba("la app de Android al día y el navegador no avisan", async ()=>{
+  for(const ua of ["Mozilla/5.0 (Linux; Android 15) Chrome/130 Mobile Safari/537.36 PocketZAndroid/" + 5, "Mozilla/5.0 (Linux; Android 15) Chrome/130 Mobile Safari/537.36"]){
+    const p = await abrirComo(ua);
+    assert.strictEqual(await tituloHoja(p), "", ua);
+    await p.close();
+  }
+});
+
 (async ()=>{
   const html = fs.readFileSync(path.join(RAIZ, "index.html"), "utf8");
   const conSimulado = html.replace(/<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase[^>]*><\/script>/, '<script src="pruebas/supabase_simulado.js"></script>');

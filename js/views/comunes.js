@@ -434,7 +434,7 @@ function confirmar(texto, opciones = {}){
       <h2 id="hojaTitulo">${esc(titulo)}</h2>
       ${cuerpo ? `<p>${esc(cuerpo)}</p>` : ""}
       <div class="hoja-btns">
-        <button class="hoja-no" id="hojaNo">Cancelar</button>
+        <button class="hoja-no" id="hojaNo">${esc(opciones.no || "Cancelar")}</button>
         <button class="hoja-si${PELIGRO.includes(base) ? " peligro" : ""}" id="hojaOk">${esc(ok)}</button>
       </div>
     </div>`;
